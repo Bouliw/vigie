@@ -1,0 +1,35 @@
+title: File Download Via Desktopimgdownldr
+id: 6d38971e-684e-455c-a1f9-6792990be772
+related:
+    - id: 214641c2-c579-4ecb-8427-0cf19df6842e
+      type: derived
+status: test
+description: Detects desktopimgdownldr.exe, the Windows lock screen image downloader, started with /lockscreenurl pointing to an http(s) URL. Attackers abuse it as a signed alternative to certutil to download an arbitrary file, which lands under the Personalization\LockScreenImage folder.
+references:
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/process_creation/proc_creation_win_desktopimgdownldr_remote_file_download.yml
+    - https://lolbas-project.github.io/lolbas/Binaries/Desktopimgdownldr/
+    - https://www.elastic.co/guide/en/security/current/remote-file-download-via-desktopimgdownldr-utility.html
+    - https://attack.mitre.org/techniques/T1105/
+author: Tim Rauch, Elastic (idea) (SigmaHQ), adapted by Bouliw
+license: DRL-1.1
+date: 2022-09-27
+modified: 2026-09-28
+tags:
+    - attack.command-and-control
+    - attack.t1105
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection_img:
+        # OriginalFileName (Sysmon only) also catches a renamed copy of desktopimgdownldr.exe.
+        - Image|endswith: '\desktopimgdownldr.exe'
+        - OriginalFileName: 'desktopimgdownldr.exe'
+    selection_cli:
+        # windash also accepts -lockscreenurl and Unicode dashes.
+        # Known limit, as in SigmaHQ: a quoted URL (/lockscreenurl:"https://...") is not matched.
+        CommandLine|windash|contains: '/lockscreenurl:http'
+    condition: all of selection_*
+falsepositives:
+    - Scripts or management tools that set a corporate lock screen image by calling desktopimgdownldr.exe with an image URL
+level: medium

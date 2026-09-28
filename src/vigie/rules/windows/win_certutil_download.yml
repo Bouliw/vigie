@@ -1,0 +1,43 @@
+title: File Download Via Certutil
+id: d44cf25a-9d55-4b94-a59f-d4ca3362fac3
+related:
+    - id: 19b08b1c-861d-4e75-a1ef-ea0c1baf202b
+      type: derived
+status: test
+description: Detects certutil.exe started with -urlcache, -verifyctl or -URL and an http(s) URL, the options that make the certificate utility fetch a remote file. Attackers use this signed, built-in binary to bring payloads onto a host without a browser or PowerShell.
+references:
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/process_creation/proc_creation_win_certutil_download.yml
+    - https://lolbas-project.github.io/lolbas/Binaries/Certutil/
+    - https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/certutil
+    - https://attack.mitre.org/techniques/T1105/
+author: Florian Roth (Nextron Systems), Jonhnathan Ribeiro, oscd.community, Nasreddine Bencherchali (Nextron Systems) (SigmaHQ), adapted by Bouliw
+license: DRL-1.1
+date: 2023-02-15
+modified: 2026-09-28
+tags:
+    - attack.command-and-control
+    - attack.t1105
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection_img:
+        # OriginalFileName (Sysmon only) also catches a renamed copy of certutil.exe.
+        - Image|endswith: '\certutil.exe'
+        - OriginalFileName: 'CertUtil.exe'
+    selection_flags:
+        # Written without the leading dash so that -urlcache and /urlcache both match.
+        # The trailing space keeps whole options: 'URL ' is the -URL retrieval tool, not -urlfetch.
+        # Known limit, as in SigmaHQ: a tab after the option or quotes around it
+        # (certutil "-urlcache") are not matched.
+        CommandLine|contains:
+            - 'urlcache '
+            - 'verifyctl '
+            - 'URL '
+    selection_http:
+        CommandLine|contains: 'http'
+    condition: all of selection_*
+falsepositives:
+    - Administrators or scripts that fetch a CRL, CTL or certificate from an internal PKI web server with certutil -urlcache or -verifyctl
+    - Troubleshooting of certificate revocation with certutil -URL against a CRL or AIA http URL
+level: medium

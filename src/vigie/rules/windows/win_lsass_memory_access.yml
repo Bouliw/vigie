@@ -1,0 +1,79 @@
+title: LSASS Memory Access With Credential Dumping Rights
+id: cbea5c72-bafb-4200-b58d-fa251eeef003
+related:
+    - id: 5ef9853e-4d0e-4a70-846f-a9ca37d876da
+      type: derived
+    - id: 678dfc63-fefb-47a5-a04c-26bcf8cc9f65
+      type: derived
+status: test
+description: Detects a process opening LSASS (Sysmon event 10) with the access rights that Mimikatz, ProcDump, comsvcs.dll MiniDump, Task Manager dumps and similar tools request to read or patch its memory. LSASS memory holds the password hashes, Kerberos tickets and sometimes clear-text passwords of logged-on users.
+references:
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/process_access/proc_access_win_lsass_memdump.yml
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules-threat-hunting/windows/process_access/proc_access_win_lsass_uncommon_access_flag.yml
+    - https://learn.microsoft.com/en-us/windows/win32/procthread/process-security-and-access-rights
+    - https://attack.mitre.org/techniques/T1003/001/
+author: Samir Bousseaden, Michael Haag, Florian Roth (Nextron Systems) (SigmaHQ), adapted by Bouliw
+license: DRL-1.1
+date: 2019-04-03
+modified: 2026-09-28
+tags:
+    - attack.credential-access
+    - attack.t1003.001
+logsource:
+    category: process_access
+    product: windows
+detection:
+    selection:
+        TargetImage|endswith: '\lsass.exe'
+        GrantedAccess:
+            - '0x1010'    # VM_READ | QUERY_LIMITED_INFORMATION: Mimikatz sekurlsa::logonpasswords
+            - '0x1410'    # + QUERY_INFORMATION: Mimikatz (CAR-2019-04-004), MalSeclogon, comsvcs.dll MiniDump
+            - '0x1038'    # VM_OPERATION | VM_READ | VM_WRITE | QUERY_LIMITED_INFORMATION: Mimikatz sekurlsa::pth
+            - '0x1438'    # + QUERY_INFORMATION: Mimikatz lsadump::lsa /patch
+            - '0x143a'    # + CREATE_THREAD: Invoke-Mimikatz (CAR-2019-04-004)
+            - '0x1fffff'  # PROCESS_ALL_ACCESS: ProcDump, Task Manager dump, comsvcs.dll MiniDump, Dumpert
+            - '0x1f0fff'  # PROCESS_ALL_ACCESS as defined by pre-Vista SDK headers
+            - '0x1f1fff'  # Meterpreter hashdump
+            - '0x1f3fff'  # Empire PowerDump
+    # The filters use exact C:\ paths: a copy of a trusted binary name on another volume
+    # (a data drive, a mounted ISO or VHD) must not be excluded.
+    filter_main_boot:
+        # wininit.exe starts LSASS and csrss.exe is the Windows subsystem: both get full access at boot
+        SourceImage:
+            - 'C:\Windows\System32\wininit.exe'
+            - 'C:\Windows\System32\csrss.exe'
+    filter_main_wmi:
+        # WMI provider host reading process details for Win32_Process queries
+        SourceImage:
+            - 'C:\Windows\System32\wbem\WmiPrvSE.exe'
+            - 'C:\Windows\SysWOW64\wbem\WmiPrvSE.exe'
+        GrantedAccess: '0x1410'
+    filter_main_taskmgr:
+        # Task Manager details view; "Create dump file" requests 0x1fffff and is still detected
+        SourceImage: 'C:\Windows\System32\Taskmgr.exe'
+        GrantedAccess: '0x1410'
+    filter_main_defender:
+        - SourceImage|startswith: 'C:\ProgramData\Microsoft\Windows Defender\Platform\'
+          SourceImage|endswith: '\MsMpEng.exe'
+        - SourceImage: 'C:\Program Files\Windows Defender\MsMpEng.exe'
+    filter_optional_sysmon:
+        SourceImage:
+            - 'C:\Windows\Sysmon.exe'
+            - 'C:\Windows\Sysmon64.exe'
+            - 'C:\Windows\Sysmon64a.exe'
+    filter_optional_vmware_tools:
+        SourceImage|startswith:
+            - 'C:\Program Files\VMware\VMware Tools\'
+            - 'C:\ProgramData\VMware\VMware Tools\'
+        SourceImage|endswith: '\vmtoolsd.exe'
+    filter_optional_azure_guest_agent:
+        SourceImage|startswith: 'C:\WindowsAzure\GuestAgent_'
+        SourceImage|endswith: '\CollectGuestLogs.exe'
+        GrantedAccess: '0x1410'
+    condition: selection and not 1 of filter_main_* and not 1 of filter_optional_*
+falsepositives:
+    - Antivirus, EDR, backup or monitoring agents that inspect LSASS (add their exact paths as filters)
+    - Process inspection that reads module or handle details of every process, such as Process Explorer or PowerShell Get-Process output serialized over WinRM (0x1410, 0x1f3fff)
+    - Administrators dumping LSASS on purpose for troubleshooting with ProcDump or Task Manager
+    - Windows installed on a drive other than C:, where the filters do not apply
+level: high

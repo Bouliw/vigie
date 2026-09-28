@@ -1,0 +1,47 @@
+title: File Download Via Bitsadmin
+id: 32b87f74-31c8-401e-9efe-288445b0431b
+related:
+    - id: d059842b-6b9d-4ed1-b5c3-5b89143c6ede
+      type: derived
+status: test
+description: Detects bitsadmin.exe running a BITS transfer with /transfer, or adding an http(s) URL to a job with /addfile. The download is then performed by the BITS service itself, can survive reboots and blends with Windows Update traffic, which makes bitsadmin a classic way to bring attacker tools onto a host.
+references:
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/process_creation/proc_creation_win_bitsadmin_download.yml
+    - https://lolbas-project.github.io/lolbas/Binaries/Bitsadmin/
+    - https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/bitsadmin
+    - https://attack.mitre.org/techniques/T1105/
+    - https://attack.mitre.org/techniques/T1197/
+author: Michael Haag, FPT.EagleEye (SigmaHQ), adapted by Bouliw
+license: DRL-1.1
+date: 2017-03-09
+modified: 2026-09-28
+tags:
+    - attack.command-and-control
+    - attack.stealth
+    - attack.t1105
+    - attack.t1197
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection_img:
+        # OriginalFileName (Sysmon only) also catches a renamed copy of bitsadmin.exe.
+        - Image|endswith: '\bitsadmin.exe'
+        - OriginalFileName: 'bitsadmin.exe'
+    selection_transfer:
+        # One-shot job: /transfer <name> [/download|/upload] <remote URL> <local file>.
+        # windash also accepts -transfer and Unicode dashes.
+        # Known limit, as in SigmaHQ: a tab after the option or quotes around it are not matched.
+        CommandLine|windash|contains: ' /transfer '
+    selection_job:
+        # Step-by-step job: /create <name>, then /addfile <name> <remote URL> <local file>.
+        # /create is kept from SigmaHQ but carries no URL: in practice this branch detects /addfile.
+        CommandLine|windash|contains:
+            - ' /create '
+            - ' /addfile '
+    selection_http:
+        CommandLine|contains: 'http'
+    condition: selection_img and (selection_transfer or (selection_job and selection_http))
+falsepositives:
+    - Installers, update agents or administrator scripts that still download files with bitsadmin instead of the BITS PowerShell cmdlets
+level: medium

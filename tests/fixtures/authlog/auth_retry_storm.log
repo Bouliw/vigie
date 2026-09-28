@@ -1,0 +1,16 @@
+Apr  3 02:00:00 backup01 CRON[3101]: pam_unix(cron:session): session opened for user backup(uid=1003) by (uid=0)
+Apr  3 02:00:05 backup01 sshd[3200]: Failed password for backup from 192.0.2.50 port 40000 ssh2
+Apr  3 02:00:12 backup01 sshd[3201]: Failed password for backup from 192.0.2.50 port 40001 ssh2
+Apr  3 02:00:19 backup01 sshd[3202]: Failed password for backup from 192.0.2.50 port 40002 ssh2
+Apr  3 02:00:26 backup01 sshd[3203]: Failed password for backup from 192.0.2.50 port 40003 ssh2
+Apr  3 02:00:33 backup01 sshd[3204]: Failed password for backup from 192.0.2.50 port 40004 ssh2
+Apr  3 02:00:40 backup01 sshd[3205]: Failed password for backup from 192.0.2.50 port 40005 ssh2
+Apr  3 02:00:47 backup01 sshd[3206]: Failed password for backup from 192.0.2.50 port 40006 ssh2
+Apr  3 02:00:54 backup01 sshd[3207]: Failed password for backup from 192.0.2.50 port 40007 ssh2
+Apr  3 02:01:01 backup01 sshd[3208]: Failed password for backup from 192.0.2.50 port 40008 ssh2
+Apr  3 02:01:08 backup01 sshd[3209]: Failed password for backup from 192.0.2.50 port 40009 ssh2
+Apr  3 02:01:15 backup01 sshd[3210]: Failed password for backup from 192.0.2.50 port 40010 ssh2
+Apr  3 02:01:22 backup01 sshd[3211]: Failed password for backup from 192.0.2.50 port 40011 ssh2
+Apr  3 02:01:29 backup01 sshd[3212]: Failed password for backup from 192.0.2.50 port 40012 ssh2
+Apr  3 02:01:36 backup01 sshd[3213]: Failed password for backup from 192.0.2.50 port 40013 ssh2
+Apr  3 02:01:43 backup01 sshd[3214]: Failed password for backup from 192.0.2.50 port 40014 ssh2

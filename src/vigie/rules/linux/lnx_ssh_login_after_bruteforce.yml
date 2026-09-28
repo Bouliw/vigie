@@ -1,0 +1,32 @@
+title: SSH Login After Brute Force
+id: 156d0b6d-aea1-479c-91ce-eaf6c08cfa67
+status: test
+description: A successful SSH login from an address whose SSH brute force alert fired in the previous 10 minutes. The attacker has most likely guessed a valid password.
+references:
+    - https://attack.mitre.org/techniques/T1110/001/
+    - https://attack.mitre.org/techniques/T1078/003/
+author: Bouliw
+date: 2026-09-28
+tags:
+    - attack.credential-access
+    - attack.initial-access
+    - attack.t1110.001
+    - attack.t1078.003
+correlation:
+    type: temporal_ordered
+    rules:
+        - ssh_bruteforce
+        - ssh_accepted_login
+    group-by:
+        - src_ip
+    # A brute force alert is dated at its 10th failure and its window is then
+    # cleared, so later failures never move it forward: 10m is the 5m brute
+    # force window plus 5m between the last failure and the login.
+    timespan: 10m
+    # Keep the brute force alerts (and the accepted logins, as informational
+    # context) visible next to this one.
+    generate: true
+falsepositives:
+    - A legitimate user who retried many times before remembering the password
+    - A login from an address shared with a host that retries a stale password (NAT gateway, jump host, backup server)
+level: high

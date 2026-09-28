@@ -1,0 +1,52 @@
+title: Suspicious Scheduled Task Created
+id: b2f53816-dce1-4a25-82ba-f9879e134928
+related:
+    - id: 3a734d25-df5c-4b99-8034-af1ddb5883a4
+      type: derived
+status: test
+description: Detects the creation of a scheduled task (event 4698) whose action runs a command interpreter, script host or LOLBin (cmd, PowerShell, rundll32, regsvr32, mshta, wscript, cscript...) or a program stored in a user-writable staging folder (Temp, Public, Roaming, Desktop, Downloads, ProgramData...). Attackers register such tasks for persistence, privilege escalation and remote execution (e.g. Impacket atexec, Empire).
+references:
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/builtin/security/win_security_susp_scheduled_task_creation.yml
+    - https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4698
+    - https://attack.mitre.org/techniques/T1053/005/
+author: Nasreddine Bencherchali (Nextron Systems) (SigmaHQ), adapted by Bouliw
+license: DRL-1.1
+date: 2022-12-05
+modified: 2026-09-28
+tags:
+    - attack.execution
+    - attack.persistence
+    - attack.privilege-escalation
+    - attack.t1053.005
+logsource:
+    product: windows
+    service: security
+    definition: 'Requires the advanced audit policy "Object Access > Audit Other Object Access Events" (Success).'
+detection:
+    selection_eid:
+        EventID: 4698
+    # TaskContent is the task XML. EVTX files carry it as plain XML (<Command>) while some
+    # JSON exports (e.g. OTRF) keep it entity-encoded (&lt;Command&gt;): every pattern accepts both.
+    # Only the <Command> element (the program the task runs) is inspected, not the whole XML.
+    selection_action_lolbin:
+        # the task runs a command interpreter, script host or LOLBin (with or without a path)
+        TaskContent|re|i: '(?:<|&lt;)Command(?:>|&gt;)\s*"?(?:[^"<&]*[\\/])?(?:%comspec%|cmd|powershell|pwsh|rundll32|regsvr32|mshta|wscript|cscript|certutil|bitsadmin|forfiles|wmic|hh|scrcons|scriptrunner|bash)(?:\.exe)?"?\s*(?:<|&lt;)/Command(?:>|&gt;)'
+    selection_action_folder:
+        # the task runs a program stored in a user-writable or staging folder
+        TaskContent|re|i:
+            - '(?:<|&lt;)Command(?:>|&gt;)\s*"?(?:[a-z]:|%SystemDrive%)\\(?:Users\\Public|Windows\\Temp|Temp|ProgramData|PerfLogs)\\'
+            - '(?:<|&lt;)Command(?:>|&gt;)\s*"?%(?:TEMP|TMP|APPDATA|PUBLIC|ProgramData|ALLUSERSPROFILE)%\\'
+            - '(?:<|&lt;)Command(?:>|&gt;)\s*"?%(?:windir|SystemRoot|LOCALAPPDATA)%\\Temp\\'
+            # any profile folder: C:\Users\x, %USERPROFILE%, OneDrive-redirected folders, service profiles
+            - '(?:<|&lt;)Command(?:>|&gt;)\s*"?[^"<&]*\\(?:AppData\\Local\\Temp|AppData\\Roaming|Desktop|Downloads)\\'
+    filter_main_defender:
+        # Microsoft Defender tasks run MpCmdRun.exe from its platform folder under ProgramData
+        TaskContent|re|i: '(?:<|&lt;)Command(?:>|&gt;)\s*"?(?:[a-z]:\\ProgramData|%SystemDrive%\\ProgramData|%ProgramData%|%ALLUSERSPROFILE%)\\Microsoft\\Windows Defender\\Platform\\[^\\"<&]+\\MpCmdRun\.exe"?\s*(?:<|&lt;)/Command(?:>|&gt;)'
+    # SigmaHQ 3a734d25 requires a staging folder AND an interpreter, which matched none of the
+    # public samples; this rule accepts either one, so its level is medium instead of high.
+    condition: selection_eid and 1 of selection_action_* and not filter_main_defender
+falsepositives:
+    - Administration scripts, deployment tools and GPO-deployed tasks that run cmd.exe or PowerShell (baseline them by TaskName and Author)
+    - Software installers or updaters that register a task running from a Temp or ProgramData folder
+    - Windows servicing re-registering built-in tasks whose action is rundll32.exe or cmd.exe
+level: medium

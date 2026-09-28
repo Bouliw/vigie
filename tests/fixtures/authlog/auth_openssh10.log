@@ -1,0 +1,17 @@
+2024-06-04T10:00:00.120451+02:00 deb13 sshd-session[8001]: Accepted publickey for deploy from 192.0.2.10 port 50200 ssh2: ED25519 SHA256:q2Vd0fXzG1kq3v8mY7s1x2bT9cQeWnR4uHjK5aLpZoE
+2024-06-04T10:00:00.131877+02:00 deb13 sshd-session[8001]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by deploy(uid=0)
+2024-06-04T10:05:00.400000+02:00 deb13 sshd-session[8100]: Failed password for root from 203.0.113.90 port 51000 ssh2
+2024-06-04T10:05:02.401111+02:00 deb13 sshd-session[8101]: Failed password for root from 203.0.113.90 port 51001 ssh2
+2024-06-04T10:05:04.402222+02:00 deb13 sshd-session[8102]: Failed password for root from 203.0.113.90 port 51002 ssh2
+2024-06-04T10:05:06.403333+02:00 deb13 sshd-session[8103]: Failed password for root from 203.0.113.90 port 51003 ssh2
+2024-06-04T10:05:08.404444+02:00 deb13 sshd-session[8104]: Failed password for root from 203.0.113.90 port 51004 ssh2
+2024-06-04T10:05:10.405555+02:00 deb13 sshd-session[8105]: Failed password for root from 203.0.113.90 port 51005 ssh2
+2024-06-04T10:05:12.406666+02:00 deb13 sshd-session[8106]: Failed password for root from 203.0.113.90 port 51006 ssh2
+2024-06-04T10:05:14.407777+02:00 deb13 sshd-session[8107]: Failed password for root from 203.0.113.90 port 51007 ssh2
+2024-06-04T10:05:16.408888+02:00 deb13 sshd-session[8108]: Failed password for root from 203.0.113.90 port 51008 ssh2
+2024-06-04T10:05:18.409999+02:00 deb13 sshd-session[8109]: Failed password for root from 203.0.113.90 port 51009 ssh2
+2024-06-04T10:05:30.515233+02:00 deb13 sshd-session[8120]: Accepted password for root from 203.0.113.90 port 51100 ssh2
+2024-06-04T10:06:00.002310+02:00 deb13 sshd-auth[8130]: Invalid user admin from 203.0.113.91 port 52000
+2024-06-04T10:06:00.004120+02:00 deb13 sshd-session[8130]: Connection closed by invalid user admin 203.0.113.91 port 52000 [preauth]
+2024-06-04T10:07:12.781004+02:00 deb13 sudo:   deploy : 3 incorrect password attempts ; HOST=deb13 ; TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/bin/bash
+2024-06-04T10:07:40.114907+02:00 deb13 sudo:   deploy : HOST=deb13 ; TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/bin/systemctl status nginx

@@ -1,0 +1,31 @@
+title: User Account Created
+id: 87270cf5-a164-4eb4-bd0b-f92d2ef57c1c
+related:
+    - id: 66b6be3d-55d0-4f47-9855-d69df21740ea
+      type: derived
+status: test
+description: A user account was created, in the local SAM database of a workstation or server, or in Active Directory when logged by a domain controller (Security event 4720). Attackers create accounts to keep access to a compromised host or domain.
+references:
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/builtin/security/win_security_user_creation.yml
+    - https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4720
+    - https://attack.mitre.org/techniques/T1136/001/
+    - https://attack.mitre.org/techniques/T1136/002/
+author: Patrick Bareiss (SigmaHQ), adapted by Bouliw
+license: DRL-1.1
+date: 2019-04-18
+modified: 2026-09-28
+tags:
+    - attack.persistence
+    - attack.t1136.001
+    - attack.t1136.002
+logsource:
+    product: windows
+    service: security
+detection:
+    selection:
+        EventID: 4720
+    condition: selection
+falsepositives:
+    - Administrators or help desk staff creating accounts, which is routine in domain controller logs
+    - Local accounts managed by privileged account management tools
+level: low

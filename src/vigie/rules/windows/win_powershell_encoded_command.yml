@@ -1,0 +1,50 @@
+title: PowerShell Encoded Command Execution
+id: 6a55e742-68fb-4b56-8a9d-3364684fe986
+related:
+    - id: fb843269-508c-4b76-8b8d-88679db22ce7
+      type: derived
+status: test
+description: Detects PowerShell (powershell.exe or pwsh.exe, or a renamed copy when Sysmon records its OriginalFileName) started with -EncodedCommand or one of its abbreviations such as -e, -enc or -ec. Attackers pass Base64 encoded scripts this way to hide the real command from analysts and command-line signatures (Empire and Metasploit launchers, Emotet droppers...).
+references:
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/process_creation/proc_creation_win_powershell_encode.yml
+    - https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_exe
+    - https://unit42.paloaltonetworks.com/unit42-pulling-back-the-curtains-on-encodedcommand-powershell-attacks/
+    - https://attack.mitre.org/techniques/T1059/001/
+    - https://attack.mitre.org/techniques/T1027/010/
+author: frack113 (SigmaHQ), adapted by Bouliw
+license: DRL-1.1
+date: 2022-01-02
+modified: 2026-09-28
+tags:
+    - attack.execution
+    - attack.stealth
+    - attack.t1059.001
+    - attack.t1027.010
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection_img:
+        # OriginalFileName (Sysmon only) also catches a renamed copy of the PowerShell binary.
+        - Image|endswith:
+              - '\powershell.exe'
+              - '\pwsh.exe'
+        - OriginalFileName:
+              - 'PowerShell.EXE'
+              - 'pwsh.dll'
+    selection_cli:
+        # -EncodedCommand, every abbreviation PowerShell accepts for it, and the -ec alias.
+        # PowerShell accepts -, / and Unicode dashes as prefix, and a doubled dash (--enc, /-enc).
+        # The whitespace after the option keeps look-alikes such as -Encoding, -ErrorAction,
+        # -ExecutionPolicy, -EnableExtension or -eq out.
+        CommandLine|re|i: '\s[-/\u2013\u2014\u2015][-\u2013\u2014\u2015]?(e|en|enc|enco|encod|encode|encoded|encodedc|encodedco|encodedcom|encodedcomm|encodedcomma|encodedcomman|encodedcommand|ec)\s'
+    filter_azure:
+        # Azure Guest Configuration agent runs its own encoded PowerShell scripts.
+        ParentImage|contains:
+            - 'C:\Packages\Plugins\Microsoft.GuestConfiguration.ConfigurationforWindows\'
+            - '\gc_worker.exe'
+    condition: all of selection_* and not 1 of filter_*
+falsepositives:
+    - Management and deployment agents that pass scripts as encoded commands (SCCM, Intune, RMM tools, some installers)
+    - A -Command script or -File script arguments containing a standalone -e, -en or -ec, or /e, /en or /ec (for example robocopy /E or xcopy /E run through powershell -Command)
+level: medium

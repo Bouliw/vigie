@@ -1,0 +1,22 @@
+title: Local User Account Created
+id: 30bda398-aea5-47d4-bc2c-0a7a01d09698
+status: test
+description: A local user account was created with useradd. Attackers create accounts to keep access to a compromised host.
+references:
+    - https://attack.mitre.org/techniques/T1136/001/
+author: Bouliw
+date: 2026-09-28
+tags:
+    - attack.persistence
+    - attack.t1136.001
+logsource:
+    product: linux
+    service: auth
+detection:
+    selection:
+        action: user_created
+    condition: selection
+falsepositives:
+    - Administrators creating accounts
+    - Package installations that create service accounts
+level: medium

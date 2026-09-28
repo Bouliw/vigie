@@ -1,0 +1,33 @@
+title: Security Event Log Cleared
+id: bbb4b441-8965-4e18-8efe-12bec2b08423
+related:
+    - id: d99b79d2-0a6f-4f46-ad8b-260b6e17f982
+      type: derived
+status: test
+description: Detects the clearing of the Windows Security audit log (event 1102), e.g. with "wevtutil cl Security" or Clear-EventLog. Attackers clear it to erase the record of their logons and actions.
+references:
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/builtin/security/win_security_audit_log_cleared.yml
+    - https://attack.mitre.org/techniques/T1685/005/
+author: Florian Roth (Nextron Systems) (SigmaHQ), adapted by Bouliw
+license: DRL-1.1
+date: 2017-01-10
+modified: 2026-09-28
+tags:
+    - attack.defense-impairment
+    - attack.t1685.005
+    - car.2016-04-002
+logsource:
+    product: windows
+    service: security
+detection:
+    selection:
+        EventID: 1102
+        Provider_Name:
+            - 'Microsoft-Windows-Eventlog'
+            - null  # some JSON exports (e.g. OTRF) omit the provider name
+    condition: selection
+falsepositives:
+    - Rollout of log collection agents (the setup routine often includes a reset of the local Eventlog)
+    - System provisioning (system reset before the golden image creation)
+    - Lab and test machines whose logs are cleared before each capture
+level: high

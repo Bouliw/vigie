@@ -1,0 +1,33 @@
+title: Windows Failed Logon
+id: 118338f6-e0cd-41d4-bfdf-58a76f7ba286
+name: win_failed_logon
+status: test
+description: A failed logon caused by a wrong password, an unknown user name or a locked-out account. On its own this is routine noise; it feeds the Windows logon brute force correlation.
+references:
+    - https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4625
+    - https://attack.mitre.org/techniques/T1110/
+author: Bouliw
+date: 2026-09-28
+tags:
+    - attack.credential-access
+    - attack.t1110
+logsource:
+    product: windows
+    service: security
+detection:
+    selection:
+        EventID: 4625
+    selection_bad_credentials:
+        - SubStatus:
+              - '0xC000006A'  # wrong password
+              - '0xC0000064'  # unknown user name
+        - Status:
+              - '0xC000006A'
+              - '0xC0000064'
+              - '0xC0000234'  # account locked out
+    filter_main_machine_account:
+        TargetUserName|endswith: '$'
+    condition: all of selection* and not 1 of filter_main_*
+falsepositives:
+    - Users mistyping their password
+level: low

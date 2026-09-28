@@ -1,0 +1,171 @@
+{% set r = report %}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Vigie {{ r.vigie_version }}">
+<title>Vigie report</title>
+<style>
+:root {
+  --bg: #ffffff; --panel: #f6f7f9; --text: #1b1f24; --muted: #5b6470; --border: #d9dde3;
+  --link: #0b5cad; --code: #eef1f4;
+  --critical: #8e1b1b; --high: #c2410c; --medium: #a16207; --low: #1d4ed8; --informational: #4b5563;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111418; --panel: #1a1f25; --text: #e6e9ed; --muted: #9aa4b0; --border: #2c333b;
+    --link: #7cb7ff; --code: #232a31;
+    --critical: #f87171; --high: #fb923c; --medium: #facc15; --low: #93c5fd; --informational: #cbd5e1;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; }
+h2 { font-size: 1.25rem; margin: 36px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+a { color: var(--link); }
+.muted { color: var(--muted); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.card .value { font-size: 1.5rem; font-weight: 600; }
+.card .label { color: var(--muted); font-size: .85rem; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+td.time, td.nowrap { white-space: nowrap; }
+td.event { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .82rem;
+  word-break: break-word; }
+.level { display: inline-block; min-width: 84px; padding: 1px 8px; border-radius: 10px; font-size: .78rem;
+  font-weight: 600; text-transform: uppercase; letter-spacing: .02em; color: var(--bg); text-align: center; }
+{% for level in LEVELS %}
+.level-{{ level }} { background: var(--{{ level }}); }
+{% endfor %}
+details.alert { border: 1px solid var(--border); border-radius: 8px; margin: 10px 0; background: var(--panel); }
+details.alert > summary { cursor: pointer; padding: 10px 14px; display: flex; gap: 12px; align-items: baseline;
+  flex-wrap: wrap; }
+details.alert > summary .title { font-weight: 600; }
+details.alert .body { padding: 0 14px 12px; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 8px 0 12px; }
+dt { color: var(--muted); }
+dd { margin: 0; }
+code { background: var(--code); padding: 1px 4px; border-radius: 4px; font-size: .85em; }
+footer { margin-top: 40px; color: var(--muted); font-size: .8rem; }
+</style>
+</head>
+<body>
+<main>
+<h1>Vigie report</h1>
+<p class="muted">Generated on {{ r.generated_at | ts }} by Vigie {{ r.vigie_version }}.
+Alerts are mapped to MITRE ATT&amp;CK {{ r.attack_version }}. All times are UTC.</p>
+
+<section class="cards" aria-label="Summary">
+  <div class="card"><div class="value">{{ r.event_count }}</div><div class="label">events analyzed</div></div>
+  <div class="card"><div class="value">{{ r.files | length }}</div><div class="label">files read{% if r.skipped %}, {{ r.skipped | length }} skipped{% endif %}</div></div>
+  <div class="card"><div class="value">{{ r.alert_count }}</div><div class="label">alerts (level {{ r.min_level }} and above)</div></div>
+  {% for level, count in r.level_counts.items() %}
+  <div class="card"><div class="value">{{ count }}</div><div class="label"><span class="level level-{{ level }}">{{ level }}</span></div></div>
+  {% endfor %}
+</section>
+<p class="muted">Time range: {{ r.first_event | ts }} to {{ r.last_event | ts }}. {{ r.rule_count }} rules loaded{% if r.rule_errors %}, {{ r.rule_errors | length }} rejected (see Inputs){% endif %}.
+{% if r.hidden_by_level %}
+{{ r.hidden_by_level.values() | sum }} alert(s) below the "{{ r.min_level }}" level are not shown
+({% for level, count in r.hidden_by_level.items() %}{{ level }}: {{ count }}{% if not loop.last %}, {% endif %}{% endfor %});
+run with <code>--min-level {{ r.hidden_by_level | first }}</code> to include them.
+{% endif %}</p>
+
+<h2>MITRE ATT&amp;CK</h2>
+{% if r.tactics %}
+<div class="scroll"><table>
+<thead><tr><th>Tactic</th><th>Alerts</th><th>Techniques</th></tr></thead>
+<tbody>
+{% for view in r.tactics %}
+<tr><td class="nowrap"><a href="{{ view.tactic.url }}">{{ view.tactic.name }}</a> <span class="muted">{{ view.tactic.id }}</span></td>
+<td>{{ view.alert_count }}</td>
+<td>{% for t in view.techniques %}<a href="{{ t.url }}">{{ t.id }}</a> {{ t.display_name }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>
+{% endfor %}
+</tbody></table></div>
+{% else %}
+<p>No alert, so no ATT&amp;CK technique observed.</p>
+{% endif %}
+
+<h2>Alerts</h2>
+{% if r.rules %}
+<div class="scroll"><table>
+<thead><tr><th>Severity</th><th>Rule</th><th>Alerts</th><th>First seen</th><th>Last seen</th></tr></thead>
+<tbody>
+{% for s in r.rules %}
+<tr><td><span class="level level-{{ s.rule.level }}">{{ s.rule.level }}</span></td><td>{{ s.rule.title }}</td>
+<td>{{ s.alert_count }}</td><td class="time">{{ s.first_seen | ts }}</td><td class="time">{{ s.last_seen | ts }}</td></tr>
+{% endfor %}
+</tbody></table></div>
+<h3>Details</h3>
+{% endif %}
+{% for a in r.alerts %}
+<details class="alert" id="alert-{{ loop.index }}"{% if a.rule.severity >= 3 %} open{% endif %}>
+<summary><span class="level level-{{ a.rule.level }}">{{ a.rule.level }}</span>
+<span class="title">{{ a.rule.title }}</span>
+<span class="muted">{{ a.first_seen | ts }}{% if a.hosts %} &middot; {{ a.hosts | join(", ") }}{% endif %} &middot; {{ a.event_count }} event(s)</span></summary>
+<div class="body">
+<p>{{ a.rule.description }}</p>
+<dl>
+  <dt>When</dt><dd>{{ a.first_seen | ts }}{% if a.last_seen != a.first_seen %} to {{ a.last_seen | ts }}{% endif %}</dd>
+  {% if a.group %}<dt>Grouped by</dt><dd>{% for key, value in a.group.items() %}<code>{{ key }} = {{ value }}</code> {% endfor %}</dd>{% endif %}
+  <dt>ATT&amp;CK</dt><dd>{% for t in a.attack.techniques %}<a href="{{ t.url }}">{{ t.id }}</a> {{ t.display_name }}{% if not loop.last %}; {% endif %}{% endfor %}{% if a.attack.tactics %} <span class="muted">({{ a.attack.tactics | map(attribute="name") | join(", ") }})</span>{% endif %}</dd>
+  <dt>Rule</dt><dd>{{ a.rule.title }} <code>{{ a.rule.id }}</code>{% if a.rule.kind == "correlation" %} (correlation){% endif %}</dd>
+  <dt>Author</dt><dd>{{ a.rule.author }}{% if a.rule.license %} <span class="muted">(rule licensed under {{ a.rule.license }})</span>{% endif %}</dd>
+  {% if a.rule.falsepositives %}<dt>False positives</dt><dd>{{ a.rule.falsepositives | join("; ") }}</dd>{% endif %}
+</dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+{% for e in a.evidence %}
+<tr><td class="time">{{ e.timestamp | ts }}</td><td class="nowrap">{{ e.host or "-" }}</td><td class="nowrap">{{ e.origin }}</td><td class="event">{{ e.summary }}</td></tr>
+{% endfor %}
+</tbody></table></div>
+{% if a.event_count > a.evidence | length %}<p class="muted">{{ a.event_count - a.evidence | length }} event(s) between the first {{ a.evidence | length - 1 }} and the last one are not shown.</p>{% endif %}
+</div>
+</details>
+{% else %}
+<p>No alert at level {{ r.min_level }} or above.</p>
+{% endfor %}
+
+<h2>Timeline</h2>
+<p class="muted">{% if r.full_timeline %}Every event read{% else %}Events behind the alerts above{% endif %}, in time order{% if r.timeline_omitted %}; the last {{ r.timeline_omitted }} are not shown{% endif %}.</p>
+{% if r.timeline %}
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Source</th><th>ID</th><th>Event</th><th>Alerts</th></tr></thead>
+<tbody>
+{% for e in r.timeline %}
+<tr><td class="time">{{ e.timestamp | ts }}</td><td class="nowrap">{{ e.host or "-" }}</td><td>{{ e.source }}</td>
+<td>{{ e.event_id if e.event_id is not none else "-" }}</td><td class="event">{{ e.summary }}</td>
+<td>{% if e.level %}<span class="level level-{{ e.level }}">{{ e.level }}</span> {% endif %}{{ e.alert_titles | join("; ") }}</td></tr>
+{% endfor %}
+</tbody></table></div>
+{% else %}
+<p>Nothing to show.</p>
+{% endif %}
+
+<h2>Inputs</h2>
+<div class="scroll"><table>
+<thead><tr><th>File</th><th>Format</th><th>Events</th><th>Warnings</th></tr></thead>
+<tbody>
+{% for f in r.files %}
+<tr><td>{{ f.path }}</td><td>{{ f.format }}</td><td>{{ f.events }}</td><td>{{ f.warnings | length }}</td></tr>
+{% endfor %}
+</tbody></table></div>
+{% for f in r.files if f.warnings %}
+{% if loop.first %}<h3>Parser warnings</h3><ul>{% endif %}
+{% for w in f.warnings[:20] %}<li>{{ w }}</li>{% endfor %}
+{% if f.warnings | length > 20 %}<li>{{ f.path }}: {{ f.warnings | length - 20 }} more warning(s)</li>{% endif %}
+{% if loop.last %}</ul>{% endif %}
+{% endfor %}
+{% if r.skipped %}<h3>Skipped</h3><ul>{% for s in r.skipped %}<li>{{ s }}</li>{% endfor %}</ul>{% endif %}
+{% if r.rule_errors %}<h3>Rejected rules</h3><ul>{% for e in r.rule_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+
+<footer>{{ r.attack_copyright }} Rules adapted from SigmaHQ are licensed under the Detection Rule License 1.1; their authors are credited in each alert.</footer>
+</main>
+</body>
+</html>

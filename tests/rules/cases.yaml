@@ -1,0 +1,254 @@
+# Test cases for every rule shipped in src/vigie/rules.
+#
+# fixture:  a file under tests/fixtures.
+# expected: for a detection rule, the number of events it matches (even when
+#           the rule only feeds a correlation); for a correlation rule, the
+#           number of alerts it raises.
+#
+# Every rule needs at least one positive and one negative case. A negative
+# fixture must contain events the rule is evaluated on (same log source), and
+# a rule must never fire on a fixture that is not listed among its positives:
+# tests/rules/test_rules.py checks every rule against every fixture.
+
+# --- Linux (synthetic auth.log fixtures) ------------------------------------
+
+- rule: 73004885-6e82-4146-ab6a-1b834d099ee5  # SSH Failed Password (feeds correlations)
+  positive:
+    - {fixture: authlog/auth.log, expected: 13}
+    - {fixture: authlog/auth_benign.log, expected: 10}
+    - {fixture: authlog/auth_retry_storm.log, expected: 15}
+    - {fixture: authlog/auth_rfc3339.log, expected: 1}
+    - {fixture: authlog/auth_rollover.log, expected: 2}
+    - {fixture: authlog/auth_bruteforce_timing.log, expected: 92}  # the 10 failed publickey lines do not count
+    - {fixture: authlog/auth_openssh10.log, expected: 10}  # logged by sshd-session (OpenSSH 9.8+)
+    - {fixture: authlog/auth_rsyslog_repeated.log, expected: 12}  # 2 lines + 2 x "message repeated 5 times"
+  negative:
+    - fixture: authlog/auth_sessions.log  # invalid user and pre-auth disconnects, no password failure
+
+- rule: 27bf0608-f806-4c77-b4ac-b8b45dfecba8  # SSH Login Accepted
+  positive:
+    - {fixture: authlog/auth.log, expected: 3}
+    - {fixture: authlog/auth_benign.log, expected: 2}
+    - {fixture: authlog/auth_sessions.log, expected: 1}
+    - {fixture: authlog/auth_rfc3339.log, expected: 1}
+    - {fixture: authlog/auth_rollover.log, expected: 1}
+    - {fixture: authlog/auth_bruteforce_timing.log, expected: 6}
+    - {fixture: authlog/auth_openssh10.log, expected: 2}
+  negative:
+    - fixture: authlog/auth_retry_storm.log  # only failures
+
+- rule: 44043ef0-67f0-4380-9c98-b348be632e58  # SSH Brute Force
+  positive:
+    - {fixture: authlog/auth.log, expected: 1}
+    - {fixture: authlog/auth_retry_storm.log, expected: 1}  # known false positive: a script retrying a stale password
+    # Scenarios 1, 2, 3, 4 and the fake-source user names (credited to the real client);
+    # not the near misses: 10 failures in 306 s, 9 in 24 s, 10 failed public keys.
+    - {fixture: authlog/auth_bruteforce_timing.log, expected: 5}
+    - {fixture: authlog/auth_openssh10.log, expected: 1}
+    - {fixture: authlog/auth_rsyslog_repeated.log, expected: 1}  # visible only once folded lines are expanded
+  negative:
+    - fixture: authlog/auth_benign.log  # two typos, and a slow scanner (8 attempts over 21 minutes)
+
+- rule: a5668195-278b-4b24-aaf9-53ee8ff41701  # SSH Password Spraying
+  positive:
+    - {fixture: authlog/auth.log, expected: 1}
+    # Exactly 5 names within 590 s; not 4 names in 2 minutes, nor 5 names over 604 s.
+    - {fixture: authlog/auth_bruteforce_timing.log, expected: 1}
+  negative:
+    - fixture: authlog/auth_retry_storm.log  # 15 failures, one single account
+    - fixture: authlog/auth_benign.log  # the slow scanner tries only two accounts
+    - fixture: authlog/auth_openssh10.log  # a brute force on one account
+
+- rule: 156d0b6d-aea1-479c-91ce-eaf6c08cfa67  # SSH Login After Brute Force
+  positive:
+    - {fixture: authlog/auth.log, expected: 1}
+    # Scenario 1 only: a success 6 s after the 19th failure (303 s after the 10th). Not a success
+    # before the burst, 613 s after it, from another address, or from the fake source address.
+    - {fixture: authlog/auth_bruteforce_timing.log, expected: 1}
+    - {fixture: authlog/auth_openssh10.log, expected: 1}
+  negative:
+    - fixture: authlog/auth_benign.log  # a typo followed by a success is not a brute force
+    - fixture: authlog/auth_retry_storm.log  # a brute force never followed by a success
+
+- rule: 30bda398-aea5-47d4-bc2c-0a7a01d09698  # Local User Account Created
+  positive:
+    - {fixture: authlog/auth.log, expected: 1}
+  negative:
+    - fixture: authlog/auth_benign.log  # groupadd and passwd, no useradd
+
+- rule: 87c54c54-38eb-4d79-88a8-714dbb6a656d  # Sudo Authentication Failure
+  positive:
+    - {fixture: authlog/auth.log, expected: 1}
+    - {fixture: authlog/auth_openssh10.log, expected: 1}  # with the HOST= field of "Defaults log_host"
+  negative:
+    - fixture: authlog/auth_benign.log  # a PAM failure line, then sudo succeeds
+
+# --- Windows (EVTX-ATTACK-SAMPLES and OTRF Security-Datasets) ---------------
+#
+# "weak" marks a negative that only shares the log source with the rule: no
+# public sample of the matching event type exists as a near miss.
+
+# Failed logons and password spraying (Security 4625, 4768, 4771)
+#
+# The only public bursts come from a single source in under a second, with a
+# different account each time (PurpleSharp: 7 x 4625; kerberos_pwd_spray:
+# 9 Kerberos failures). No public near miss spreads failures over time or
+# sources, so group-by and timespan are pinned by test_correlation_parameters,
+# and thresholds by test_correlation_threshold_on_public_events.
+
+- rule: 118338f6-e0cd-41d4-bfdf-58a76f7ba286  # Windows Failed Logon (feeds the brute force correlation)
+  positive:
+    - {fixture: winjson/purplesharp_ad_playbook_I_excerpt.json, expected: 7}  # PurpleSharp spray: 7 x 0xC000006A
+    - {fixture: evtx/CA_4624_4625_LogonType2_LogonProc_chrome.evtx, expected: 1}  # a typo at Chrome's OS re-authentication prompt
+    - {fixture: winjson/cmd_psh_stop_netprofm_eventlog_before_reboot_excerpt.json, expected: 1}  # 3 x 4625 at a UAC prompt, only the 0xC000006A counts
+  negative:
+    - fixture: winjson/psh_disable_eventlog_service_startuptype_modification_excerpt.json  # its only 4625 is 0xC000010B (UAC cached logon)
+
+- rule: 6cf25939-c0a0-43f8-bb43-34d254f459cb  # Windows Logon Brute Force From Single Source
+  positive:
+    - {fixture: winjson/purplesharp_ad_playbook_I_excerpt.json, expected: 1}  # 7 failures; the window is cleared after 5
+  negative:
+    - fixture: winjson/cmd_psh_stop_netprofm_eventlog_before_reboot_excerpt.json  # a single counted failure, then success
+    - fixture: evtx/CA_4624_4625_LogonType2_LogonProc_chrome.evtx  # a single typo, then successes
+    - fixture: winjson/psh_disable_eventlog_service_startuptype_modification_excerpt.json  # no counted failure
+
+- rule: 0ca0b8d2-4007-47d0-81ec-8c96d0fc2cf1  # Kerberos Authentication Failure (feeds the spraying correlation)
+  positive:
+    - {fixture: evtx/kerberos_pwd_spray_4771.evtx, expected: 9}  # 7 x 4768 0x6 + 2 x 4771 0x18; not the 2 x 4768 0x0
+  negative:
+    - fixture: winjson/empire_wmi_local_event_subscriptions_elevated_user_excerpt.json  # 8 x 4768 from one address, all 0x0
+
+- rule: bf0ebcbf-b7ab-4600-8558-54ec2de7b272  # Kerberos Password Spraying From Single Source
+  positive:
+    - {fixture: evtx/kerberos_pwd_spray_4771.evtx, expected: 1}  # 9 accounts from one address; the alert holds the first 5
+  negative:
+    - fixture: winjson/empire_wmi_local_event_subscriptions_elevated_user_excerpt.json  # weak: successful TGT requests feed nothing
+
+# Event log cleared (Security 1102, System 104)
+
+- rule: bbb4b441-8965-4e18-8efe-12bec2b08423  # Security Event Log Cleared
+  positive:
+    - {fixture: evtx/DE_1102_security_log_cleared.evtx, expected: 1}
+    - {fixture: winjson/cmd_discover_iexplorer_version_registry_excerpt.json, expected: 1}
+    - {fixture: winjson/wmic_remote_xsl_jscript_excerpt.json, expected: 1}  # an export without provider name
+    - {fixture: evtx/kerberos_pwd_spray_4771.evtx, expected: 1}  # the lab cleared the log before the capture
+    - {fixture: evtx/samaccount_spoofing_CVE-2021-42287_CVE-2021-42278_DC_securitylogs.evtx, expected: 1}  # same
+  negative:
+    - fixture: winjson/empire_persistence_registry_modification_run_keys_standard_user_excerpt.json  # reboot: Security 1100 from the Eventlog provider
+    - fixture: evtx/DE_Fake_ComputerAccount_4720.evtx  # weak: Security 4720 only
+
+- rule: e28d89fc-b094-4869-be4d-63c90efcdd22  # Important Windows Event Log Cleared
+  positive:
+    - {fixture: evtx/DE_104_system_log_cleared.evtx, expected: 1}
+    - {fixture: winjson/cmd_discover_iexplorer_version_registry_excerpt.json, expected: 1}
+  negative:
+    - fixture: winjson/empire_persistence_registry_modification_run_keys_standard_user_excerpt.json  # reboot: legacy EventLog 6005, 6006, 6009, 6013
+    - fixture: evtx/LM_Remote_Service02_7045.evtx  # weak: System 7045 only (no public 104 for a non-core log)
+
+# Account creation (Security 4720)
+
+- rule: 87270cf5-a164-4eb4-bd0b-f92d2ef57c1c  # User Account Created
+  positive:
+    - {fixture: evtx/DE_Fake_ComputerAccount_4720.evtx, expected: 2}  # two 4720 for the domain account "$"
+    - {fixture: winjson/empire_wmic_add_user_backdoor_excerpt.json, expected: 1}  # local account "backdoor" created through WMIC
+  negative:
+    - fixture: evtx/samaccount_spoofing_CVE-2021-42287_CVE-2021-42278_DC_securitylogs.evtx  # 4741, 4722, 4724, 4742, 4781 but no 4720
+
+- rule: a03abeec-d83e-4d29-93f3-1304bb90594e  # Hidden User Account Created
+  positive:
+    - {fixture: evtx/DE_Fake_ComputerAccount_4720.evtx, expected: 2}
+  negative:
+    - fixture: winjson/empire_wmic_add_user_backdoor_excerpt.json  # a 4720 whose name does not end with "$"
+    - fixture: evtx/samaccount_spoofing_CVE-2021-42287_CVE-2021-42278_DC_securitylogs.evtx  # DC012$ in 4741/4722/4724/4742, never in a 4720
+
+# Scheduled tasks (Security 4698)
+
+- rule: b2f53816-dce1-4a25-82ba-f9879e134928  # Suspicious Scheduled Task Created
+  positive:
+    - {fixture: evtx/temp_scheduled_task_4698_4699.evtx, expected: 1}  # atexec task running cmd.exe; its 4699 twin does not count
+    - {fixture: evtx/PrivEsc_SeImpersonatePriv_enabled_back_for_upnp_localsvc_4698.evtx, expected: 1}  # FullPowers.exe in C:\Users\Public
+    - {fixture: winjson/schtask_create_excerpt.json, expected: 1}  # masquerading task running cmd.exe (plain XML)
+    - {fixture: winjson/empire_schtasks_creation_standard_user_excerpt.json, expected: 1}  # PowerShell (entity-encoded XML)
+  negative:
+    - fixture: winjson/covenant_dcom_executeexcel4macro_allowed_excerpt.json  # OneDrive updater under %localappdata%
+    - fixture: winjson/empire_shell_rubeus_asktgt_createnetonly_excerpt.json  # 2 x 4698 usoclient.exe and 2 x 4702 from Windows servicing
+
+# Service installation (System 7045)
+
+- rule: 6d03b054-8230-47ba-a957-6b59a2d71c33  # Suspicious Service Installed
+  positive:
+    - {fixture: evtx/LM_Remote_Service02_7045.evtx, expected: 3}  # cmd.exe twice; calc.exe only through the no-folder check
+    - {fixture: evtx/System_7045_namedpipe_privesc.evtx, expected: 1}  # WinPwnage named-pipe service
+    - {fixture: winjson/aptsimulator_cobaltstrike_service_excerpt.json, expected: 1}  # Cobalt Strike getsystem
+    - {fixture: winjson/empire_psexec_dcerpc_tcp_svcctl_service_excerpt.json, expected: 1}  # Empire "Updater" running %COMSPEC%
+  negative:
+    - fixture: winjson/empire_schtasks_creation_execution_elevated_user_service_excerpt.json  # Defender MpKslDrv driver from ProgramData
+    - fixture: winjson/cmd_psexec_lsa_secrets_dump_service_excerpt.json  # PSEXESVC from %SystemRoot%, left to the PsExec rule
+
+- rule: 4d9d8b96-f9b9-4454-86d2-5dc723e625bb  # PsExec-Like Service Installed
+  positive:
+    - {fixture: winjson/cmd_psexec_lsa_secrets_dump_service_excerpt.json, expected: 1}
+  negative:
+    - fixture: winjson/empire_schtasks_creation_execution_elevated_user_service_excerpt.json  # Defender MpKslDrv driver
+    - fixture: winjson/empire_psexec_dcerpc_tcp_svcctl_service_excerpt.json  # Empire's psexec module names its service "Updater"
+    - fixture: evtx/LM_Remote_Service02_7045.evtx  # cmd.exe and calc.exe services
+    - fixture: winjson/aptsimulator_cobaltstrike_service_excerpt.json  # random service name
+    - fixture: evtx/System_7045_namedpipe_privesc.evtx  # WinPwnage service
+
+# LSASS access (Sysmon 10)
+
+- rule: cbea5c72-bafb-4200-b58d-fa251eeef003  # LSASS Memory Access With Credential Dumping Rights
+  positive:
+    - {fixture: evtx/sysmon_10_lsass_mimikatz_sekurlsa_logonpasswords.evtx, expected: 1}
+    - {fixture: evtx/sysmon_10_11_lsass_memdump.evtx, expected: 2}
+    - {fixture: evtx/sysmon_3_10_Invoke-Mimikatz_hosted_Github.evtx, expected: 1}
+    - {fixture: winjson/rdp_interactive_taskmanager_lsass_dump_excerpt.json, expected: 2}  # "Create dump file"; not the 0x1410 details view
+    - {fixture: winjson/psh_lsass_memory_dump_comsvcs_excerpt.json, expected: 2}  # rundll32 comsvcs.dll MiniDump
+    - {fixture: evtx/PanacheSysmon_vs_AtomicRedTeam01.evtx, expected: 1}  # powershell.exe with 0x1010 during the Atomic Red Team run
+  negative:
+    - fixture: winjson/empire_wmi_local_event_subscriptions_elevated_user_lsass_excerpt.json  # boot and Azure agents; 4 listed masks, all filtered
+    - fixture: winjson/wmic_remote_xsl_jscript_lsass_excerpt.json  # WmiPrvSE.exe with 0x1410, filtered
+
+# Encoded PowerShell (process creation)
+
+- rule: 6a55e742-68fb-4b56-8a9d-3364684fe986  # PowerShell Encoded Command Execution
+  positive:
+    - {fixture: winjson/empire_smbexec_dcerpc_smb_svcctl_excerpt.json, expected: 2}  # Sysmon 1 and 4688; not the 4 cmd.exe wrappers
+  negative:
+    - fixture: evtx/LM_sysmon_psexec_smb_meterpreter.evtx  # Base64 decoded inside -Command, and the -eq operator
+    - fixture: evtx/lm_sysmon_18_remshell_over_namedpipe.evtx  # PowerShell remoting host: -s -NoLogo -NoProfile
+    - fixture: winjson/cmd_mshta_vbscript_execute_psh_excerpt.json  # plain -noexit -command
+    - fixture: winjson/cmd_bitsadmin_download_psh_script_excerpt.json  # weak: no PowerShell start
+
+# Download LOLBins (process creation)
+
+- rule: d44cf25a-9d55-4b94-a59f-d4ca3362fac3  # File Download Via Certutil
+  positive:
+    - {fixture: evtx/panache_sysmon_vs_EDRTestingScript.evtx, expected: 1}  # the only public certutil download
+  negative:
+    - fixture: winjson/empire_persistence_registry_modification_run_keys_standard_user_certutil_excerpt.json  # certutil -v -store, no URL
+    - fixture: evtx/PanacheSysmon_vs_AtomicRedTeam01.evtx  # certutil -encode and -decode
+    - fixture: evtx/sysmon_11_1_lolbas_downldr_desktopimgdownldr.evtx  # weak: a download through another binary
+    - fixture: winjson/cmd_bitsadmin_download_psh_script_excerpt.json  # weak: a download through bitsadmin
+    - fixture: evtx/sysmon_1_persist_bitsjob_SetNotifyCmdLine.evtx  # weak: an https URL in a regsvr32 command line
+
+- rule: 32b87f74-31c8-401e-9efe-288445b0431b  # File Download Via Bitsadmin
+  positive:
+    - {fixture: winjson/cmd_bitsadmin_download_psh_script_excerpt.json, expected: 2}  # /transfer, in Sysmon 1 and 4688
+    - {fixture: evtx/panache_sysmon_vs_EDRTestingScript.evtx, expected: 1}  # /transfer
+    # /transfer and /addfile with a URL; not its /create, /setnotifycmdline, /complete and /resume runs.
+    - {fixture: evtx/PanacheSysmon_vs_AtomicRedTeam01.evtx, expected: 2}
+  negative:
+    - fixture: evtx/sysmon_1_persist_bitsjob_SetNotifyCmdLine.evtx  # weak: BITS notify command, no bitsadmin.exe process
+    - fixture: winjson/empire_persistence_registry_modification_run_keys_standard_user_certutil_excerpt.json  # weak: cmd.exe and certutil
+    - fixture: evtx/sysmon_11_1_lolbas_downldr_desktopimgdownldr.evtx  # weak: a download through another binary
+
+- rule: 6d38971e-684e-455c-a1f9-6792990be772  # File Download Via Desktopimgdownldr
+  positive:
+    - {fixture: evtx/sysmon_11_1_lolbas_downldr_desktopimgdownldr.evtx, expected: 1}  # the only public desktopimgdownldr run
+  negative:
+    - fixture: evtx/panache_sysmon_vs_EDRTestingScript.evtx  # weak: certutil and bitsadmin downloads
+    - fixture: evtx/PanacheSysmon_vs_AtomicRedTeam01.evtx  # weak: an Atomic Red Team run without desktopimgdownldr
+    - fixture: evtx/sysmon_1_persist_bitsjob_SetNotifyCmdLine.evtx  # weak: an https URL in a regsvr32 command line
+    - fixture: winjson/empire_persistence_registry_modification_run_keys_standard_user_certutil_excerpt.json  # weak: benign certutil
+    - fixture: winjson/cmd_bitsadmin_download_psh_script_excerpt.json  # weak: a bitsadmin download

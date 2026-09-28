@@ -1,0 +1,40 @@
+title: Important Windows Event Log Cleared
+id: e28d89fc-b094-4869-be4d-63c90efcdd22
+related:
+    - id: 100ef69e-3327-481c-8e5c-6d80d9507556
+      type: derived
+status: test
+description: Detects the clearing of a core Windows event log (System, Security, Sysmon or PowerShell) reported by the Eventlog service as System event 104; clearing the Security log is normally reported as Security event 1102, covered by the Security Event Log Cleared rule. Attackers clear these logs to hide their tracks.
+references:
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/builtin/system/microsoft_windows_eventlog/win_system_susp_eventlog_cleared.yml
+    - https://attack.mitre.org/techniques/T1685/005/
+author: Florian Roth (Nextron Systems), Tim Shelton, Nasreddine Bencherchali (Nextron Systems) (SigmaHQ), adapted by Bouliw
+license: DRL-1.1
+date: 2022-05-17
+modified: 2026-09-28
+tags:
+    - attack.defense-impairment
+    - attack.t1685.005
+    - car.2016-04-002
+logsource:
+    product: windows
+    service: system
+detection:
+    selection:
+        EventID: 104
+        Provider_Name: 'Microsoft-Windows-Eventlog'
+        # Name of the cleared log: in EVTX files, UserData/LogFileCleared/Channel
+        # replaces the event's own channel (always System for event 104).
+        Channel:
+            - 'Microsoft-Windows-PowerShell/Operational'
+            - 'Microsoft-Windows-Sysmon/Operational'
+            - 'PowerShellCore/Operational'
+            - 'Security'
+            - 'System'
+            - 'Windows PowerShell'
+    condition: selection
+falsepositives:
+    - Rollout of log collection agents (the setup routine often includes a reset of the local Eventlog)
+    - System provisioning (system reset before the golden image creation)
+    - Lab and test machines whose logs are cleared before each capture
+level: high

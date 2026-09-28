@@ -1,0 +1,27 @@
+Apr  2 07:59:01 app01 CRON[2101]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+Apr  2 07:59:01 app01 CRON[2101]: pam_unix(cron:session): session closed for user root
+Apr  2 08:01:12 app01 sshd[2140]: Accepted publickey for deploy from 192.0.2.10 port 50122 ssh2: ED25519 SHA256:q2Vd0fXzG1kq3v8mY7s1x2bT9cQeWnR4uHjK5aLpZoE
+Apr  2 08:01:12 app01 sshd[2140]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+Apr  2 08:03:40 app01 sudo:   deploy : TTY=pts/0 ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app
+Apr  2 08:03:40 app01 sudo: pam_unix(sudo:session): session opened for user root(uid=0) by deploy(uid=1001)
+Apr  2 08:03:41 app01 sudo: pam_unix(sudo:session): session closed for user root
+Apr  2 08:10:05 app01 sshd[2201]: Failed password for opsadmin from 198.51.100.20 port 41100 ssh2
+Apr  2 08:10:11 app01 sshd[2201]: Failed password for opsadmin from 198.51.100.20 port 41100 ssh2
+Apr  2 08:10:18 app01 sshd[2201]: Accepted password for opsadmin from 198.51.100.20 port 41100 ssh2
+Apr  2 08:10:18 app01 sshd[2201]: pam_unix(sshd:session): session opened for user opsadmin(uid=1002) by (uid=0)
+Apr  2 08:12:30 app01 sudo: pam_unix(sudo:auth): authentication failure; logname=opsadmin uid=1002 euid=0 tty=/dev/pts/1 ruser=opsadmin rhost=  user=opsadmin
+Apr  2 08:12:36 app01 sudo: opsadmin : TTY=pts/1 ; PWD=/home/opsadmin ; USER=root ; COMMAND=/usr/bin/apt-get update
+Apr  2 08:20:02 app01 groupadd[2290]: new group: name=docker, GID=998
+Apr  2 08:20:02 app01 groupadd[2290]: group added to /etc/group: name=docker, GID=998
+Apr  2 08:25:44 app01 passwd[2301]: pam_unix(passwd:chauthtok): password changed for deploy
+Apr  2 08:30:00 app01 su: (to root) opsadmin on pts/1
+Apr  2 08:30:00 app01 su: pam_unix(su:session): session opened for user root(uid=0) by opsadmin(uid=1002)
+Apr  2 08:40:17 app01 sshd[2400]: Failed password for admin from 203.0.113.80 port 52000 ssh2
+Apr  2 08:43:17 app01 sshd[2401]: Failed password for admin from 203.0.113.80 port 52001 ssh2
+Apr  2 08:46:17 app01 sshd[2402]: Failed password for root from 203.0.113.80 port 52002 ssh2
+Apr  2 08:49:17 app01 sshd[2403]: Failed password for admin from 203.0.113.80 port 52003 ssh2
+Apr  2 08:52:17 app01 sshd[2404]: Failed password for root from 203.0.113.80 port 52004 ssh2
+Apr  2 08:55:17 app01 sshd[2405]: Failed password for admin from 203.0.113.80 port 52005 ssh2
+Apr  2 08:58:17 app01 sshd[2406]: Failed password for root from 203.0.113.80 port 52006 ssh2
+Apr  2 09:01:17 app01 sshd[2407]: Failed password for admin from 203.0.113.80 port 52007 ssh2
+Apr  2 09:10:00 app01 systemd-logind[640]: New session 31 of user deploy.

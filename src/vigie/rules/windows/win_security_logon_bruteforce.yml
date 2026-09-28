@@ -1,0 +1,30 @@
+title: Windows Logon Brute Force From Single Source
+id: 6cf25939-c0a0-43f8-bb43-34d254f459cb
+status: test
+description: At least 5 failed Windows logons (wrong password, unknown user name or locked-out account) from the same source within 1 minute, the source being the client IP address and workstation name. Password guessing and password spraying tools produce such bursts, far faster than a person retyping a password.
+references:
+    - https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4625
+    - https://attack.mitre.org/techniques/T1110/001/
+    - https://attack.mitre.org/techniques/T1110/003/
+author: Bouliw
+date: 2026-09-28
+tags:
+    - attack.credential-access
+    - attack.t1110.001
+    - attack.t1110.003
+correlation:
+    type: event_count
+    rules:
+        - win_failed_logon
+    # IpAddress is "-" for local logons: the workstation name then tells the
+    # sources apart.
+    group-by:
+        - IpAddress
+        - WorkstationName
+    timespan: 1m
+    condition:
+        gte: 5
+falsepositives:
+    - A service, scheduled task, mapped drive or mobile device retrying an outdated password in a loop
+    - A shared host (terminal server, jump host, NAT gateway) where several users mistype their passwords at the same time
+level: medium

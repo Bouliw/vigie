@@ -1,0 +1,137 @@
+{% set r = report %}
+# Vigie report
+
+Generated on {{ r.generated_at | ts }} by Vigie {{ r.vigie_version | md }}. Alerts are mapped to MITRE ATT&CK {{ r.attack_version | md }}. All times are UTC.
+
+## Summary
+
+| | |
+|---|---|
+| Events analyzed | {{ r.event_count }} |
+| Time range | {{ r.first_event | ts }} to {{ r.last_event | ts }} |
+| Files read | {{ r.files | length }}{% if r.skipped %} ({{ r.skipped | length }} skipped){% endif %} |
+| Rules loaded | {{ r.rule_count }}{% if r.rule_errors %} ({{ r.rule_errors | length }} rejected, see below){% endif %} |
+| Alerts shown | {{ r.alert_count }} (level {{ r.min_level }} and above) |
+
+| Severity | Alerts |
+|---|---|
+{% for level, count in r.level_counts.items() %}
+| {{ level }} | {{ count }} |
+{% endfor %}
+{% if r.hidden_by_level %}
+
+{{ r.hidden_by_level.values() | sum }} alert(s) below the "{{ r.min_level }}" level are not shown ({% for level, count in r.hidden_by_level.items() %}{{ level }}: {{ count }}{% if not loop.last %}, {% endif %}{% endfor %}). Run with `--min-level {{ r.hidden_by_level | first }}` to include them.
+{% endif %}
+
+## MITRE ATT&CK
+
+{% if r.tactics %}
+| Tactic | Alerts | Techniques |
+|---|---|---|
+{% for view in r.tactics %}
+| [{{ view.tactic.name | md }}]({{ view.tactic.url }}) ({{ view.tactic.id }}) | {{ view.alert_count }} | {% for t in view.techniques %}[{{ t.id }}]({{ t.url }}) {{ t.display_name | md }}{% if not loop.last %}<br>{% endif %}{% endfor %} |
+{% endfor %}
+{% else %}
+No alert, so no ATT&CK technique observed.
+{% endif %}
+
+## Alerts
+
+{% if r.alerts %}
+| Severity | Rule | Alerts | First seen | Last seen |
+|---|---|---|---|---|
+{% for s in r.rules %}
+| {{ s.rule.level }} | {{ s.rule.title | md }} | {{ s.alert_count }} | {{ s.first_seen | ts }} | {{ s.last_seen | ts }} |
+{% endfor %}
+
+{% for a in r.alerts %}
+### {{ loop.index }}. {{ a.rule.title | md }} ({{ a.rule.level }})
+
+- **When:** {{ a.first_seen | ts }}{% if a.last_seen != a.first_seen %} to {{ a.last_seen | ts }}{% endif %}
+
+- **Hosts:** {{ a.hosts | join(", ") | md if a.hosts else "-" }}
+{% if a.group %}
+- **Grouped by:** {% for key, value in a.group.items() %}{{ key | md }} = {{ value | md }}{% if not loop.last %}, {% endif %}{% endfor %}
+
+{% endif %}
+- **ATT&CK:** {% for t in a.attack.techniques %}[{{ t.id }}]({{ t.url }}) {{ t.display_name | md }}{% if not loop.last %}; {% endif %}{% endfor %}{% if a.attack.tactics %} ({{ a.attack.tactics | map(attribute="name") | join(", ") }}){% endif %}
+
+- **Rule:** {{ a.rule.title | md }}, `{{ a.rule.id }}`{% if a.rule.kind == "correlation" %}, correlation{% endif %}
+
+- **Author:** {{ a.rule.author | md }}{% if a.rule.license %} (rule licensed under {{ a.rule.license | md }}){% endif %}
+
+- **What it means:** {{ a.rule.description | md }}
+{% if a.rule.falsepositives %}
+- **Possible false positives:** {{ a.rule.falsepositives | map("md") | join("; ") }}
+{% endif %}
+
+| Time | Host | Origin | Event |
+|---|---|---|---|
+{% for e in a.evidence %}
+| {{ e.timestamp | ts }} | {{ (e.host or "-") | md }} | {{ e.origin | md }} | {{ e.summary | md }} |
+{% endfor %}
+{% if a.event_count > a.evidence | length %}
+
+{{ a.event_count - a.evidence | length }} event(s) between the first {{ a.evidence | length - 1 }} and the last one are not shown.
+{% endif %}
+
+{% endfor %}
+{% else %}
+No alert at level {{ r.min_level }} or above.
+
+{% endif %}
+## Timeline
+
+{% if r.full_timeline %}
+Every event read{% else %}Events behind the alerts above{% endif %}, in time order{% if r.timeline_omitted %}; the last {{ r.timeline_omitted }} are not shown{% endif %}.
+
+{% if r.timeline %}
+| Time | Host | Source | ID | Event | Alerts |
+|---|---|---|---|---|---|
+{% for e in r.timeline %}
+| {{ e.timestamp | ts }} | {{ (e.host or "-") | md }} | {{ e.source | md }} | {{ e.event_id if e.event_id is not none else "-" }} | {{ e.summary | md }} | {{ e.alert_titles | map("md") | join("; ") or "-" }} |
+{% endfor %}
+{% else %}
+Nothing to show.
+{% endif %}
+
+## Inputs
+
+| File | Format | Events | Warnings |
+|---|---|---|---|
+{% for f in r.files %}
+| {{ f.path | md }} | {{ f.format }} | {{ f.events }} | {{ f.warnings | length }} |
+{% endfor %}
+{% for f in r.files if f.warnings %}
+{% if loop.first %}
+
+Parser warnings:
+
+{% endif %}
+{% for w in f.warnings[:20] %}
+- {{ w | md }}
+{% endfor %}
+{% if f.warnings | length > 20 %}
+- {{ f.path | md }}: {{ f.warnings | length - 20 }} more warning(s)
+{% endif %}
+{% endfor %}
+{% if r.skipped %}
+
+Skipped:
+
+{% for s in r.skipped %}
+- {{ s | md }}
+{% endfor %}
+{% endif %}
+{% if r.rule_errors %}
+
+Rejected rules:
+
+{% for e in r.rule_errors %}
+- {{ e | md }}
+{% endfor %}
+{% endif %}
+
+---
+
+{{ r.attack_copyright | md }} Rules adapted from SigmaHQ are licensed under the Detection Rule License 1.1; their authors are credited in each alert.

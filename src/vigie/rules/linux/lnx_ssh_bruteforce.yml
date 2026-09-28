@@ -1,0 +1,25 @@
+title: SSH Brute Force
+id: 44043ef0-67f0-4380-9c98-b348be632e58
+name: ssh_bruteforce
+status: test
+description: At least 10 failed SSH password attempts from the same source address within 5 minutes, the signature of an automated password guessing attack.
+references:
+    - https://attack.mitre.org/techniques/T1110/001/
+author: Bouliw
+date: 2026-09-28
+tags:
+    - attack.credential-access
+    - attack.t1110.001
+correlation:
+    type: event_count
+    rules:
+        - ssh_failed_password
+    group-by:
+        - src_ip
+    timespan: 5m
+    condition:
+        gte: 10
+falsepositives:
+    - A misconfigured script or service retrying an outdated password
+    - Vulnerability scanners run by the security team
+level: medium

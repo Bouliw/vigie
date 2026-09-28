@@ -1,0 +1,38 @@
+title: Hidden User Account Created
+id: a03abeec-d83e-4d29-93f3-1304bb90594e
+related:
+    - id: 7b449a5e-1db5-4dd0-a2dc-4e3a67282538
+      type: derived
+status: test
+description: A user account whose name ends with "$" was created (Security event 4720). "net user" does not list such names and they pass for computer accounts, which are logged as 4741, not 4720, so attackers use them to hide a backdoor account.
+references:
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/builtin/security/win_security_hidden_user_creation.yml
+    - https://attack.mitre.org/techniques/T1136/001/
+    - https://attack.mitre.org/techniques/T1136/002/
+    - https://attack.mitre.org/techniques/T1564/002/
+    - https://attack.mitre.org/techniques/T1036/010/
+author: Christian Burkard (Nextron Systems) (SigmaHQ), adapted by Bouliw
+license: DRL-1.1
+date: 2021-05-03
+modified: 2026-09-28
+tags:
+    - attack.persistence
+    - attack.stealth
+    - attack.t1136.001
+    - attack.t1136.002
+    - attack.t1564.002
+    - attack.t1036.010
+logsource:
+    product: windows
+    service: security
+detection:
+    selection:
+        EventID: 4720
+        TargetUserName|endswith: '$'
+    filter_main_homegroup:
+        TargetUserName: 'HomeGroupUser$'
+    condition: selection and not 1 of filter_main_*
+falsepositives:
+    - HomeGroupUser$, created by the Windows 7 and 8.1 HomeGroup feature (excluded by the filter)
+    - Interdomain trust accounts, named after the trusted domain with a trailing "$", when a new Active Directory trust is created
+level: high

@@ -1,0 +1,8 @@
+May  5 10:00:01 web02 sshd[5001]: Accepted publickey for deploy from 192.0.2.10 port 50122 ssh2: ED25519 SHA256:q2Vd0fXzG1kq3v8mY7s1x2bT9cQeWnR4uHjK5aLpZoE
+May  5 10:00:01 web02 sshd[5001]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+May  5 10:05:12 web02 sshd[5020]: Invalid user test from 203.0.113.9 port 42420
+May  5 10:05:12 web02 sshd[5020]: Connection closed by invalid user test 203.0.113.9 port 42420 [preauth]
+May  5 10:05:30 web02 sshd[5021]: Connection closed by authenticating user root 203.0.113.9 port 42424 [preauth]
+May  5 10:20:44 web02 sshd[5001]: Received disconnect from 192.0.2.10 port 50122:11: disconnected by user
+May  5 10:20:44 web02 sshd[5001]: Disconnected from user deploy 192.0.2.10 port 50122
+May  5 10:20:44 web02 sshd[5001]: pam_unix(sshd:session): session closed for user deploy

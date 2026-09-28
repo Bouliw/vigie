@@ -1,0 +1,110 @@
+title: Suspicious Service Installed
+id: 6d03b054-8230-47ba-a957-6b59a2d71c33
+related:
+    - id: 1d61f71d-59d2-479e-9562-4ff5f4ead16b
+      type: derived
+    - id: 26481afe-db26-4228-b264-25a29fe6efc7
+      type: derived
+    - id: 5e993621-67d4-488a-b9ae-b420d08b96cb
+      type: derived
+    - id: 70f00d10-60b2-4f34-b9a0-dc3df3fe762a
+      type: derived
+    - id: a2e5019d-a658-4c6a-92bf-7197b54e2cae
+      type: derived
+    - id: 843544a7-56e0-4dcc-a44f-5cc266dd97d6
+      type: derived
+status: test
+description: Detects a new Windows service (System event 7045) whose command line runs a shell, a script host or a LOLBin, writes into a named pipe, starts a program from an admin share or a temporary or user folder, or names a program without its folder. Attackers install such services to run code as SYSTEM, to move laterally (Impacket, Cobalt Strike, Empire, sc.exe) or to escalate privileges with the named pipe "getsystem" trick.
+references:
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/builtin/system/service_control_manager/win_system_service_install_susp.yml
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/builtin/system/service_control_manager/win_system_service_install_uncommon.yml
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/builtin/system/service_control_manager/win_system_susp_service_installation_folder.yml
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/builtin/system/service_control_manager/win_system_susp_service_installation_script.yml
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/builtin/system/service_control_manager/win_system_powershell_script_installed_as_service.yml
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/builtin/system/service_control_manager/win_system_meterpreter_or_cobaltstrike_getsystem_service_installation.yml
+    - https://attack.mitre.org/techniques/T1543/003/
+    - https://attack.mitre.org/techniques/T1569/002/
+author: pH-T (Nextron Systems), Florian Roth (Nextron Systems), Teymur Kheirkhabarov, Ecco, oscd.community, Natalia Shornikova (SigmaHQ), adapted by Bouliw
+license: DRL-1.1
+date: 2019-10-26
+modified: 2026-09-28
+tags:
+    - attack.persistence
+    - attack.privilege-escalation
+    - attack.execution
+    - attack.t1543.003
+    - attack.t1569.002
+logsource:
+    product: windows
+    service: system
+detection:
+    selection:
+        Provider_Name: 'Service Control Manager'
+        EventID: 7045
+    susp_interpreter:
+        # A shell, a script host or a LOLBin is the service program
+        ImagePath|contains:
+            - '%COMSPEC%'
+            - 'cmd.exe'
+            - 'cmd /c'
+            - 'cmd /k'
+            - 'powershell'
+            - 'pwsh'
+            - 'mshta'
+            - 'rundll32'
+            - 'regsvr32'
+            - 'wscript'
+            - 'cscript'
+    susp_named_pipe:
+        # "getsystem": the service writes into a pipe the attacker listens on (echo x > \\.\pipe\y)
+        - ImagePath|contains|all:
+              - 'echo'
+              - '\pipe\'
+        - ImagePath|contains: '\\\\.\\pipe\\'  # any local named pipe path (SigmaHQ 26481afe)
+    susp_encoded_powershell:
+        # -e/-enc followed by a Base64 UTF-16 PowerShell prefix, even from a renamed binary (SigmaHQ 26481afe)
+        ImagePath|re: '\s-[eE]\S*\s+(?:aQBlAHgA|aWV4I|IAB|JAB|PAA|SQBFAFgA|SUVYI)'
+    susp_command_line:
+        # PowerShell launcher flags, download cradles and chained commands
+        ImagePath|contains:
+            - ' -nop '
+            - ' -sta '
+            - ' -w hidden '
+            - '.downloadfile('
+            - '.downloadstring('
+            - '&&'
+    susp_location:
+        # Program started through an admin share, or from a temporary or user folder
+        ImagePath|contains:
+            - '\ADMIN$\'
+            - '\\\\127.0.0.1\\'
+            - '\\\\localhost\\'
+            - ':\Temp\'
+            - '\Windows\Temp\'
+            - '%TEMP%\'
+            - '%TMP%\'
+            - '%SystemRoot%\Temp\'
+            - '%windir%\Temp\'
+            - '%SystemDrive%\Temp\'
+            - '%PUBLIC%\'
+            - '%APPDATA%\'
+            - '%LOCALAPPDATA%\'
+            - '\PerfLogs\'
+            - '\Users\Public\'
+            - '\AppData\'
+            - '\Downloads\'
+            - '\Desktop\'
+    susp_no_folder:
+        # First token has no folder (e.g. "calc.exe", "cmd.exe /c ..."): installers write a full path
+        ImagePath|re: '^"?[^\\/"\s]+("|\s|$)'
+    filter_optional_thor_remote:
+        ImagePath|startswith: 'C:\WINDOWS\TEMP\thor10-remote\thor64.exe'
+    filter_optional_zoom:
+        ServiceName: 'Zoom Sharing Service'
+        ImagePath|contains: ':\Program Files\Common Files\Zoom\Support\CptService.exe'
+    condition: selection and 1 of susp_* and not 1 of filter_optional_*
+falsepositives:
+    - Installers or updaters that register a temporary service from C:\Windows\Temp or a user folder
+    - Administrators or management tools that wrap a script in a service with cmd.exe or PowerShell
+    - Deployment or scanning tools that copy their agent through the ADMIN$ share and start it as a service
+level: high

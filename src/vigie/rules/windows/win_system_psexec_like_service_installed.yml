@@ -1,0 +1,49 @@
+title: PsExec-Like Service Installed
+id: 4d9d8b96-f9b9-4454-86d2-5dc723e625bb
+related:
+    - id: 42c575ea-e41e-41f1-b248-8093c3e82a28
+      type: derived
+    - id: de7ce410-b3fb-4e8a-b38c-3b999e2c3420
+      type: derived
+    - id: 9e36ed87-4986-482e-8e3b-5c23ffff11bf
+      type: derived
+    - id: a27e5fa9-c35e-4e3d-b7e0-1ce2af66ad12
+      type: derived
+status: test
+description: Detects the installation (System event 7045) of the helper service of PsExec (PSEXESVC) or of a similar remote execution tool (PAExec, RemCom, CSExec). These tools run commands as SYSTEM, locally or on a remote host over SMB; administrators use them, and so do attackers to move laterally.
+references:
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/builtin/system/service_control_manager/win_system_service_install_sysinternals_psexec.yml
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/builtin/system/service_control_manager/win_system_service_install_paexec.yml
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/builtin/system/service_control_manager/win_system_service_install_remcom.yml
+    - https://github.com/SigmaHQ/sigma/blob/07ec293a51695cb1131a2e05260247872b31e1e1/rules/windows/builtin/system/service_control_manager/win_system_service_install_csexecsvc.yml
+    - https://attack.mitre.org/techniques/T1569/002/
+author: Thomas Patzke, Nasreddine Bencherchali (Nextron Systems) (SigmaHQ), adapted by Bouliw
+license: DRL-1.1
+date: 2017-06-12
+modified: 2026-09-28
+tags:
+    - attack.execution
+    - attack.t1569.002
+    - attack.s0029
+logsource:
+    product: windows
+    service: system
+detection:
+    selection:
+        Provider_Name: 'Service Control Manager'
+        EventID: 7045
+    remote_exec_service:
+        - ServiceName:
+              - 'PSEXESVC'
+              - 'RemComSvc'
+              - 'csexecsvc'
+        - ServiceName|startswith: 'PAExec-'
+        - ImagePath|endswith:
+              - '\PSEXESVC.exe'
+              - '\RemComSvc.exe'
+              - '\csexecsvc.exe'
+        - ImagePath|contains: '\PAExec-'
+    condition: selection and remote_exec_service
+falsepositives:
+    - Administrators and IT tools that use PsExec or PAExec for remote maintenance
+level: medium

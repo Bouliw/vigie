@@ -1,0 +1,21 @@
+title: Sudo Authentication Failure
+id: 87c54c54-38eb-4d79-88a8-714dbb6a656d
+status: test
+description: A user failed to authenticate to sudo. Repeated failures can reveal someone trying to guess a password to gain root privileges.
+references:
+    - https://attack.mitre.org/techniques/T1548/003/
+author: Bouliw
+date: 2026-09-28
+tags:
+    - attack.privilege-escalation
+    - attack.t1548.003
+logsource:
+    product: linux
+    service: sudo
+detection:
+    selection:
+        action: sudo_auth_failure
+    condition: selection
+falsepositives:
+    - Users mistyping their password
+level: low

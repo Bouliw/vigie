@@ -1,0 +1,31 @@
+title: Kerberos Authentication Failure
+id: 0ca0b8d2-4007-47d0-81ec-8c96d0fc2cf1
+name: win_kerberos_auth_failure
+status: test
+description: A domain controller rejected a Kerberos authentication, either because pre-authentication failed with a wrong password (4771, status 0x18) or because a ticket was requested for a user name that does not exist (4768, status 0x6). On its own this is routine noise; it feeds the Kerberos password spraying correlation.
+references:
+    - https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4771
+    - https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4768
+    - https://attack.mitre.org/techniques/T1110/
+author: Bouliw
+date: 2026-09-28
+tags:
+    - attack.credential-access
+    - attack.t1110
+logsource:
+    product: windows
+    service: security
+detection:
+    selection_preauth_failed:
+        EventID: 4771
+        Status: '0x18'  # KDC_ERR_PREAUTH_FAILED: wrong password
+    selection_unknown_principal:
+        EventID: 4768
+        Status: '0x6'  # KDC_ERR_C_PRINCIPAL_UNKNOWN: no such user name
+    filter_main_machine_account:
+        TargetUserName|endswith: '$'
+    condition: 1 of selection_* and not 1 of filter_main_*
+falsepositives:
+    - Users mistyping their password
+    - Applications configured with a wrong or deleted account name
+level: low
