@@ -1,5 +1,7 @@
 # Vigie
 
+[![CI](https://github.com/Bouliw/vigie/actions/workflows/ci.yml/badge.svg)](https://github.com/Bouliw/vigie/actions/workflows/ci.yml)
+
 Vigie is an open source blue team tool that reads Windows and Linux logs,
 runs Sigma detection rules on them and writes a report an analyst can read:
 alerts ranked by severity, mapped to MITRE ATT&CK, with the events behind each
