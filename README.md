@@ -31,10 +31,10 @@ known limits written down).
 
 ![Top of an HTML report](docs/report-preview.png)
 
-Full example: [`docs/example-report.md`](docs/example-report.md) (the HTML
-version is [`docs/example-report.html`](docs/example-report.html)). It was
-produced from the synthetic auth.log files and the OTRF excerpts of
-`tests/fixtures`.
+Full example: [open the HTML report in your browser](https://bouliw.github.io/vigie/example-report.html)
+(source: [`docs/example-report.html`](docs/example-report.html), Markdown
+version: [`docs/example-report.md`](docs/example-report.md)). It was produced
+from the synthetic auth.log files and the OTRF excerpts of `tests/fixtures`.
 
 ## Installation
 
