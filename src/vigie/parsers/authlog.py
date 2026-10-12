@@ -17,7 +17,7 @@ from __future__ import annotations
 import gzip
 import re
 from dataclasses import dataclass
-from datetime import datetime, tzinfo
+from datetime import datetime, timedelta, tzinfo
 from itertools import pairwise
 from pathlib import Path
 from typing import TextIO
@@ -171,15 +171,36 @@ def parse(path: str | Path, *, year: int | None = None, tz: tzinfo = UTC) -> Par
                 rollovers += 1
             previous_month = line.month
             try:
-                naive = datetime.strptime(
-                    f"{first_year + rollovers}-{line.month:02d}-{line.day:02d} {line.clock}",
-                    "%Y-%m-%d %H:%M:%S",
-                )
+                timestamp = _classic_timestamp(line, first_year + rollovers, tz)
             except ValueError as exc:
                 result.warnings.append(f"{path.name}:{line.lineno}: invalid date ({exc})")
                 continue
-            timestamp = naive.replace(tzinfo=tz)
-        result.events.extend(_build_events(path, line, timestamp, result.warnings))
+        result.events.extend(_build_events(path.name, line, timestamp, result.warnings))
+    return result
+
+
+def parse_line(raw: str, *, name: str, lineno: int, now: datetime, tz: tzinfo = UTC) -> ParseResult:
+    """Parse one line just written to a live log (``vigie watch``).
+
+    A classic syslog line gets the year of ``now`` in ``tz``, or the year
+    before when that would put it more than a day ahead (a December line read
+    just after New Year).
+    """
+    result = ParseResult()
+    line = _header(raw.rstrip("\r\n"), lineno, name, result.warnings)
+    if line is None:
+        return result
+    timestamp = line.timestamp
+    if timestamp is None:
+        year = now.astimezone(tz).year
+        try:
+            timestamp = _classic_timestamp(line, year, tz)
+            if timestamp - now > timedelta(days=1):
+                timestamp = _classic_timestamp(line, year - 1, tz)
+        except ValueError as exc:
+            result.warnings.append(f"{name}:{lineno}: invalid date ({exc})")
+            return result
+    result.events.extend(_build_events(name, line, timestamp, result.warnings))
     return result
 
 
@@ -200,33 +221,43 @@ def open_text(path: Path) -> TextIO:
 
 
 def _read_headers(handle: TextIO, name: str, result: ParseResult) -> list[_Line]:
-    lines: list[_Line] = []
-    for lineno, text in enumerate(handle, start=1):
-        raw = text.rstrip("\r\n")
-        if not raw.strip():
-            continue
-        if match := _ISO_HEADER.match(raw):
-            try:
-                timestamp = parse_iso8601(match["ts"])
-            except ValueError as exc:
-                result.warnings.append(f"{name}:{lineno}: {exc}")
-                continue
-            lines.append(_Line(lineno, raw, match["host"], match["rest"], timestamp=timestamp))
-        elif (match := _CLASSIC_HEADER.match(raw)) and match["month"] in _MONTHS:
-            lines.append(
-                _Line(
-                    lineno,
-                    raw,
-                    match["host"],
-                    match["rest"],
-                    month=_MONTHS[match["month"]],
-                    day=int(match["day"]),
-                    clock=match["time"],
-                )
-            )
-        else:
-            result.warnings.append(f"{name}:{lineno}: unrecognized syslog line")
-    return lines
+    lines = (
+        _header(text.rstrip("\r\n"), lineno, name, result.warnings)
+        for lineno, text in enumerate(handle, start=1)
+    )
+    return [line for line in lines if line is not None]
+
+
+def _header(raw: str, lineno: int, name: str, warnings: list[str]) -> _Line | None:
+    """Split the syslog header of a line; ``None`` (with a warning) if it has none."""
+    if not raw.strip():
+        return None
+    if match := _ISO_HEADER.match(raw):
+        try:
+            timestamp = parse_iso8601(match["ts"])
+        except ValueError as exc:
+            warnings.append(f"{name}:{lineno}: {exc}")
+            return None
+        return _Line(lineno, raw, match["host"], match["rest"], timestamp=timestamp)
+    if (match := _CLASSIC_HEADER.match(raw)) and match["month"] in _MONTHS:
+        return _Line(
+            lineno,
+            raw,
+            match["host"],
+            match["rest"],
+            month=_MONTHS[match["month"]],
+            day=int(match["day"]),
+            clock=match["time"],
+        )
+    warnings.append(f"{name}:{lineno}: unrecognized syslog line")
+    return None
+
+
+def _classic_timestamp(line: _Line, year: int, tz: tzinfo) -> datetime:
+    naive = datetime.strptime(
+        f"{year}-{line.month:02d}-{line.day:02d} {line.clock}", "%Y-%m-%d %H:%M:%S"
+    )
+    return naive.replace(tzinfo=tz)
 
 
 def _infer_first_year(path: Path, lines: list[_Line]) -> int:
@@ -236,7 +267,7 @@ def _infer_first_year(path: Path, lines: list[_Line]) -> int:
     return last_year - rollovers
 
 
-def _build_events(path: Path, line: _Line, timestamp: datetime, warnings: list[str]) -> list[Event]:
+def _build_events(name: str, line: _Line, timestamp: datetime, warnings: list[str]) -> list[Event]:
     """Build the event of a line, or one event per repetition of a folded line.
 
     rsyslog's RepeatedMsgReduction (enabled by default on Ubuntu) replaces
@@ -250,32 +281,30 @@ def _build_events(path: Path, line: _Line, timestamp: datetime, warnings: list[s
     program = _PROGRAM.match(line.rest)
     repeated = _REPEATED.match(program["message"]) if program else None
     if program is None or repeated is None:
-        return [_build_event(path, line, timestamp)]
+        return [_build_event(name, line, timestamp)]
     count = int(repeated["count"])
     if count == 0:
-        warnings.append(f"{path.name}:{line.lineno}: repeat count of 0, line kept as is")
-        return [_build_event(path, line, timestamp)]
+        warnings.append(f"{name}:{line.lineno}: repeat count of 0, line kept as is")
+        return [_build_event(name, line, timestamp)]
     expanded = count
     if count > MAX_REPEAT:
-        warnings.append(
-            f"{path.name}:{line.lineno}: repeat count {count} capped at {MAX_REPEAT} events"
-        )
+        warnings.append(f"{name}:{line.lineno}: repeat count {count} capped at {MAX_REPEAT} events")
         expanded = MAX_REPEAT
     return [
         _build_event(
-            path,
+            name,
             line,
             timestamp,
             message=repeated["message"],
             extra={"repeated": str(count)},
-            origin=f"{path.name}:{line.lineno} (repeat {index}/{count})",
+            origin=f"{name}:{line.lineno} (repeat {index}/{count})",
         )
         for index in range(1, expanded + 1)
     ]
 
 
 def _build_event(
-    path: Path,
+    name: str,
     line: _Line,
     timestamp: datetime,
     *,
@@ -290,7 +319,7 @@ def _build_event(
         if match["pid"]:
             fields["pid"] = match["pid"]
         fields["message"] = match["message"] if message is None else message
-        fields.update(_extract_action(program, fields["message"]))
+        fields.update(extract_action(program, fields["message"]))
     else:
         fields["message"] = line.rest
     fields.update(extra or {})
@@ -301,11 +330,12 @@ def _build_event(
         host=line.host,
         fields=fields,
         raw=line.raw,
-        origin=origin or f"{path.name}:{line.lineno}",
+        origin=origin or f"{name}:{line.lineno}",
     )
 
 
-def _extract_action(program: str, message: str) -> dict[str, str]:
+def extract_action(program: str, message: str) -> dict[str, str]:
+    """The ``action`` of an sshd, sudo, su or useradd message and its values, or ``{}``."""
     program = _PROGRAM_FAMILY.get(program, program)
     if program == "sshd" and (failed := _parse_failed_login(message)) is not None:
         return failed
