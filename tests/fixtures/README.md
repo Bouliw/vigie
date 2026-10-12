@@ -50,7 +50,7 @@ line of `log show`.
 |---|---|
 | `mac_sudo.ndjson` | A successful `sudo`, then two `sudo` runs with wrong passwords (3 then 2 attempts, 5 Open Directory failures in 32 seconds), and an SSH key probe. |
 | `mac_benign.ndjson` | A routine day: 5 password typos spread over 6 minutes, an Apple service retrying a stale password 4 times, a successful `sudo`, SSH logins (by key, and after two typos), launch items scanned again and a failed registration, code Gatekeeper allows, XProtect behavioral detections outside the persistence and data theft families (execution from `/tmp`, outgoing network, clipboard). |
-| `mac_persistence.ndjson` | Background Task Management registering a new launch agent, a launch daemon and a launch agent with a `com.apple.` label, each preceded by the XProtect behavioral detection of the launch plist write. |
+| `mac_persistence.ndjson` | Background Task Management registering a new launch agent, a launch daemon and a launch agent with a `com.apple.` label, each preceded by the XProtect behavioral detection of the launch plist write, then the cleanup daemon the macOS upgrade installer writes in `/Library/LaunchDaemons`. |
 | `mac_gatekeeper_xprotect.ndjson` | Two applications blocked by Gatekeeper (one with its whole evaluation), XProtect behavioral detections of execution from `/tmp` and of browser, keychain and info stealer access. |
 | `mac_ssh.ndjson` | An SSH brute force against Remote Login (12 failures in 77 seconds, OpenSSH 10 `sshd-session`) followed by a successful password login, and a key-based login. |
 

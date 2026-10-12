@@ -1,10 +1,11 @@
 title: macOS Launch Item Masquerading As Apple
 id: 8b316231-3fc2-4e5d-bbf1-5ef14bbd26ec
 status: test
-description: A new launch agent or daemon uses a com.apple. label. Apple's own launch items live in /System and are not registered this way, so a com.apple. item showing up in a LaunchAgents or LaunchDaemons folder is most likely a program hiding behind Apple's name to persist.
+description: A new launch agent or daemon uses a com.apple. label. Apple's own launch items live in /System and are not registered this way, so a com.apple. item showing up in a LaunchAgents or LaunchDaemons folder is most likely a program hiding behind Apple's name to persist, as EvilQuest did with com.apple.questd.
 references:
     - https://attack.mitre.org/techniques/T1036/005/
     - https://attack.mitre.org/techniques/T1543/001/
+    - https://www.intego.com/mac-security-blog/new-mac-ransomware-spyware-thiefquest-in-the-wild/
 author: Bouliw
 date: 2026-10-12
 tags:
@@ -24,7 +25,10 @@ detection:
             - legacy agent
             - legacy daemon
         item_identifier|startswith: com.apple.
-    condition: selection
+    filter_upgrade:
+        # Written by the macOS upgrade installer, and left behind after the upgrade.
+        item_path: /Library/LaunchDaemons/com.apple.installer.cleanupinstaller.plist
+    condition: selection and not filter_upgrade
 falsepositives:
     - Apple software installed outside macOS that brings its own launch items
 level: high

@@ -139,13 +139,14 @@
 
 - rule: 65c957df-5998-42b0-9e60-845f851950ad  # macOS Launch Daemon Added
   positive:
-    - {fixture: unifiedlog/mac_persistence.ndjson, expected: 1}
+    - {fixture: unifiedlog/mac_persistence.ndjson, expected: 2}  # a VPN helper, the upgrade cleanup
   negative:
     - fixture: unifiedlog/mac_benign.ndjson  # known agents scanned again, a registration that failed
 
 - rule: 8b316231-3fc2-4e5d-bbf1-5ef14bbd26ec  # macOS Launch Item Masquerading As Apple
   positive:
-    - {fixture: unifiedlog/mac_persistence.ndjson, expected: 1}  # not the two com.example items
+    # Not the two com.example items, nor the cleanup daemon of the macOS upgrade installer.
+    - {fixture: unifiedlog/mac_persistence.ndjson, expected: 1}
   negative:
     - fixture: unifiedlog/mac_benign.ndjson  # a com.example agent scanned again
 
