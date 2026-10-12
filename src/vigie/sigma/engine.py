@@ -1,4 +1,4 @@
-"""Run a rule set over events and produce alerts."""
+"""Run a rule set over events and produce alerts, on a whole log folder or one event at a time."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from vigie.models import Alert, Event
-from vigie.sigma.correlation import Occurrence, correlate
+from vigie.sigma.correlation import Correlator, Occurrence, correlate
 from vigie.sigma.loader import DetectionRule, RuleSet
 
 
@@ -74,6 +74,43 @@ class Engine:
             if rule_id not in hidden:
                 alerts.extend(fired)
         return Evaluation(dict(matches), correlation_alerts, sort_alerts(alerts))
+
+
+class Stream(Engine):
+    """Evaluate events one at a time, as they arrive (``vigie watch``).
+
+    The rules and their results are those of :meth:`Engine.evaluate`, fed
+    with the events in the order they come: correlations keep only their open
+    windows, so memory does not grow with the number of events.
+    """
+
+    def __init__(self, ruleset: RuleSet) -> None:
+        super().__init__(ruleset)
+        self._correlators = [Correlator(rule) for rule in ruleset.correlations]
+        self._hidden = ruleset.hidden_rule_ids()
+
+    def push(self, event: Event) -> list[Alert]:
+        """Return the alerts this event raises or completes, most severe first."""
+        new: dict[str, list[Occurrence]] = defaultdict(list)
+        alerts = []
+        for rule in self._by_source.get(event.source, ()):
+            if rule.matches(event):
+                new[rule.meta.id].append(Occurrence.from_event(event))
+                if rule.meta.id not in self._hidden:
+                    alerts.append(Alert(rule.meta, (event,)))
+        # Correlations come in dependency order, so an alert can feed the next ones at once.
+        references = self.ruleset.references
+        for correlator in self._correlators if new else ():
+            rule_id = correlator.rule.meta.id
+            for ref in dict.fromkeys(correlator.rule.rules):
+                for occurrence in new.get(references[ref], ()):
+                    alert = correlator.push(ref, occurrence)
+                    if alert is None:
+                        continue
+                    new[rule_id].append(Occurrence.from_alert(alert))
+                    if rule_id not in self._hidden:
+                        alerts.append(alert)
+        return sort_alerts(alerts)
 
 
 def sort_alerts(alerts: list[Alert]) -> list[Alert]:

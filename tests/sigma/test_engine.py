@@ -4,7 +4,8 @@ from pathlib import Path
 import pytest
 
 from vigie.collect import collect
-from vigie.sigma.engine import Engine
+from vigie.rules import RULES_DIR
+from vigie.sigma.engine import Engine, Stream
 from vigie.sigma.loader import load_rules
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
@@ -102,3 +103,18 @@ def test_alert_holds_its_event(write_rules, make_event):
 def test_no_rules_no_alerts(make_event):
     ruleset = load_rules([])
     assert Engine(ruleset).run([make_event()]) == []
+
+
+def test_stream_raises_the_alerts_of_a_batch_run():
+    """vigie watch evaluates events one by one: it must raise exactly what analyze raises."""
+    ruleset = load_rules(RULES_DIR)
+    events = collect(FIXTURES, year=2024).events
+    stream = Stream(ruleset)
+    streamed = [alert for event in events for alert in stream.push(event)]
+
+    def key(alert):
+        return alert.rule.id, tuple(id(event) for event in alert.events)
+
+    batch = Engine(ruleset).evaluate(events).alerts
+    assert len(batch) > 50
+    assert sorted(map(key, streamed)) == sorted(map(key, batch))
