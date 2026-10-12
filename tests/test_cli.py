@@ -64,7 +64,10 @@ def test_undecodable_text_does_not_break_the_report(tmp_path):
     folder.mkdir()
     # A file name that is not valid UTF-8 decodes to a lone surrogate (PEP 383).
     name = os.fsdecode(b"auth-\xff.log")
-    shutil.copy(FIXTURES / "authlog" / "auth.log", folder / name)
+    try:
+        shutil.copy(FIXTURES / "authlog" / "auth.log", folder / name)
+    except OSError as exc:  # APFS (macOS) only accepts UTF-8 file names
+        pytest.skip(f"the file system rejects non UTF-8 names: {exc.strerror}")
     out = tmp_path / "out"
     argv = ["analyze", str(folder), "-o", str(out), "--format", "html,md,json"]
     assert main(argv) == 0
