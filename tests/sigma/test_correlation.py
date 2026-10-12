@@ -7,6 +7,7 @@ from vigie.collect import collect
 from vigie.models import Alert, RuleMeta
 from vigie.sigma.correlation import (
     CorrelationRule,
+    Correlator,
     Occurrence,
     correlate,
     parse_correlation,
@@ -492,3 +493,37 @@ def test_duplicate_name_is_rejected(write_rules):
     ruleset = load_rules(write_rules(**{"a.yml": SSH_RULES["ssh_failed.yml"], "b.yml": duplicate}))
     assert len(ruleset.detections) == 1
     assert ruleset.errors[0].endswith("duplicate rule id or name ssh_failed_password")
+
+
+class TestCorrelator:
+    def rule(self):
+        return correlation(
+            type="event_count",
+            rules="a",
+            **{"group-by": "src_ip"},
+            timespan="1m",
+            condition={"gte": 2},
+        )
+
+    def test_idle_groups_are_dropped(self, monkeypatch, occurrence):
+        monkeypatch.setattr(Correlator, "PRUNE_EVERY", 3)
+        correlator = Correlator(self.rule())
+        assert correlator.push("a", occurrence(0, src_ip="198.51.100.1")) is None
+        assert correlator.push("a", occurrence(20, src_ip="198.51.100.2")) is None
+        # The third push sweeps: both groups have been silent for more than 1m.
+        assert correlator.push("a", occurrence(90, src_ip="198.51.100.3")) is None
+        assert set(correlator._groups) == {("198.51.100.3",)}
+        alert = correlator.push("a", occurrence(100, src_ip="198.51.100.3"))
+        assert alert is not None
+        assert dict(alert.group) == {"src_ip": "198.51.100.3"}
+
+    def test_dropping_idle_groups_changes_no_alert(self, monkeypatch, occurrence):
+        # Three addresses take turns, then three others: the first ones go idle.
+        items = [
+            occurrence(i * 20, src_ip=f"198.51.100.{i % 3 + (3 if i >= 100 else 0)}")
+            for i in range(200)
+        ]
+        expected = correlate(self.rule(), {"a": items})
+        monkeypatch.setattr(Correlator, "PRUNE_EVERY", 2)
+        assert correlate(self.rule(), {"a": items}) == expected
+        assert expected

@@ -27,12 +27,15 @@ input events, timestamped when the pattern completed.
 
 When a pattern fires, its window is cleared, so a long brute force yields one
 alert per burst of N attempts rather than one alert per attempt.
+
+Evaluation is incremental (:class:`Correlator`): the same code serves a whole
+folder of logs, sorted by time, and logs followed live by ``vigie watch``.
 """
 
 from __future__ import annotations
 
 import re
-from collections import defaultdict, deque
+from collections import deque
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -41,6 +44,7 @@ from typing import Any
 
 from vigie.models import Alert, Event, RuleMeta
 from vigie.sigma.matcher import SigmaError
+from vigie.timeutils import UTC
 
 TYPES = ("event_count", "value_count", "temporal", "temporal_ordered")
 _TIMESPAN = re.compile(r"^(\d+)([smhdw])$")
@@ -138,81 +142,121 @@ def parse_timespan(value: Any) -> timedelta:
 
 def correlate(rule: CorrelationRule, inputs: Mapping[str, Sequence[Occurrence]]) -> list[Alert]:
     """Evaluate ``rule`` on the occurrences of each referenced rule (keyed by reference)."""
-    # (timestamp, position of the rule in `rules`, occurrence), per group.
-    groups: dict[tuple[str | None, ...], list[tuple[datetime, int, Occurrence]]]
-    groups = defaultdict(list)
-    for ref in dict.fromkeys(rule.rules):  # each distinct reference once, in order
-        position = rule.rules.index(ref)
-        for occurrence in inputs.get(ref, ()):
-            key = tuple(occurrence.value(rule.field_for(name, ref)) for name in rule.group_by)
-            if None in key:
-                continue
-            groups[key].append((occurrence.timestamp, position, occurrence))
-
-    evaluate = {
-        "event_count": _event_count,
-        "value_count": _value_count,
-        "temporal": _temporal,
-        "temporal_ordered": _temporal_ordered,
-    }[rule.type]
-
-    alerts = []
-    for key, items in groups.items():
-        items.sort(key=lambda item: (item[0], item[1]))
-        group = dict(zip(rule.group_by, key, strict=True))
-        for window in evaluate(rule, [(position, occ) for _, position, occ in items]):
-            alerts.append(Alert(rule.meta, _unique_events(window), group))
-    return alerts
+    # Ties on time go to the rule listed first, so "A then B" holds when both share a timestamp.
+    items = sorted(
+        (
+            (occurrence.timestamp, rule.rules.index(ref), ref, occurrence)
+            for ref in dict.fromkeys(rule.rules)  # each distinct reference once, in order
+            for occurrence in inputs.get(ref, ())
+        ),
+        key=lambda item: item[:2],
+    )
+    correlator = Correlator(rule)
+    return [alert for *_, ref, occurrence in items if (alert := correlator.push(ref, occurrence))]
 
 
-Tagged = tuple[int, Occurrence]
+class Correlator:
+    """Incremental evaluation of one correlation rule: occurrences go in one by one, in time order.
+
+    ``analyze`` feeds it every occurrence sorted by time, ``watch`` feeds it
+    events as they arrive. Only open windows are kept, and groups idle for
+    longer than the timespan are dropped, so memory stays bounded however
+    long it runs. An occurrence that arrives late is still counted, but it
+    may miss a window that was already closed.
+    """
+
+    PRUNE_EVERY = 10_000  # pushes between two sweeps of idle groups
+
+    def __init__(self, rule: CorrelationRule) -> None:
+        self.rule = rule
+        self._groups: dict[tuple[str | None, ...], _Tracker] = {}
+        self._pushes = 0
+
+    def push(self, ref: str, occurrence: Occurrence) -> Alert | None:
+        """Add an occurrence of the rule referenced as ``ref``; return the alert it completes."""
+        rule = self.rule
+        key = tuple(occurrence.value(rule.field_for(name, ref)) for name in rule.group_by)
+        if None in key:
+            return None
+        self._pushes += 1
+        if self._pushes % self.PRUNE_EVERY == 0:
+            self._prune(occurrence.timestamp)
+        tracker = self._groups.get(key)
+        if tracker is None:
+            tracker = self._groups[key] = _TRACKERS[rule.type](rule)
+        window = tracker.push(rule.rules.index(ref), occurrence)
+        if window is None:
+            return None
+        return Alert(rule.meta, _unique_events(window), dict(zip(rule.group_by, key, strict=True)))
+
+    def _prune(self, now: datetime) -> None:
+        # A group silent for longer than the timespan cannot complete a pattern any more.
+        self._groups = {
+            key: tracker
+            for key, tracker in self._groups.items()
+            if now - tracker.last <= self.rule.timespan
+        }
 
 
-def _event_count(rule: CorrelationRule, items: list[Tagged]) -> list[list[Occurrence]]:
-    fired, window = [], _Window(rule.timespan)
-    for _position, occurrence in items:
-        window.push(occurrence)
-        if len(window) >= rule.threshold:
-            fired.append(window.flush())
-    return fired
+class _Tracker:
+    """The pattern state of one group. ``push`` returns the occurrences of a completed pattern."""
+
+    def __init__(self, rule: CorrelationRule) -> None:
+        self.rule = rule
+        self.window = _Window(rule.timespan)
+        self.last = datetime.min.replace(tzinfo=UTC)
+
+    def push(self, position: int, occurrence: Occurrence) -> list[Occurrence] | None:
+        self.last = occurrence.timestamp
+        return self._push(position, occurrence)
+
+    def _push(self, position: int, occurrence: Occurrence) -> list[Occurrence] | None:
+        raise NotImplementedError
 
 
-def _value_count(rule: CorrelationRule, items: list[Tagged]) -> list[list[Occurrence]]:
-    counted = rule.value_field or ""
-    fired, window = [], _Window(rule.timespan)
-    for position, occurrence in items:
-        window.push(occurrence, occurrence.value(rule.field_for(counted, rule.rules[position])))
-        if len({tag for tag in window.tags() if tag is not None}) >= rule.threshold:
-            fired.append(window.flush())
-    return fired
+class _EventCount(_Tracker):
+    def _push(self, position: int, occurrence: Occurrence) -> list[Occurrence] | None:
+        self.window.push(occurrence)
+        return self.window.flush() if len(self.window) >= self.rule.threshold else None
 
 
-def _temporal(rule: CorrelationRule, items: list[Tagged]) -> list[list[Occurrence]]:
-    fired, window = [], _Window(rule.timespan)
-    for position, occurrence in items:
-        window.push(occurrence, position)
-        if len(set(window.tags())) == len(set(rule.rules)):
-            fired.append(window.flush())
-    return fired
+class _ValueCount(_Tracker):
+    def _push(self, position: int, occurrence: Occurrence) -> list[Occurrence] | None:
+        counted = self.rule.field_for(self.rule.value_field or "", self.rule.rules[position])
+        self.window.push(occurrence, occurrence.value(counted))
+        distinct = {tag for tag in self.window.tags() if tag is not None}
+        return self.window.flush() if len(distinct) >= self.rule.threshold else None
 
 
-def _temporal_ordered(rule: CorrelationRule, items: list[Tagged]) -> list[list[Occurrence]]:
-    # chains[j]: the partial sequence matching rules[0..j] with the latest
-    # start, which leaves the most time for the remaining steps.
-    steps = len(rule.rules)
-    chains: list[list[Occurrence] | None] = [None] * steps
-    fired = []
-    for position, occurrence in items:
+class _Temporal(_Tracker):
+    def _push(self, position: int, occurrence: Occurrence) -> list[Occurrence] | None:
+        self.window.push(occurrence, position)
+        complete = len(set(self.window.tags())) == len(set(self.rule.rules))
+        return self.window.flush() if complete else None
+
+
+class _TemporalOrdered(_Tracker):
+    def __init__(self, rule: CorrelationRule) -> None:
+        super().__init__(rule)
+        # chains[j]: the partial sequence matching rules[0..j] with the latest
+        # start, which leaves the most time for the remaining steps.
+        self.chains: list[list[Occurrence] | None] = [None] * len(rule.rules)
+
+    def _push(self, position: int, occurrence: Occurrence) -> list[Occurrence] | None:
+        rules, chains = self.rule.rules, self.chains
         # A rule may appear at several positions; walk backwards so that one
         # occurrence never fills two consecutive steps.
-        for step in reversed(range(steps)):
-            if rule.rules[step] != rule.rules[position]:
+        for step in reversed(range(len(rules))):
+            if rules[step] != rules[position]:
                 continue
             if step == 0:
                 candidate = [occurrence]
             else:
                 previous = chains[step - 1]
-                if previous is None or occurrence.timestamp - previous[0].timestamp > rule.timespan:
+                if (
+                    previous is None
+                    or occurrence.timestamp - previous[0].timestamp > self.rule.timespan
+                ):
                     continue
                 candidate = [*previous, occurrence]
             current = chains[step]
@@ -220,9 +264,16 @@ def _temporal_ordered(rule: CorrelationRule, items: list[Tagged]) -> list[list[O
                 chains[step] = candidate
         complete = chains[-1]
         if complete is not None:
-            fired.append(complete)
-            chains = [None] * steps
-    return fired
+            self.chains = [None] * len(rules)
+        return complete
+
+
+_TRACKERS: dict[str, type[_Tracker]] = {
+    "event_count": _EventCount,
+    "value_count": _ValueCount,
+    "temporal": _Temporal,
+    "temporal_ordered": _TemporalOrdered,
+}
 
 
 class _Window:
