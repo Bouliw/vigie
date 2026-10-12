@@ -1,4 +1,4 @@
-"""Command line interface: ``vigie analyze`` and ``vigie rules``."""
+"""Command line interface: ``vigie analyze``, ``vigie watch`` and ``vigie rules``."""
 
 from __future__ import annotations
 
@@ -13,16 +13,29 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from vigie import __version__
 from vigie.analysis import analyze
 from vigie.attack import default_attack_data
+from vigie.collect import detect_format
 from vigie.models import LEVELS
+from vigie.parsers import unifiedlog
 from vigie.report.builder import build_report
 from vigie.report.render import render_html, render_json, render_markdown
 from vigie.rules import RULES_DIR
 from vigie.sigma.loader import RuleSet, load_rules
 from vigie.timeutils import UTC
+from vigie.watch import (
+    FOLLOWED_FORMATS,
+    LOG_COMMAND,
+    FileSource,
+    Source,
+    UnifiedLogSource,
+    Watcher,
+    WatchError,
+    notify,
+)
 
 RENDERERS = {"html": render_html, "md": render_markdown, "json": render_json}
 EXIT_USAGE = 2
 DEFAULT_TIMELINE_LIMIT = 5000
+DEFAULT_REFRESH = 5
 MIN_YEAR, MAX_YEAR = 1, 9999  # the range of datetime
 
 
@@ -34,6 +47,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     except UsageError as exc:
         print(f"vigie: error: {exc}", file=sys.stderr)
         return EXIT_USAGE
+    except WatchError as exc:
+        print(f"vigie: error: {exc}", file=sys.stderr)
+        return 1
     except BrokenPipeError:
         # Output piped into a command that stopped reading, such as head: stop quietly.
         os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
@@ -47,7 +63,7 @@ class UsageError(Exception):
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vigie",
-        description="Analyze Windows and Linux logs with Sigma rules mapped to MITRE ATT&CK.",
+        description="Analyze Windows, Linux and macOS logs with Sigma rules mapped to ATT&CK.",
     )
     parser.add_argument("--version", action="version", version=f"vigie {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -55,8 +71,8 @@ def _parser() -> argparse.ArgumentParser:
     run = commands.add_parser(
         "analyze",
         help="analyze a folder of logs and write a report",
-        description="Read every supported log under LOGS (EVTX, OTRF JSON, auth.log), run the "
-        "detection rules and write the report.",
+        description="Read every supported log under LOGS (EVTX, OTRF JSON, auth.log, macOS "
+        "unified log exports), run the detection rules and write the report.",
     )
     run.add_argument("logs", type=Path, help="folder of logs (searched recursively) or one file")
     run.add_argument(
@@ -71,12 +87,7 @@ def _parser() -> argparse.ArgumentParser:
         default="html,md",
         help="comma-separated list of html, md and json (default: html,md)",
     )
-    run.add_argument(
-        "--min-level",
-        choices=LEVELS,
-        default="low",
-        help="lowest severity shown in the report (default: low)",
-    )
+    _min_level_argument(run)
     run.add_argument(
         "--full-timeline",
         action="store_true",
@@ -97,17 +108,77 @@ def _parser() -> argparse.ArgumentParser:
         help="year of the first line of classic syslog files, which carry no year "
         "(default: guessed from the file's modification date)",
     )
-    run.add_argument(
-        "--tz",
-        default="UTC",
-        help="time zone of classic syslog lines, e.g. Europe/Berlin (default: UTC)",
-    )
+    _tz_argument(run)
     run.set_defaults(handler=_analyze)
+
+    watch = commands.add_parser(
+        "watch",
+        help="follow logs as they are written and raise alerts as they happen",
+        description="Follow log files (auth.log, unified log exports) like tail -F and, with "
+        "--macos, the unified log of this Mac. Every new event goes through the detection rules: "
+        "alerts are printed, the most severe raise a macOS notification, and an HTML report "
+        "reloads itself as they come in. Stop with Ctrl-C.",
+    )
+    watch.add_argument("files", type=Path, nargs="*", metavar="FILE", help="log file to follow")
+    watch.add_argument(
+        "--macos",
+        action="store_true",
+        help="follow the unified log of this Mac with `log stream` (no administrator rights)",
+    )
+    watch.add_argument(
+        "--predicate",
+        default=unifiedlog.PREDICATE,
+        help="which unified log entries to read, as a `log stream` predicate "
+        "(default: those Vigie's rules use)",
+    )
+    watch.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=Path("vigie-report"),
+        help="folder of the live report.html (default: ./vigie-report)",
+    )
+    _min_level_argument(watch, shown="printed and shown in the report")
+    watch.add_argument(
+        "--notify-level",
+        choices=[*LEVELS, "off"],
+        default="high",
+        help="lowest severity that raises a macOS notification, or off (default: high)",
+    )
+    watch.add_argument(
+        "--refresh",
+        type=int,
+        default=DEFAULT_REFRESH,
+        metavar="SECONDS",
+        help=f"how often the report reloads in the browser (default: {DEFAULT_REFRESH})",
+    )
+    _rules_argument(watch)
+    _tz_argument(watch)
+    watch.set_defaults(handler=_watch)
 
     rules = commands.add_parser("rules", help="list the detection rules and their ATT&CK mapping")
     _rules_argument(rules)
     rules.set_defaults(handler=_list_rules)
     return parser
+
+
+def _min_level_argument(
+    parser: argparse.ArgumentParser, shown: str = "shown in the report"
+) -> None:
+    parser.add_argument(
+        "--min-level",
+        choices=LEVELS,
+        default="low",
+        help=f"lowest severity {shown} (default: low)",
+    )
+
+
+def _tz_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--tz",
+        default="UTC",
+        help="time zone of classic syslog lines, e.g. Europe/Berlin (default: UTC)",
+    )
 
 
 def _rules_argument(parser: argparse.ArgumentParser) -> None:
@@ -174,6 +245,69 @@ def _analyze(args: argparse.Namespace) -> int:
         )
     print("Report: " + ", ".join(str(path) for path in written))
     return 0
+
+
+def _watch(args: argparse.Namespace) -> int:
+    tz = _timezone(args.tz)
+    if not args.files and not args.macos:
+        raise UsageError("nothing to watch: give log files to follow, or --macos")
+    if args.macos and (sys.platform != "darwin" or not Path(LOG_COMMAND).exists()):
+        raise UsageError("--macos reads the unified log of the Mac Vigie runs on: it needs macOS")
+    if args.refresh < 1:
+        raise UsageError(f"--refresh expects a positive number of seconds, got {args.refresh}")
+    if args.output.exists() and not args.output.is_dir():
+        raise UsageError(f"--output must be a folder, {args.output} is a file")
+    formats = {path: _followed_format(path) for path in args.files}
+    ruleset = _load_ruleset(args.rules)
+
+    sources: list[Source] = [FileSource(path, fmt, tz=tz) for path, fmt in formats.items()]
+    if args.macos:
+        sources.append(UnifiedLogSource(args.predicate))
+    notify_level = (
+        None if args.notify_level == "off" or sys.platform != "darwin" else args.notify_level
+    )
+    report_path = args.output / "report.html"
+    watcher = Watcher(
+        sources,
+        ruleset,
+        report_path,
+        min_level=args.min_level,
+        notify_level=notify_level,
+        refresh=args.refresh,
+        notifier=notify,
+    )
+    names = [str(path) for path in args.files] + (["the macOS unified log"] if args.macos else [])
+    rule_count = len(ruleset.detections) + len(ruleset.correlations)
+    print(f"Watching {', '.join(names)} with {rule_count} rules. Stop with Ctrl-C.")
+    print(
+        f"Alerts at level {args.min_level} and above are printed"
+        + (f"; {notify_level} and above also raise a notification." if notify_level else ".")
+    )
+    print(f"Report: {report_path} (reloads every {args.refresh} s)", flush=True)
+    try:
+        watcher.run()
+    finally:
+        counts = {level: 0 for level in reversed(LEVELS)}
+        for alert in watcher.alerts:
+            counts[alert.rule.level] += 1
+        summary = ", ".join(f"{count} {level}" for level, count in counts.items() if count)
+        print(
+            f"\nStopped. Read {watcher.event_count} events, alerts: {summary or 'none'}. "
+            f"Report: {report_path}"
+        )
+    return 0
+
+
+def _followed_format(path: Path) -> str:
+    if not path.is_file():
+        raise UsageError(f"no such file: {path}")
+    fmt = detect_format(path)
+    if path.suffix == ".gz" or fmt not in FOLLOWED_FORMATS:
+        raise UsageError(
+            f"{path}: vigie watch follows auth.log files and unified log exports (ndjson); "
+            "analyze other logs with vigie analyze"
+        )
+    return fmt
 
 
 def _list_rules(args: argparse.Namespace) -> int:

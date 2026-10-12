@@ -109,6 +109,9 @@ class Report:
     skipped: list[str] = field(default_factory=list)
     rule_count: int = 0
     rule_errors: list[str] = field(default_factory=list)
+    # Set by `vigie watch`: when it started, and how often the live page reloads (0 once stopped).
+    watch_started: datetime | None = None
+    refresh: int = 0
 
     @property
     def alert_count(self) -> int:

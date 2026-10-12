@@ -5,6 +5,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="Vigie {{ r.vigie_version }}">
+{% if r.refresh %}
+<meta http-equiv="refresh" content="{{ r.refresh }}">
+{% endif %}
 <title>Vigie report</title>
 <style>
 :root {
@@ -58,12 +61,21 @@ footer { margin-top: 40px; color: var(--muted); font-size: .8rem; }
 <body>
 <main>
 <h1>Vigie report</h1>
+{% if r.watch_started and r.refresh %}
+<p class="muted"><strong>Live</strong>: <code>vigie watch</code> has been running since {{ r.watch_started | ts }}
+and updated this page at {{ r.generated_at | ts }}; it reloads every {{ r.refresh }} s.
+Vigie {{ r.vigie_version }}, alerts mapped to MITRE ATT&amp;CK {{ r.attack_version }}. All times are UTC.</p>
+{% elif r.watch_started %}
+<p class="muted"><code>vigie watch</code> ran from {{ r.watch_started | ts }} to {{ r.generated_at | ts }}.
+Vigie {{ r.vigie_version }}, alerts mapped to MITRE ATT&amp;CK {{ r.attack_version }}. All times are UTC.</p>
+{% else %}
 <p class="muted">Generated on {{ r.generated_at | ts }} by Vigie {{ r.vigie_version }}.
 Alerts are mapped to MITRE ATT&amp;CK {{ r.attack_version }}. All times are UTC.</p>
+{% endif %}
 
 <section class="cards" aria-label="Summary">
   <div class="card"><div class="value">{{ r.event_count }}</div><div class="label">events analyzed</div></div>
-  <div class="card"><div class="value">{{ r.files | length }}</div><div class="label">files read{% if r.skipped %}, {{ r.skipped | length }} skipped{% endif %}</div></div>
+  <div class="card"><div class="value">{{ r.files | length }}</div><div class="label">{% if r.watch_started %}sources followed{% else %}files read{% endif %}{% if r.skipped %}, {{ r.skipped | length }} skipped{% endif %}</div></div>
   <div class="card"><div class="value">{{ r.alert_count }}</div><div class="label">alerts (level {{ r.min_level }} and above)</div></div>
   {% for level, count in r.level_counts.items() %}
   <div class="card"><div class="value">{{ count }}</div><div class="label"><span class="level level-{{ level }}">{{ level }}</span></div></div>
@@ -104,7 +116,7 @@ run with <code>--min-level {{ r.hidden_by_level | first }}</code> to include the
 <h3>Details</h3>
 {% endif %}
 {% for a in r.alerts %}
-<details class="alert" id="alert-{{ loop.index }}"{% if a.rule.severity >= 3 %} open{% endif %}>
+<details class="alert" id="alert-{{ a.rule.id }}-{{ a.first_seen.isoformat() }}"{% if a.rule.severity >= 3 %} open{% endif %}>
 <summary><span class="level level-{{ a.rule.level }}">{{ a.rule.level }}</span>
 <span class="title">{{ a.rule.title }}</span>
 <span class="muted">{{ a.first_seen | ts }}{% if a.hosts %} &middot; {{ a.hosts | join(", ") }}{% endif %} &middot; {{ a.event_count }} event(s)</span></summary>
@@ -165,6 +177,25 @@ run with <code>--min-level {{ r.hidden_by_level | first }}</code> to include the
 {% if r.skipped %}<h3>Skipped</h3><ul>{% for s in r.skipped %}<li>{{ s }}</li>{% endfor %}</ul>{% endif %}
 {% if r.rule_errors %}<h3>Rejected rules</h3><ul>{% for e in r.rule_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
 
+{% if r.refresh %}
+<script>
+// The page reloads itself: keep the scroll position and the alerts the reader opened or closed.
+(function () {
+  var key = "vigie-watch-state";
+  var alerts = document.querySelectorAll("details.alert");
+  try {
+    var state = JSON.parse(sessionStorage.getItem(key) || "{}");
+    alerts.forEach(function (d) { if (d.id in (state.open || {})) { d.open = state.open[d.id]; } });
+    if (state.y) { window.scrollTo(0, state.y); }
+  } catch (e) {}
+  window.addEventListener("pagehide", function () {
+    var open = {};
+    alerts.forEach(function (d) { open[d.id] = d.open; });
+    try { sessionStorage.setItem(key, JSON.stringify({y: window.scrollY, open: open})); } catch (e) {}
+  });
+})();
+</script>
+{% endif %}
 <footer>{{ r.attack_copyright }} Rules adapted from SigmaHQ are licensed under the Detection Rule License 1.1; their authors are credited in each alert.</footer>
 </main>
 </body>
