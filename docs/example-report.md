@@ -1,22 +1,22 @@
 # Vigie report
 
-Generated on 2026-10-12 20:48:42Z by Vigie 0.2.0. Alerts are mapped to MITRE ATT&CK 19.2. All times are UTC.
+Generated on 2026-10-12 20:59:04Z by Vigie 0.2.0. Alerts are mapped to MITRE ATT&CK 19.2. All times are UTC.
 
 ## Summary
 
 | | |
 |---|---|
-| Events analyzed | 440 |
+| Events analyzed | 441 |
 | Time range | 2020-09-04 07:07:19Z to 2026-10-05 16:20:00Z |
 | Files read | 38 |
 | Rules loaded | 36 |
-| Alerts shown | 51 (level low and above) |
+| Alerts shown | 52 (level low and above) |
 
 | Severity | Alerts |
 |---|---|
 | critical | 0 |
 | high | 16 |
-| medium | 30 |
+| medium | 31 |
 | low | 5 |
 
 19 alert(s) below the "low" level are not shown (informational: 19). Run with `--min-level informational` to include them.
@@ -27,8 +27,8 @@ Generated on 2026-10-12 20:48:42Z by Vigie 0.2.0. Alerts are mapped to MITRE ATT
 |---|---|---|
 | [Initial Access](https://attack.mitre.org/tactics/TA0001) (TA0001) | 4 | [T1078.003](https://attack.mitre.org/techniques/T1078/003) Valid Accounts: Local Accounts |
 | [Execution](https://attack.mitre.org/tactics/TA0002) (TA0002) | 11 | [T1053.005](https://attack.mitre.org/techniques/T1053/005) Scheduled Task/Job: Scheduled Task<br>[T1059.001](https://attack.mitre.org/techniques/T1059/001) Command and Scripting Interpreter: PowerShell<br>[T1197](https://attack.mitre.org/techniques/T1197) BITS Jobs<br>[T1204.002](https://attack.mitre.org/techniques/T1204/002) User Execution: Malicious File<br>[T1569.002](https://attack.mitre.org/techniques/T1569/002) System Services: Service Execution |
-| [Persistence](https://attack.mitre.org/tactics/TA0003) (TA0003) | 19 | [T1053.005](https://attack.mitre.org/techniques/T1053/005) Scheduled Task/Job: Scheduled Task<br>[T1078.003](https://attack.mitre.org/techniques/T1078/003) Valid Accounts: Local Accounts<br>[T1136.001](https://attack.mitre.org/techniques/T1136/001) Create Account: Local Account<br>[T1136.002](https://attack.mitre.org/techniques/T1136/002) Create Account: Domain Account<br>[T1197](https://attack.mitre.org/techniques/T1197) BITS Jobs<br>[T1543.001](https://attack.mitre.org/techniques/T1543/001) Create or Modify System Process: Launch Agent<br>[T1543.003](https://attack.mitre.org/techniques/T1543/003) Create or Modify System Process: Windows Service<br>[T1543.004](https://attack.mitre.org/techniques/T1543/004) Create or Modify System Process: Launch Daemon<br>[T1546.004](https://attack.mitre.org/techniques/T1546/004) Event Triggered Execution: Unix Shell Configuration Modification |
-| [Privilege Escalation](https://attack.mitre.org/tactics/TA0004) (TA0004) | 19 | [T1053.005](https://attack.mitre.org/techniques/T1053/005) Scheduled Task/Job: Scheduled Task<br>[T1078.003](https://attack.mitre.org/techniques/T1078/003) Valid Accounts: Local Accounts<br>[T1543.001](https://attack.mitre.org/techniques/T1543/001) Create or Modify System Process: Launch Agent<br>[T1543.003](https://attack.mitre.org/techniques/T1543/003) Create or Modify System Process: Windows Service<br>[T1543.004](https://attack.mitre.org/techniques/T1543/004) Create or Modify System Process: Launch Daemon<br>[T1546.004](https://attack.mitre.org/techniques/T1546/004) Event Triggered Execution: Unix Shell Configuration Modification<br>[T1548.003](https://attack.mitre.org/techniques/T1548/003) Abuse Elevation Control Mechanism: Sudo and Sudo Caching |
+| [Persistence](https://attack.mitre.org/tactics/TA0003) (TA0003) | 20 | [T1053.005](https://attack.mitre.org/techniques/T1053/005) Scheduled Task/Job: Scheduled Task<br>[T1078.003](https://attack.mitre.org/techniques/T1078/003) Valid Accounts: Local Accounts<br>[T1136.001](https://attack.mitre.org/techniques/T1136/001) Create Account: Local Account<br>[T1136.002](https://attack.mitre.org/techniques/T1136/002) Create Account: Domain Account<br>[T1197](https://attack.mitre.org/techniques/T1197) BITS Jobs<br>[T1543.001](https://attack.mitre.org/techniques/T1543/001) Create or Modify System Process: Launch Agent<br>[T1543.003](https://attack.mitre.org/techniques/T1543/003) Create or Modify System Process: Windows Service<br>[T1543.004](https://attack.mitre.org/techniques/T1543/004) Create or Modify System Process: Launch Daemon<br>[T1546.004](https://attack.mitre.org/techniques/T1546/004) Event Triggered Execution: Unix Shell Configuration Modification |
+| [Privilege Escalation](https://attack.mitre.org/tactics/TA0004) (TA0004) | 20 | [T1053.005](https://attack.mitre.org/techniques/T1053/005) Scheduled Task/Job: Scheduled Task<br>[T1078.003](https://attack.mitre.org/techniques/T1078/003) Valid Accounts: Local Accounts<br>[T1543.001](https://attack.mitre.org/techniques/T1543/001) Create or Modify System Process: Launch Agent<br>[T1543.003](https://attack.mitre.org/techniques/T1543/003) Create or Modify System Process: Windows Service<br>[T1543.004](https://attack.mitre.org/techniques/T1543/004) Create or Modify System Process: Launch Daemon<br>[T1546.004](https://attack.mitre.org/techniques/T1546/004) Event Triggered Execution: Unix Shell Configuration Modification<br>[T1548.003](https://attack.mitre.org/techniques/T1548/003) Abuse Elevation Control Mechanism: Sudo and Sudo Caching |
 | [Stealth](https://attack.mitre.org/tactics/TA0005) (TA0005) | 12 | [T1027.010](https://attack.mitre.org/techniques/T1027/010) Obfuscated Files or Information: Command Obfuscation<br>[T1036.005](https://attack.mitre.org/techniques/T1036/005) Masquerading: Match Legitimate Resource Name or Location<br>[T1078.003](https://attack.mitre.org/techniques/T1078/003) Valid Accounts: Local Accounts<br>[T1197](https://attack.mitre.org/techniques/T1197) BITS Jobs<br>[T1564.001](https://attack.mitre.org/techniques/T1564/001) Hide Artifacts: Hidden Files and Directories |
 | [Defense Impairment](https://attack.mitre.org/tactics/TA0112) (TA0112) | 3 | [T1685.005](https://attack.mitre.org/techniques/T1685/005) Disable or Modify Tools: Clear Windows Event Logs |
 | [Credential Access](https://attack.mitre.org/tactics/TA0006) (TA0006) | 24 | [T1003.001](https://attack.mitre.org/techniques/T1003/001) OS Credential Dumping: LSASS Memory<br>[T1110.001](https://attack.mitre.org/techniques/T1110/001) Brute Force: Password Guessing<br>[T1110.003](https://attack.mitre.org/techniques/T1110/003) Brute Force: Password Spraying<br>[T1539](https://attack.mitre.org/techniques/T1539) Steal Web Session Cookie<br>[T1555.001](https://attack.mitre.org/techniques/T1555/001) Credentials from Password Stores: Keychain<br>[T1555.003](https://attack.mitre.org/techniques/T1555/003) Credentials from Password Stores: Credentials from Web Browsers |
@@ -55,10 +55,10 @@ Generated on 2026-10-12 20:48:42Z by Vigie 0.2.0. Alerts are mapped to MITRE ATT
 | medium | Suspicious Scheduled Task Created | 2 | 2020-09-21 07:15:47Z | 2020-12-19 07:00:22Z |
 | medium | macOS Gatekeeper Blocked Unverified Code | 2 | 2026-10-05 14:00:07Z | 2026-10-05 14:30:04Z |
 | medium | macOS Launch Agent Added | 2 | 2026-10-05 13:00:00Z | 2026-10-05 13:20:00Z |
+| medium | macOS Launch Daemon Added | 2 | 2026-10-05 13:10:00Z | 2026-10-05 13:40:00Z |
 | medium | Local User Account Created | 1 | 2024-03-10 09:08:12Z | 2024-03-10 09:08:12Z |
 | medium | PsExec-Like Service Installed | 1 | 2020-10-19 03:30:46Z | 2020-10-19 03:30:46Z |
 | medium | Windows Logon Brute Force From Single Source | 1 | 2020-10-22 08:29:55Z | 2020-10-22 08:29:55Z |
-| medium | macOS Launch Daemon Added | 1 | 2026-10-05 13:10:00Z | 2026-10-05 13:10:00Z |
 | medium | macOS Repeated Local Password Failures | 1 | 2026-10-05 08:05:02Z | 2026-10-05 08:05:34Z |
 | medium | macOS SSH Brute Force | 1 | 2026-10-05 16:00:00Z | 2026-10-05 16:01:03Z |
 | low | Sudo Authentication Failure | 2 | 2024-03-10 09:09:30Z | 2024-06-04 08:07:12Z |
@@ -276,7 +276,7 @@ Generated on 2026-10-12 20:48:42Z by Vigie 0.2.0. Alerts are mapped to MITRE ATT
 - **ATT&CK:** [T1036.005](https://attack.mitre.org/techniques/T1036/005) Masquerading: Match Legitimate Resource Name or Location; [T1543.001](https://attack.mitre.org/techniques/T1543/001) Create or Modify System Process: Launch Agent; [T1543.004](https://attack.mitre.org/techniques/T1543/004) Create or Modify System Process: Launch Daemon (Persistence, Privilege Escalation, Stealth)
 - **Rule:** macOS Launch Item Masquerading As Apple, `8b316231-3fc2-4e5d-bbf1-5ef14bbd26ec`
 - **Author:** Bouliw
-- **What it means:** A new launch agent or daemon uses a com.apple. label. Apple's own launch items live in /System and are not registered this way, so a com.apple. item showing up in a LaunchAgents or LaunchDaemons folder is most likely a program hiding behind Apple's name to persist.
+- **What it means:** A new launch agent or daemon uses a com.apple. label. Apple's own launch items live in /System and are not registered this way, so a com.apple. item showing up in a LaunchAgents or LaunchDaemons folder is most likely a program hiding behind Apple's name to persist, as EvilQuest did with com.apple.questd.
 - **Possible false positives:** Apple software installed outside macOS that brings its own launch items
 
 | Time | Host | Origin | Event |
@@ -828,7 +828,21 @@ Generated on 2026-10-12 20:48:42Z by Vigie 0.2.0. Alerts are mapped to MITRE ATT
 |---|---|---|---|
 | 2026-10-05 13:20:00Z | - | mac\_persistence.ndjson:7 | backgroundtaskmanagementd: new legacy agent com.apple.softwareupdate.check (Software Update): /Users/opsadmin/Library/LaunchAgents/com.apple.softwareupdate.check agent.plist |
 
-### 44. macOS Gatekeeper Blocked Unverified Code (medium)
+### 44. macOS Launch Daemon Added (medium)
+
+- **When:** 2026-10-05 13:40:00Z
+- **Hosts:** -
+- **ATT&CK:** [T1543.004](https://attack.mitre.org/techniques/T1543/004) Create or Modify System Process: Launch Daemon (Persistence, Privilege Escalation)
+- **Rule:** macOS Launch Daemon Added, `65c957df-5998-42b0-9e60-845f851950ad`
+- **Author:** Bouliw
+- **What it means:** Background Task Management saw a new launch daemon, a property list in /Library/LaunchDaemons that launchd runs as root at startup. Writing one needs administrator rights, and gives a program root persistence on the Mac.
+- **Possible false positives:** Software installers that need a privileged helper (virtualization, VPN, backup, device drivers)
+
+| Time | Host | Origin | Event |
+|---|---|---|---|
+| 2026-10-05 13:40:00Z | - | mac\_persistence.ndjson:9 | backgroundtaskmanagementd: new legacy daemon com.apple.installer.cleanupinstaller (cleanup\_installer): /Library/LaunchDaemons/com.apple.installer.cleanupinstaller.plist |
+
+### 45. macOS Gatekeeper Blocked Unverified Code (medium)
 
 - **When:** 2026-10-05 14:00:07Z
 - **Hosts:** -
@@ -842,7 +856,7 @@ Generated on 2026-10-12 20:48:42Z by Vigie 0.2.0. Alerts are mapped to MITRE ATT
 |---|---|---|---|
 | 2026-10-05 14:00:07Z | - | mac\_gatekeeper\_xprotect.ndjson:7 | syspolicyd: Adding Gatekeeper denial breadcrumb (direct): PST: (path: 5e1c0a7b93d24f68), (team: (null)), (id: com.example.invoice), (bundle\_id: com.example.invoice) |
 
-### 45. macOS Gatekeeper Blocked Unverified Code (medium)
+### 46. macOS Gatekeeper Blocked Unverified Code (medium)
 
 - **When:** 2026-10-05 14:30:04Z
 - **Hosts:** -
@@ -856,7 +870,7 @@ Generated on 2026-10-12 20:48:42Z by Vigie 0.2.0. Alerts are mapped to MITRE ATT
 |---|---|---|---|
 | 2026-10-05 14:30:04Z | - | mac\_gatekeeper\_xprotect.ndjson:11 | syspolicyd: Adding Gatekeeper denial breadcrumb (direct): PST: (path: 0b4f6e2a8c1d3957), (team: ABCDE12345), (id: com.example.tool), (bundle\_id: NOT\_A\_BUNDLE) |
 
-### 46. macOS SSH Brute Force (medium)
+### 47. macOS SSH Brute Force (medium)
 
 - **When:** 2026-10-05 16:00:00Z to 2026-10-05 16:01:03Z
 - **Hosts:** -
@@ -880,7 +894,7 @@ Generated on 2026-10-12 20:48:42Z by Vigie 0.2.0. Alerts are mapped to MITRE ATT
 | 2026-10-05 16:00:56Z | - | mac\_ssh.ndjson:10 | sshd-session: Failed password for opsadmin from 203.0.113.77 port 51008 ssh2 |
 | 2026-10-05 16:01:03Z | - | mac\_ssh.ndjson:11 | sshd-session: Failed password for invalid user admin from 203.0.113.77 port 51009 ssh2 |
 
-### 47. User Account Created (low)
+### 48. User Account Created (low)
 
 - **When:** 2020-09-14 12:06:03Z
 - **Hosts:** WORKSTATION6.theshire.local
@@ -894,7 +908,7 @@ Generated on 2026-10-12 20:48:42Z by Vigie 0.2.0. Alerts are mapped to MITRE ATT
 |---|---|---|---|
 | 2020-09-14 12:06:03Z | WORKSTATION6.theshire.local | empire\_wmic\_add\_user\_backdoor\_excerpt.json:5 | SubjectUserName=pgustavo TargetUserName=backdoor |
 
-### 48. Sudo Authentication Failure (low)
+### 49. Sudo Authentication Failure (low)
 
 - **When:** 2024-03-10 09:09:30Z
 - **Hosts:** web01
@@ -908,7 +922,7 @@ Generated on 2026-10-12 20:48:42Z by Vigie 0.2.0. Alerts are mapped to MITRE ATT
 |---|---|---|---|
 | 2024-03-10 09:09:30Z | web01 | auth.log:24 | deploy : 3 incorrect password attempts ; TTY=pts/0 ; PWD=/srv/app ; USER=root ; COMMAND=/bin/bash |
 
-### 49. Sudo Authentication Failure (low)
+### 50. Sudo Authentication Failure (low)
 
 - **When:** 2024-06-04 08:07:12Z
 - **Hosts:** deb13
@@ -922,7 +936,7 @@ Generated on 2026-10-12 20:48:42Z by Vigie 0.2.0. Alerts are mapped to MITRE ATT
 |---|---|---|---|
 | 2024-06-04 08:07:12Z | deb13 | auth\_openssh10.log:16 | deploy : 3 incorrect password attempts ; HOST=deb13 ; TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/bin/bash |
 
-### 50. macOS Sudo Authentication Failure (low)
+### 51. macOS Sudo Authentication Failure (low)
 
 - **When:** 2026-10-05 08:05:08Z
 - **Hosts:** -
@@ -936,7 +950,7 @@ Generated on 2026-10-12 20:48:42Z by Vigie 0.2.0. Alerts are mapped to MITRE ATT
 |---|---|---|---|
 | 2026-10-05 08:05:08Z | - | mac\_sudo.ndjson:9 | sudo: opsadmin : 3 incorrect password attempts ; TTY=ttys001 ; PWD=/Users/opsadmin ; USER=root ; COMMAND=/bin/cat /etc/sudoers |
 
-### 51. macOS Sudo Authentication Failure (low)
+### 52. macOS Sudo Authentication Failure (low)
 
 - **When:** 2026-10-05 08:05:34Z
 - **Hosts:** -
@@ -1092,6 +1106,7 @@ Events behind the alerts above, in time order.
 | 2026-10-05 13:10:00Z | - | unifiedlog | - | backgroundtaskmanagementd: new legacy daemon com.example.vpn.helperd (helperd): /Library/LaunchDaemons/com.example.vpn.helperd.plist | macOS Launch Daemon Added |
 | 2026-10-05 13:20:00Z | - | unifiedlog | - | syspolicyd: XProtect behavioral detection macOS.Persistence.ShellProfileFiles, macOS.Persistence.Launchplists (0x410000) | macOS XProtect Behavioral Detection Of Persistence |
 | 2026-10-05 13:20:00Z | - | unifiedlog | - | backgroundtaskmanagementd: new legacy agent com.apple.softwareupdate.check (Software Update): /Users/opsadmin/Library/LaunchAgents/com.apple.softwareupdate.check agent.plist | macOS Launch Item Masquerading As Apple; macOS Launch Agent Added |
+| 2026-10-05 13:40:00Z | - | unifiedlog | - | backgroundtaskmanagementd: new legacy daemon com.apple.installer.cleanupinstaller (cleanup\_installer): /Library/LaunchDaemons/com.apple.installer.cleanupinstaller.plist | macOS Launch Daemon Added |
 | 2026-10-05 14:00:07Z | - | unifiedlog | - | syspolicyd: Adding Gatekeeper denial breadcrumb (direct): PST: (path: 5e1c0a7b93d24f68), (team: (null)), (id: com.example.invoice), (bundle\_id: com.example.invoice) | macOS Gatekeeper Blocked Unverified Code |
 | 2026-10-05 14:30:04Z | - | unifiedlog | - | syspolicyd: Adding Gatekeeper denial breadcrumb (direct): PST: (path: 0b4f6e2a8c1d3957), (team: ABCDE12345), (id: com.example.tool), (bundle\_id: NOT\_A\_BUNDLE) | macOS Gatekeeper Blocked Unverified Code |
 | 2026-10-05 15:00:00Z | - | unifiedlog | - | syspolicyd: XProtect behavioral detection macOS.InfoStealer.Generic (0x800) | macOS XProtect Behavioral Detection Of Data Theft |
@@ -1123,7 +1138,7 @@ Events behind the alerts above, in time order.
 | authlog/auth\_sessions.log | authlog | 8 | 0 |
 | unifiedlog/mac\_benign.ndjson | unifiedlog | 21 | 0 |
 | unifiedlog/mac\_gatekeeper\_xprotect.ndjson | unifiedlog | 14 | 0 |
-| unifiedlog/mac\_persistence.ndjson | unifiedlog | 8 | 0 |
+| unifiedlog/mac\_persistence.ndjson | unifiedlog | 9 | 0 |
 | unifiedlog/mac\_ssh.ndjson | unifiedlog | 14 | 0 |
 | unifiedlog/mac\_sudo.ndjson | unifiedlog | 15 | 0 |
 | winjson/aptsimulator\_cobaltstrike\_service\_excerpt.json | winjson | 4 | 0 |
