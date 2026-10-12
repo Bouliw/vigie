@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="Vigie 0.1.0">
+<meta name="generator" content="Vigie 0.2.0">
 <title>Vigie report</title>
 <style>
 :root {
@@ -59,21 +59,21 @@ footer { margin-top: 40px; color: var(--muted); font-size: .8rem; }
 <body>
 <main>
 <h1>Vigie report</h1>
-<p class="muted">Generated on 2026-09-28 15:17:49Z by Vigie 0.1.0.
+<p class="muted">Generated on 2026-10-12 20:48:42Z by Vigie 0.2.0.
 Alerts are mapped to MITRE ATT&amp;CK 19.2. All times are UTC.</p>
 
 <section class="cards" aria-label="Summary">
-  <div class="card"><div class="value">368</div><div class="label">events analyzed</div></div>
-  <div class="card"><div class="value">33</div><div class="label">files read</div></div>
-  <div class="card"><div class="value">35</div><div class="label">alerts (level low and above)</div></div>
+  <div class="card"><div class="value">440</div><div class="label">events analyzed</div></div>
+  <div class="card"><div class="value">38</div><div class="label">files read</div></div>
+  <div class="card"><div class="value">51</div><div class="label">alerts (level low and above)</div></div>
   <div class="card"><div class="value">0</div><div class="label"><span class="level level-critical">critical</span></div></div>
-  <div class="card"><div class="value">12</div><div class="label"><span class="level level-high">high</span></div></div>
-  <div class="card"><div class="value">20</div><div class="label"><span class="level level-medium">medium</span></div></div>
-  <div class="card"><div class="value">3</div><div class="label"><span class="level level-low">low</span></div></div>
+  <div class="card"><div class="value">16</div><div class="label"><span class="level level-high">high</span></div></div>
+  <div class="card"><div class="value">30</div><div class="label"><span class="level level-medium">medium</span></div></div>
+  <div class="card"><div class="value">5</div><div class="label"><span class="level level-low">low</span></div></div>
 </section>
-<p class="muted">Time range: 2020-09-04 07:07:19Z to 2025-01-01 00:00:09Z. 23 rules loaded.
-16 alert(s) below the "low" level are not shown
-(informational: 16);
+<p class="muted">Time range: 2020-09-04 07:07:19Z to 2026-10-05 16:20:00Z. 36 rules loaded.
+19 alert(s) below the "low" level are not shown
+(informational: 19);
 run with <code>--min-level informational</code> to include them.
 </p>
 
@@ -82,26 +82,29 @@ run with <code>--min-level informational</code> to include them.
 <thead><tr><th>Tactic</th><th>Alerts</th><th>Techniques</th></tr></thead>
 <tbody>
 <tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0001">Initial Access</a> <span class="muted">TA0001</span></td>
-<td>3</td>
+<td>4</td>
 <td><a href="https://attack.mitre.org/techniques/T1078/003">T1078.003</a> Valid Accounts: Local Accounts</td></tr>
 <tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0002">Execution</a> <span class="muted">TA0002</span></td>
-<td>9</td>
-<td><a href="https://attack.mitre.org/techniques/T1053/005">T1053.005</a> Scheduled Task/Job: Scheduled Task<br><a href="https://attack.mitre.org/techniques/T1059/001">T1059.001</a> Command and Scripting Interpreter: PowerShell<br><a href="https://attack.mitre.org/techniques/T1197">T1197</a> BITS Jobs<br><a href="https://attack.mitre.org/techniques/T1569/002">T1569.002</a> System Services: Service Execution</td></tr>
-<tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0003">Persistence</a> <span class="muted">TA0003</span></td>
 <td>11</td>
-<td><a href="https://attack.mitre.org/techniques/T1053/005">T1053.005</a> Scheduled Task/Job: Scheduled Task<br><a href="https://attack.mitre.org/techniques/T1078/003">T1078.003</a> Valid Accounts: Local Accounts<br><a href="https://attack.mitre.org/techniques/T1136/001">T1136.001</a> Create Account: Local Account<br><a href="https://attack.mitre.org/techniques/T1136/002">T1136.002</a> Create Account: Domain Account<br><a href="https://attack.mitre.org/techniques/T1197">T1197</a> BITS Jobs<br><a href="https://attack.mitre.org/techniques/T1543/003">T1543.003</a> Create or Modify System Process: Windows Service</td></tr>
+<td><a href="https://attack.mitre.org/techniques/T1053/005">T1053.005</a> Scheduled Task/Job: Scheduled Task<br><a href="https://attack.mitre.org/techniques/T1059/001">T1059.001</a> Command and Scripting Interpreter: PowerShell<br><a href="https://attack.mitre.org/techniques/T1197">T1197</a> BITS Jobs<br><a href="https://attack.mitre.org/techniques/T1204/002">T1204.002</a> User Execution: Malicious File<br><a href="https://attack.mitre.org/techniques/T1569/002">T1569.002</a> System Services: Service Execution</td></tr>
+<tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0003">Persistence</a> <span class="muted">TA0003</span></td>
+<td>19</td>
+<td><a href="https://attack.mitre.org/techniques/T1053/005">T1053.005</a> Scheduled Task/Job: Scheduled Task<br><a href="https://attack.mitre.org/techniques/T1078/003">T1078.003</a> Valid Accounts: Local Accounts<br><a href="https://attack.mitre.org/techniques/T1136/001">T1136.001</a> Create Account: Local Account<br><a href="https://attack.mitre.org/techniques/T1136/002">T1136.002</a> Create Account: Domain Account<br><a href="https://attack.mitre.org/techniques/T1197">T1197</a> BITS Jobs<br><a href="https://attack.mitre.org/techniques/T1543/001">T1543.001</a> Create or Modify System Process: Launch Agent<br><a href="https://attack.mitre.org/techniques/T1543/003">T1543.003</a> Create or Modify System Process: Windows Service<br><a href="https://attack.mitre.org/techniques/T1543/004">T1543.004</a> Create or Modify System Process: Launch Daemon<br><a href="https://attack.mitre.org/techniques/T1546/004">T1546.004</a> Event Triggered Execution: Unix Shell Configuration Modification</td></tr>
 <tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0004">Privilege Escalation</a> <span class="muted">TA0004</span></td>
-<td>9</td>
-<td><a href="https://attack.mitre.org/techniques/T1053/005">T1053.005</a> Scheduled Task/Job: Scheduled Task<br><a href="https://attack.mitre.org/techniques/T1078/003">T1078.003</a> Valid Accounts: Local Accounts<br><a href="https://attack.mitre.org/techniques/T1543/003">T1543.003</a> Create or Modify System Process: Windows Service<br><a href="https://attack.mitre.org/techniques/T1548/003">T1548.003</a> Abuse Elevation Control Mechanism: Sudo and Sudo Caching</td></tr>
+<td>19</td>
+<td><a href="https://attack.mitre.org/techniques/T1053/005">T1053.005</a> Scheduled Task/Job: Scheduled Task<br><a href="https://attack.mitre.org/techniques/T1078/003">T1078.003</a> Valid Accounts: Local Accounts<br><a href="https://attack.mitre.org/techniques/T1543/001">T1543.001</a> Create or Modify System Process: Launch Agent<br><a href="https://attack.mitre.org/techniques/T1543/003">T1543.003</a> Create or Modify System Process: Windows Service<br><a href="https://attack.mitre.org/techniques/T1543/004">T1543.004</a> Create or Modify System Process: Launch Daemon<br><a href="https://attack.mitre.org/techniques/T1546/004">T1546.004</a> Event Triggered Execution: Unix Shell Configuration Modification<br><a href="https://attack.mitre.org/techniques/T1548/003">T1548.003</a> Abuse Elevation Control Mechanism: Sudo and Sudo Caching</td></tr>
 <tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0005">Stealth</a> <span class="muted">TA0005</span></td>
-<td>7</td>
-<td><a href="https://attack.mitre.org/techniques/T1027/010">T1027.010</a> Obfuscated Files or Information: Command Obfuscation<br><a href="https://attack.mitre.org/techniques/T1078/003">T1078.003</a> Valid Accounts: Local Accounts<br><a href="https://attack.mitre.org/techniques/T1197">T1197</a> BITS Jobs</td></tr>
+<td>12</td>
+<td><a href="https://attack.mitre.org/techniques/T1027/010">T1027.010</a> Obfuscated Files or Information: Command Obfuscation<br><a href="https://attack.mitre.org/techniques/T1036/005">T1036.005</a> Masquerading: Match Legitimate Resource Name or Location<br><a href="https://attack.mitre.org/techniques/T1078/003">T1078.003</a> Valid Accounts: Local Accounts<br><a href="https://attack.mitre.org/techniques/T1197">T1197</a> BITS Jobs<br><a href="https://attack.mitre.org/techniques/T1564/001">T1564.001</a> Hide Artifacts: Hidden Files and Directories</td></tr>
 <tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0112">Defense Impairment</a> <span class="muted">TA0112</span></td>
 <td>3</td>
 <td><a href="https://attack.mitre.org/techniques/T1685/005">T1685.005</a> Disable or Modify Tools: Clear Windows Event Logs</td></tr>
 <tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0006">Credential Access</a> <span class="muted">TA0006</span></td>
-<td>19</td>
-<td><a href="https://attack.mitre.org/techniques/T1003/001">T1003.001</a> OS Credential Dumping: LSASS Memory<br><a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing<br><a href="https://attack.mitre.org/techniques/T1110/003">T1110.003</a> Brute Force: Password Spraying</td></tr>
+<td>24</td>
+<td><a href="https://attack.mitre.org/techniques/T1003/001">T1003.001</a> OS Credential Dumping: LSASS Memory<br><a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing<br><a href="https://attack.mitre.org/techniques/T1110/003">T1110.003</a> Brute Force: Password Spraying<br><a href="https://attack.mitre.org/techniques/T1539">T1539</a> Steal Web Session Cookie<br><a href="https://attack.mitre.org/techniques/T1555/001">T1555.001</a> Credentials from Password Stores: Keychain<br><a href="https://attack.mitre.org/techniques/T1555/003">T1555.003</a> Credentials from Password Stores: Credentials from Web Browsers</td></tr>
+<tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0009">Collection</a> <span class="muted">TA0009</span></td>
+<td>2</td>
+<td><a href="https://attack.mitre.org/techniques/T1005">T1005</a> Data from Local System</td></tr>
 <tr><td class="nowrap"><a href="https://attack.mitre.org/tactics/TA0011">Command and Control</a> <span class="muted">TA0011</span></td>
 <td>2</td>
 <td><a href="https://attack.mitre.org/techniques/T1105">T1105</a> Ingress Tool Transfer</td></tr>
@@ -119,10 +122,18 @@ run with <code>--min-level informational</code> to include them.
 <td>2</td><td class="time">2020-10-18 02:17:00Z</td><td class="time">2020-10-21 11:28:08Z</td></tr>
 <tr><td><span class="level level-high">high</span></td><td>Suspicious Service Installed</td>
 <td>2</td><td class="time">2020-09-20 16:16:58Z</td><td class="time">2021-06-11 09:07:41Z</td></tr>
+<tr><td><span class="level level-high">high</span></td><td>macOS XProtect Behavioral Detection Of Data Theft</td>
+<td>2</td><td class="time">2026-10-05 15:00:00Z</td><td class="time">2026-10-05 15:00:02Z</td></tr>
 <tr><td><span class="level level-high">high</span></td><td>Important Windows Event Log Cleared</td>
 <td>1</td><td class="time">2020-10-21 11:28:08Z</td><td class="time">2020-10-21 11:28:08Z</td></tr>
+<tr><td><span class="level level-high">high</span></td><td>macOS Launch Item Masquerading As Apple</td>
+<td>1</td><td class="time">2026-10-05 13:20:00Z</td><td class="time">2026-10-05 13:20:00Z</td></tr>
+<tr><td><span class="level level-high">high</span></td><td>macOS SSH Login After Brute Force</td>
+<td>1</td><td class="time">2026-10-05 16:00:00Z</td><td class="time">2026-10-05 16:03:30Z</td></tr>
 <tr><td><span class="level level-medium">medium</span></td><td>SSH Brute Force</td>
 <td>9</td><td class="time">2024-03-10 09:05:42Z</td><td class="time">2024-07-08 03:12:20Z</td></tr>
+<tr><td><span class="level level-medium">medium</span></td><td>macOS XProtect Behavioral Detection Of Persistence</td>
+<td>3</td><td class="time">2026-10-05 13:00:00Z</td><td class="time">2026-10-05 13:20:00Z</td></tr>
 <tr><td><span class="level level-medium">medium</span></td><td>File Download Via Bitsadmin</td>
 <td>2</td><td class="time">2020-10-23 06:36:43Z</td><td class="time">2020-10-23 06:36:43Z</td></tr>
 <tr><td><span class="level level-medium">medium</span></td><td>PowerShell Encoded Command Execution</td>
@@ -131,19 +142,31 @@ run with <code>--min-level informational</code> to include them.
 <td>2</td><td class="time">2024-03-10 09:05:42Z</td><td class="time">2024-06-03 14:39:50Z</td></tr>
 <tr><td><span class="level level-medium">medium</span></td><td>Suspicious Scheduled Task Created</td>
 <td>2</td><td class="time">2020-09-21 07:15:47Z</td><td class="time">2020-12-19 07:00:22Z</td></tr>
+<tr><td><span class="level level-medium">medium</span></td><td>macOS Gatekeeper Blocked Unverified Code</td>
+<td>2</td><td class="time">2026-10-05 14:00:07Z</td><td class="time">2026-10-05 14:30:04Z</td></tr>
+<tr><td><span class="level level-medium">medium</span></td><td>macOS Launch Agent Added</td>
+<td>2</td><td class="time">2026-10-05 13:00:00Z</td><td class="time">2026-10-05 13:20:00Z</td></tr>
 <tr><td><span class="level level-medium">medium</span></td><td>Local User Account Created</td>
 <td>1</td><td class="time">2024-03-10 09:08:12Z</td><td class="time">2024-03-10 09:08:12Z</td></tr>
 <tr><td><span class="level level-medium">medium</span></td><td>PsExec-Like Service Installed</td>
 <td>1</td><td class="time">2020-10-19 03:30:46Z</td><td class="time">2020-10-19 03:30:46Z</td></tr>
 <tr><td><span class="level level-medium">medium</span></td><td>Windows Logon Brute Force From Single Source</td>
 <td>1</td><td class="time">2020-10-22 08:29:55Z</td><td class="time">2020-10-22 08:29:55Z</td></tr>
+<tr><td><span class="level level-medium">medium</span></td><td>macOS Launch Daemon Added</td>
+<td>1</td><td class="time">2026-10-05 13:10:00Z</td><td class="time">2026-10-05 13:10:00Z</td></tr>
+<tr><td><span class="level level-medium">medium</span></td><td>macOS Repeated Local Password Failures</td>
+<td>1</td><td class="time">2026-10-05 08:05:02Z</td><td class="time">2026-10-05 08:05:34Z</td></tr>
+<tr><td><span class="level level-medium">medium</span></td><td>macOS SSH Brute Force</td>
+<td>1</td><td class="time">2026-10-05 16:00:00Z</td><td class="time">2026-10-05 16:01:03Z</td></tr>
 <tr><td><span class="level level-low">low</span></td><td>Sudo Authentication Failure</td>
 <td>2</td><td class="time">2024-03-10 09:09:30Z</td><td class="time">2024-06-04 08:07:12Z</td></tr>
+<tr><td><span class="level level-low">low</span></td><td>macOS Sudo Authentication Failure</td>
+<td>2</td><td class="time">2026-10-05 08:05:08Z</td><td class="time">2026-10-05 08:05:34Z</td></tr>
 <tr><td><span class="level level-low">low</span></td><td>User Account Created</td>
 <td>1</td><td class="time">2020-09-14 12:06:03Z</td><td class="time">2020-09-14 12:06:03Z</td></tr>
 </tbody></table></div>
 <h3>Details</h3>
-<details class="alert" id="alert-1" open>
+<details class="alert" id="alert-6d03b054-8230-47ba-a957-6b59a2d71c33-2020-09-20T16:16:58.233000+00:00" open>
 <summary><span class="level level-high">high</span>
 <span class="title">Suspicious Service Installed</span>
 <span class="muted">2020-09-20 16:16:58Z &middot; WORKSTATION6.theshire.local &middot; 1 event(s)</span></summary>
@@ -162,7 +185,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-2" open>
+<details class="alert" id="alert-cbea5c72-bafb-4200-b58d-fa251eeef003-2020-09-22T08:38:29.038000+00:00" open>
 <summary><span class="level level-high">high</span>
 <span class="title">LSASS Memory Access With Credential Dumping Rights</span>
 <span class="muted">2020-09-22 08:38:29Z &middot; WORKSTATION5.theshire.local &middot; 1 event(s)</span></summary>
@@ -181,7 +204,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-3" open>
+<details class="alert" id="alert-cbea5c72-bafb-4200-b58d-fa251eeef003-2020-09-22T08:38:29.043000+00:00" open>
 <summary><span class="level level-high">high</span>
 <span class="title">LSASS Memory Access With Credential Dumping Rights</span>
 <span class="muted">2020-09-22 08:38:29Z &middot; WORKSTATION5.theshire.local &middot; 1 event(s)</span></summary>
@@ -200,7 +223,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-4" open>
+<details class="alert" id="alert-bbb4b441-8965-4e18-8efe-12bec2b08423-2020-10-18T02:17:00.214000+00:00" open>
 <summary><span class="level level-high">high</span>
 <span class="title">Security Event Log Cleared</span>
 <span class="muted">2020-10-18 02:17:00Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
@@ -219,7 +242,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-5" open>
+<details class="alert" id="alert-cbea5c72-bafb-4200-b58d-fa251eeef003-2020-10-18T23:50:06.001000+00:00" open>
 <summary><span class="level level-high">high</span>
 <span class="title">LSASS Memory Access With Credential Dumping Rights</span>
 <span class="muted">2020-10-18 23:50:06Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
@@ -238,7 +261,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-6" open>
+<details class="alert" id="alert-cbea5c72-bafb-4200-b58d-fa251eeef003-2020-10-18T23:50:06.025000+00:00" open>
 <summary><span class="level level-high">high</span>
 <span class="title">LSASS Memory Access With Credential Dumping Rights</span>
 <span class="muted">2020-10-18 23:50:06Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
@@ -257,7 +280,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-7" open>
+<details class="alert" id="alert-bbb4b441-8965-4e18-8efe-12bec2b08423-2020-10-21T11:28:08.823000+00:00" open>
 <summary><span class="level level-high">high</span>
 <span class="title">Security Event Log Cleared</span>
 <span class="muted">2020-10-21 11:28:08Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
@@ -276,7 +299,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-8" open>
+<details class="alert" id="alert-e28d89fc-b094-4869-be4d-63c90efcdd22-2020-10-21T11:28:08.901000+00:00" open>
 <summary><span class="level level-high">high</span>
 <span class="title">Important Windows Event Log Cleared</span>
 <span class="muted">2020-10-21 11:28:08Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
@@ -295,7 +318,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-9" open>
+<details class="alert" id="alert-6d03b054-8230-47ba-a957-6b59a2d71c33-2021-06-11T09:07:41.212000+00:00" open>
 <summary><span class="level level-high">high</span>
 <span class="title">Suspicious Service Installed</span>
 <span class="muted">2021-06-11 09:07:41Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
@@ -314,7 +337,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-10" open>
+<details class="alert" id="alert-156d0b6d-aea1-479c-91ce-eaf6c08cfa67-2024-03-10T09:05:42+00:00" open>
 <summary><span class="level level-high">high</span>
 <span class="title">SSH Login After Brute Force</span>
 <span class="muted">2024-03-10 09:05:42Z &middot; web01 &middot; 11 event(s)</span></summary>
@@ -342,7 +365,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 <p class="muted">1 event(s) between the first 9 and the last one are not shown.</p></div>
 </details>
-<details class="alert" id="alert-11" open>
+<details class="alert" id="alert-156d0b6d-aea1-479c-91ce-eaf6c08cfa67-2024-06-03T08:00:00+00:00" open>
 <summary><span class="level level-high">high</span>
 <span class="title">SSH Login After Brute Force</span>
 <span class="muted">2024-06-03 08:00:00Z &middot; web01 &middot; 11 event(s)</span></summary>
@@ -370,7 +393,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 <p class="muted">1 event(s) between the first 9 and the last one are not shown.</p></div>
 </details>
-<details class="alert" id="alert-12" open>
+<details class="alert" id="alert-156d0b6d-aea1-479c-91ce-eaf6c08cfa67-2024-06-04T08:05:00.400000+00:00" open>
 <summary><span class="level level-high">high</span>
 <span class="title">SSH Login After Brute Force</span>
 <span class="muted">2024-06-04 08:05:00Z &middot; deb13 &middot; 11 event(s)</span></summary>
@@ -398,7 +421,92 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 <p class="muted">1 event(s) between the first 9 and the last one are not shown.</p></div>
 </details>
-<details class="alert" id="alert-13">
+<details class="alert" id="alert-8b316231-3fc2-4e5d-bbf1-5ef14bbd26ec-2026-10-05T13:20:00.400000+00:00" open>
+<summary><span class="level level-high">high</span>
+<span class="title">macOS Launch Item Masquerading As Apple</span>
+<span class="muted">2026-10-05 13:20:00Z &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>A new launch agent or daemon uses a com.apple. label. Apple&#39;s own launch items live in /System and are not registered this way, so a com.apple. item showing up in a LaunchAgents or LaunchDaemons folder is most likely a program hiding behind Apple&#39;s name to persist.</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 13:20:00Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1036/005">T1036.005</a> Masquerading: Match Legitimate Resource Name or Location; <a href="https://attack.mitre.org/techniques/T1543/001">T1543.001</a> Create or Modify System Process: Launch Agent; <a href="https://attack.mitre.org/techniques/T1543/004">T1543.004</a> Create or Modify System Process: Launch Daemon <span class="muted">(Persistence, Privilege Escalation, Stealth)</span></dd>
+  <dt>Rule</dt><dd>macOS Launch Item Masquerading As Apple <code>8b316231-3fc2-4e5d-bbf1-5ef14bbd26ec</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Apple software installed outside macOS that brings its own launch items</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 13:20:00Z</td><td class="nowrap">-</td><td class="nowrap">mac_persistence.ndjson:7</td><td class="event">backgroundtaskmanagementd: new legacy agent com.apple.softwareupdate.check (Software Update): /Users/opsadmin/Library/LaunchAgents/com.apple.softwareupdate.check agent.plist</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-3261686f-7d29-4f7b-83a5-c93b34408c61-2026-10-05T15:00:00.100000+00:00" open>
+<summary><span class="level level-high">high</span>
+<span class="title">macOS XProtect Behavioral Detection Of Data Theft</span>
+<span class="muted">2026-10-05 15:00:00Z &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>A behavioral rule of XProtect caught a program other than an Apple system binary reading what info stealers go after, such as browser data, the keychains, Messages or password extensions. The decoded XProtect signature name is in the signature field.</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 15:00:00Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1005">T1005</a> Data from Local System; <a href="https://attack.mitre.org/techniques/T1539">T1539</a> Steal Web Session Cookie; <a href="https://attack.mitre.org/techniques/T1555/001">T1555.001</a> Credentials from Password Stores: Keychain; <a href="https://attack.mitre.org/techniques/T1555/003">T1555.003</a> Credentials from Password Stores: Credentials from Web Browsers <span class="muted">(Credential Access, Collection)</span></dd>
+  <dt>Rule</dt><dd>macOS XProtect Behavioral Detection Of Data Theft <code>3261686f-7d29-4f7b-83a5-c93b34408c61</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Password managers, backup and migration tools reading browser data or keychains</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 15:00:00Z</td><td class="nowrap">-</td><td class="nowrap">mac_gatekeeper_xprotect.ndjson:12</td><td class="event">syspolicyd: XProtect behavioral detection macOS.InfoStealer.Generic (0x800)</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-3261686f-7d29-4f7b-83a5-c93b34408c61-2026-10-05T15:00:02.100000+00:00" open>
+<summary><span class="level level-high">high</span>
+<span class="title">macOS XProtect Behavioral Detection Of Data Theft</span>
+<span class="muted">2026-10-05 15:00:02Z &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>A behavioral rule of XProtect caught a program other than an Apple system binary reading what info stealers go after, such as browser data, the keychains, Messages or password extensions. The decoded XProtect signature name is in the signature field.</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 15:00:02Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1005">T1005</a> Data from Local System; <a href="https://attack.mitre.org/techniques/T1539">T1539</a> Steal Web Session Cookie; <a href="https://attack.mitre.org/techniques/T1555/001">T1555.001</a> Credentials from Password Stores: Keychain; <a href="https://attack.mitre.org/techniques/T1555/003">T1555.003</a> Credentials from Password Stores: Credentials from Web Browsers <span class="muted">(Credential Access, Collection)</span></dd>
+  <dt>Rule</dt><dd>macOS XProtect Behavioral Detection Of Data Theft <code>3261686f-7d29-4f7b-83a5-c93b34408c61</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Password managers, backup and migration tools reading browser data or keychains</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 15:00:02Z</td><td class="nowrap">-</td><td class="nowrap">mac_gatekeeper_xprotect.ndjson:13</td><td class="event">syspolicyd: XProtect behavioral detection macOS.Browser.Generic, macOS.DataExfil.Keychain (0x80001)</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-73fb79a5-6e95-4cd8-9960-c9f0e70c2e1d-2026-10-05T16:00:00.100000+00:00" open>
+<summary><span class="level level-high">high</span>
+<span class="title">macOS SSH Login After Brute Force</span>
+<span class="muted">2026-10-05 16:00:00Z &middot; 11 event(s)</span></summary>
+<div class="body">
+<p>A successful SSH login on a Mac from an address whose SSH brute force alert fired in the previous 10 minutes. The attacker has most likely guessed a valid password.</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 16:00:00Z to 2026-10-05 16:03:30Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 203.0.113.77</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1078/003">T1078.003</a> Valid Accounts: Local Accounts; <a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing <span class="muted">(Initial Access, Persistence, Privilege Escalation, Stealth, Credential Access)</span></dd>
+  <dt>Rule</dt><dd>macOS SSH Login After Brute Force <code>73fb79a5-6e95-4cd8-9960-c9f0e70c2e1d</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A legitimate user who retried many times before remembering the password</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 16:00:00Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:2</td><td class="event">sshd-session: Failed password for invalid user admin from 203.0.113.77 port 51000 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:07Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:3</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51001 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:14Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:4</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51002 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:21Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:5</td><td class="event">sshd-session: Failed password for invalid user admin from 203.0.113.77 port 51003 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:28Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:6</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51004 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:35Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:7</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51005 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:42Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:8</td><td class="event">sshd-session: Failed password for invalid user admin from 203.0.113.77 port 51006 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:49Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:9</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51007 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:56Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:10</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51008 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:03:30Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:14</td><td class="event">sshd-session: Accepted password for opsadmin from 203.0.113.77 port 51099 ssh2</td></tr>
+</tbody></table></div>
+<p class="muted">1 event(s) between the first 9 and the last one are not shown.</p></div>
+</details>
+<details class="alert" id="alert-6a55e742-68fb-4b56-8a9d-3364684fe986-2020-09-20T06:57:49.076000+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">PowerShell Encoded Command Execution</span>
 <span class="muted">2020-09-20 06:57:49Z &middot; WORKSTATION6.theshire.local &middot; 1 event(s)</span></summary>
@@ -417,7 +525,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-14">
+<details class="alert" id="alert-6a55e742-68fb-4b56-8a9d-3364684fe986-2020-09-20T06:57:49.140000+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">PowerShell Encoded Command Execution</span>
 <span class="muted">2020-09-20 06:57:49Z &middot; WORKSTATION6.theshire.local &middot; 1 event(s)</span></summary>
@@ -436,7 +544,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-15">
+<details class="alert" id="alert-b2f53816-dce1-4a25-82ba-f9879e134928-2020-09-21T07:15:47.930000+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">Suspicious Scheduled Task Created</span>
 <span class="muted">2020-09-21 07:15:47Z &middot; WORKSTATION5.theshire.local &middot; 1 event(s)</span></summary>
@@ -455,7 +563,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-16">
+<details class="alert" id="alert-4d9d8b96-f9b9-4454-86d2-5dc723e625bb-2020-10-19T03:30:46.416000+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">PsExec-Like Service Installed</span>
 <span class="muted">2020-10-19 03:30:46Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
@@ -474,7 +582,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-17">
+<details class="alert" id="alert-6cf25939-c0a0-43f8-bb43-34d254f459cb-2020-10-22T08:29:55.210000+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">Windows Logon Brute Force From Single Source</span>
 <span class="muted">2020-10-22 08:29:55Z &middot; WORKSTATION5.theshire.local &middot; 5 event(s)</span></summary>
@@ -497,7 +605,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-18">
+<details class="alert" id="alert-32b87f74-31c8-401e-9efe-288445b0431b-2020-10-23T06:36:43.542000+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">File Download Via Bitsadmin</span>
 <span class="muted">2020-10-23 06:36:43Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
@@ -516,7 +624,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-19">
+<details class="alert" id="alert-32b87f74-31c8-401e-9efe-288445b0431b-2020-10-23T06:36:43.547000+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">File Download Via Bitsadmin</span>
 <span class="muted">2020-10-23 06:36:43Z &middot; WORKSTATION5 &middot; 1 event(s)</span></summary>
@@ -535,7 +643,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-20">
+<details class="alert" id="alert-b2f53816-dce1-4a25-82ba-f9879e134928-2020-12-19T07:00:22.264000+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">Suspicious Scheduled Task Created</span>
 <span class="muted">2020-12-19 07:00:22Z &middot; WORKSTATION6.theshire.local &middot; 1 event(s)</span></summary>
@@ -554,7 +662,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-21">
+<details class="alert" id="alert-44043ef0-67f0-4380-9c98-b348be632e58-2024-03-10T09:05:42+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">SSH Brute Force</span>
 <span class="muted">2024-03-10 09:05:42Z &middot; web01 &middot; 10 event(s)</span></summary>
@@ -582,7 +690,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-22">
+<details class="alert" id="alert-a5668195-278b-4b24-aaf9-53ee8ff41701-2024-03-10T09:05:42+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">SSH Password Spraying</span>
 <span class="muted">2024-03-10 09:05:42Z &middot; web01 &middot; 8 event(s)</span></summary>
@@ -608,7 +716,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-23">
+<details class="alert" id="alert-30bda398-aea5-47d4-bc2c-0a7a01d09698-2024-03-10T09:08:12+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">Local User Account Created</span>
 <span class="muted">2024-03-10 09:08:12Z &middot; web01 &middot; 1 event(s)</span></summary>
@@ -627,7 +735,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-24">
+<details class="alert" id="alert-44043ef0-67f0-4380-9c98-b348be632e58-2024-04-03T02:00:05+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">SSH Brute Force</span>
 <span class="muted">2024-04-03 02:00:05Z &middot; backup01 &middot; 10 event(s)</span></summary>
@@ -655,7 +763,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-25">
+<details class="alert" id="alert-44043ef0-67f0-4380-9c98-b348be632e58-2024-06-03T08:00:00+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">SSH Brute Force</span>
 <span class="muted">2024-06-03 08:00:00Z &middot; web01 &middot; 10 event(s)</span></summary>
@@ -683,7 +791,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-26">
+<details class="alert" id="alert-44043ef0-67f0-4380-9c98-b348be632e58-2024-06-03T09:00:00+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">SSH Brute Force</span>
 <span class="muted">2024-06-03 09:00:00Z &middot; web01 &middot; 10 event(s)</span></summary>
@@ -711,7 +819,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-27">
+<details class="alert" id="alert-44043ef0-67f0-4380-9c98-b348be632e58-2024-06-03T10:00:10+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">SSH Brute Force</span>
 <span class="muted">2024-06-03 10:00:10Z &middot; web01 &middot; 10 event(s)</span></summary>
@@ -739,7 +847,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-28">
+<details class="alert" id="alert-44043ef0-67f0-4380-9c98-b348be632e58-2024-06-03T11:00:00+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">SSH Brute Force</span>
 <span class="muted">2024-06-03 11:00:00Z &middot; web01 &middot; 10 event(s)</span></summary>
@@ -767,7 +875,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-29">
+<details class="alert" id="alert-a5668195-278b-4b24-aaf9-53ee8ff41701-2024-06-03T14:30:00+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">SSH Password Spraying</span>
 <span class="muted">2024-06-03 14:30:00Z &middot; web01 &middot; 5 event(s)</span></summary>
@@ -790,7 +898,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-30">
+<details class="alert" id="alert-44043ef0-67f0-4380-9c98-b348be632e58-2024-06-03T16:00:00+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">SSH Brute Force</span>
 <span class="muted">2024-06-03 16:00:00Z &middot; web01 &middot; 10 event(s)</span></summary>
@@ -818,7 +926,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-31">
+<details class="alert" id="alert-44043ef0-67f0-4380-9c98-b348be632e58-2024-06-04T08:05:00.400000+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">SSH Brute Force</span>
 <span class="muted">2024-06-04 08:05:00Z &middot; deb13 &middot; 10 event(s)</span></summary>
@@ -846,7 +954,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-32">
+<details class="alert" id="alert-44043ef0-67f0-4380-9c98-b348be632e58-2024-07-08T03:12:01+00:00">
 <summary><span class="level level-medium">medium</span>
 <span class="title">SSH Brute Force</span>
 <span class="muted">2024-07-08 03:12:01Z &middot; web04 &middot; 10 event(s)</span></summary>
@@ -874,7 +982,210 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-33">
+<details class="alert" id="alert-a9f5e58e-3322-4af8-adbe-68150a29350f-2026-10-05T08:05:02.481151+00:00">
+<summary><span class="level level-medium">medium</span>
+<span class="title">macOS Repeated Local Password Failures</span>
+<span class="muted">2026-10-05 08:05:02Z &middot; 5 event(s)</span></summary>
+<div class="body">
+<p>At least 5 wrong passwords for the same local account within 5 minutes. Someone may be guessing the password of the Mac, at the screen lock, with sudo or su, or through a password prompt. macOS hides the user name, so the account is identified by its UUID (dscl . -search /Users GeneratedUID &lt;uuid&gt;).</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 08:05:02Z to 2026-10-05 08:05:34Z</dd>
+<dt>Grouped by</dt><dd><code>account_uuid = 3F2A9C41-7B6D-4E8A-9D15-6C0B2E7A4F93</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>macOS Repeated Local Password Failures <code>a9f5e58e-3322-4af8-adbe-68150a29350f</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A user who forgot their password, or keeps the wrong keyboard layout; An Apple service retrying a stale password, such as akd (Apple Account) after a password change</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 08:05:02Z</td><td class="nowrap">-</td><td class="nowrap">mac_sudo.ndjson:3</td><td class="event">opendirectoryd: Authentication failed for &lt;private&gt; (3F2A9C41-7B6D-4E8A-9D15-6C0B2E7A4F93): ODErrorCredentialsInvalid</td></tr>
+<tr><td class="time">2026-10-05 08:05:05Z</td><td class="nowrap">-</td><td class="nowrap">mac_sudo.ndjson:5</td><td class="event">opendirectoryd: Authentication failed for &lt;private&gt; (3F2A9C41-7B6D-4E8A-9D15-6C0B2E7A4F93): ODErrorCredentialsInvalid</td></tr>
+<tr><td class="time">2026-10-05 08:05:08Z</td><td class="nowrap">-</td><td class="nowrap">mac_sudo.ndjson:7</td><td class="event">opendirectoryd: Authentication failed for &lt;private&gt; (3F2A9C41-7B6D-4E8A-9D15-6C0B2E7A4F93): ODErrorCredentialsInvalid</td></tr>
+<tr><td class="time">2026-10-05 08:05:30Z</td><td class="nowrap">-</td><td class="nowrap">mac_sudo.ndjson:10</td><td class="event">opendirectoryd: Authentication failed for &lt;private&gt; (3F2A9C41-7B6D-4E8A-9D15-6C0B2E7A4F93): ODErrorCredentialsInvalid</td></tr>
+<tr><td class="time">2026-10-05 08:05:34Z</td><td class="nowrap">-</td><td class="nowrap">mac_sudo.ndjson:11</td><td class="event">opendirectoryd: Authentication failed for &lt;private&gt; (3F2A9C41-7B6D-4E8A-9D15-6C0B2E7A4F93): ODErrorCredentialsInvalid</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-06da0f21-d31a-4161-abf7-6c0b95722a62-2026-10-05T13:00:00.100000+00:00">
+<summary><span class="level level-medium">medium</span>
+<span class="title">macOS XProtect Behavioral Detection Of Persistence</span>
+<span class="muted">2026-10-05 13:00:00Z &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>A behavioral rule of XProtect (the &#34;bastion&#34; rules of syspolicyd) caught a program other than an Apple system binary setting up persistence, such as writing a launch agent or daemon, a hidden file in Application Support or /Users/Shared, or a shell profile. The decoded XProtect signature name is in the signature field.</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 13:00:00Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1543/001">T1543.001</a> Create or Modify System Process: Launch Agent; <a href="https://attack.mitre.org/techniques/T1543/004">T1543.004</a> Create or Modify System Process: Launch Daemon; <a href="https://attack.mitre.org/techniques/T1546/004">T1546.004</a> Event Triggered Execution: Unix Shell Configuration Modification; <a href="https://attack.mitre.org/techniques/T1564/001">T1564.001</a> Hide Artifacts: Hidden Files and Directories <span class="muted">(Persistence, Privilege Escalation, Stealth)</span></dd>
+  <dt>Rule</dt><dd>macOS XProtect Behavioral Detection Of Persistence <code>06da0f21-d31a-4161-abf7-6c0b95722a62</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Applications installing a launch agent or editing shell profiles (developer tools, package managers)</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 13:00:00Z</td><td class="nowrap">-</td><td class="nowrap">mac_persistence.ndjson:1</td><td class="event">syspolicyd: XProtect behavioral detection macOS.Persistence.Launchplists (0x400000)</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-16b35a31-cc32-4cd0-a8ea-6d34895a14df-2026-10-05T13:00:00.400000+00:00">
+<summary><span class="level level-medium">medium</span>
+<span class="title">macOS Launch Agent Added</span>
+<span class="muted">2026-10-05 13:00:00Z &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Background Task Management saw a new launch agent, a property list in a LaunchAgents folder that launchd runs for the user, typically at each login. Malware uses launch agents to start again after a reboot. Check the program the property list starts and who wrote it.</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 13:00:00Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1543/001">T1543.001</a> Create or Modify System Process: Launch Agent <span class="muted">(Persistence, Privilege Escalation)</span></dd>
+  <dt>Rule</dt><dd>macOS Launch Agent Added <code>16b35a31-cc32-4cd0-a8ea-6d34895a14df</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Applications installing their updater or helper</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 13:00:00Z</td><td class="nowrap">-</td><td class="nowrap">mac_persistence.ndjson:3</td><td class="event">backgroundtaskmanagementd: new legacy agent com.example.updater (updater): /Users/opsadmin/Library/LaunchAgents/com.example.updater.plist</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-06da0f21-d31a-4161-abf7-6c0b95722a62-2026-10-05T13:10:00.100000+00:00">
+<summary><span class="level level-medium">medium</span>
+<span class="title">macOS XProtect Behavioral Detection Of Persistence</span>
+<span class="muted">2026-10-05 13:10:00Z &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>A behavioral rule of XProtect (the &#34;bastion&#34; rules of syspolicyd) caught a program other than an Apple system binary setting up persistence, such as writing a launch agent or daemon, a hidden file in Application Support or /Users/Shared, or a shell profile. The decoded XProtect signature name is in the signature field.</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 13:10:00Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1543/001">T1543.001</a> Create or Modify System Process: Launch Agent; <a href="https://attack.mitre.org/techniques/T1543/004">T1543.004</a> Create or Modify System Process: Launch Daemon; <a href="https://attack.mitre.org/techniques/T1546/004">T1546.004</a> Event Triggered Execution: Unix Shell Configuration Modification; <a href="https://attack.mitre.org/techniques/T1564/001">T1564.001</a> Hide Artifacts: Hidden Files and Directories <span class="muted">(Persistence, Privilege Escalation, Stealth)</span></dd>
+  <dt>Rule</dt><dd>macOS XProtect Behavioral Detection Of Persistence <code>06da0f21-d31a-4161-abf7-6c0b95722a62</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Applications installing a launch agent or editing shell profiles (developer tools, package managers)</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 13:10:00Z</td><td class="nowrap">-</td><td class="nowrap">mac_persistence.ndjson:4</td><td class="event">syspolicyd: XProtect behavioral detection macOS.Persistence.Launchplists (0x400000)</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-65c957df-5998-42b0-9e60-845f851950ad-2026-10-05T13:10:00.420000+00:00">
+<summary><span class="level level-medium">medium</span>
+<span class="title">macOS Launch Daemon Added</span>
+<span class="muted">2026-10-05 13:10:00Z &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Background Task Management saw a new launch daemon, a property list in /Library/LaunchDaemons that launchd runs as root at startup. Writing one needs administrator rights, and gives a program root persistence on the Mac.</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 13:10:00Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1543/004">T1543.004</a> Create or Modify System Process: Launch Daemon <span class="muted">(Persistence, Privilege Escalation)</span></dd>
+  <dt>Rule</dt><dd>macOS Launch Daemon Added <code>65c957df-5998-42b0-9e60-845f851950ad</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Software installers that need a privileged helper (virtualization, VPN, backup, device drivers)</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 13:10:00Z</td><td class="nowrap">-</td><td class="nowrap">mac_persistence.ndjson:5</td><td class="event">backgroundtaskmanagementd: new legacy daemon com.example.vpn.helperd (helperd): /Library/LaunchDaemons/com.example.vpn.helperd.plist</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-06da0f21-d31a-4161-abf7-6c0b95722a62-2026-10-05T13:20:00.100000+00:00">
+<summary><span class="level level-medium">medium</span>
+<span class="title">macOS XProtect Behavioral Detection Of Persistence</span>
+<span class="muted">2026-10-05 13:20:00Z &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>A behavioral rule of XProtect (the &#34;bastion&#34; rules of syspolicyd) caught a program other than an Apple system binary setting up persistence, such as writing a launch agent or daemon, a hidden file in Application Support or /Users/Shared, or a shell profile. The decoded XProtect signature name is in the signature field.</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 13:20:00Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1543/001">T1543.001</a> Create or Modify System Process: Launch Agent; <a href="https://attack.mitre.org/techniques/T1543/004">T1543.004</a> Create or Modify System Process: Launch Daemon; <a href="https://attack.mitre.org/techniques/T1546/004">T1546.004</a> Event Triggered Execution: Unix Shell Configuration Modification; <a href="https://attack.mitre.org/techniques/T1564/001">T1564.001</a> Hide Artifacts: Hidden Files and Directories <span class="muted">(Persistence, Privilege Escalation, Stealth)</span></dd>
+  <dt>Rule</dt><dd>macOS XProtect Behavioral Detection Of Persistence <code>06da0f21-d31a-4161-abf7-6c0b95722a62</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Applications installing a launch agent or editing shell profiles (developer tools, package managers)</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 13:20:00Z</td><td class="nowrap">-</td><td class="nowrap">mac_persistence.ndjson:6</td><td class="event">syspolicyd: XProtect behavioral detection macOS.Persistence.ShellProfileFiles, macOS.Persistence.Launchplists (0x410000)</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-16b35a31-cc32-4cd0-a8ea-6d34895a14df-2026-10-05T13:20:00.400000+00:00">
+<summary><span class="level level-medium">medium</span>
+<span class="title">macOS Launch Agent Added</span>
+<span class="muted">2026-10-05 13:20:00Z &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Background Task Management saw a new launch agent, a property list in a LaunchAgents folder that launchd runs for the user, typically at each login. Malware uses launch agents to start again after a reboot. Check the program the property list starts and who wrote it.</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 13:20:00Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1543/001">T1543.001</a> Create or Modify System Process: Launch Agent <span class="muted">(Persistence, Privilege Escalation)</span></dd>
+  <dt>Rule</dt><dd>macOS Launch Agent Added <code>16b35a31-cc32-4cd0-a8ea-6d34895a14df</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Applications installing their updater or helper</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 13:20:00Z</td><td class="nowrap">-</td><td class="nowrap">mac_persistence.ndjson:7</td><td class="event">backgroundtaskmanagementd: new legacy agent com.apple.softwareupdate.check (Software Update): /Users/opsadmin/Library/LaunchAgents/com.apple.softwareupdate.check agent.plist</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-ad332509-606f-4883-9f73-221f917394f8-2026-10-05T14:00:07.213000+00:00">
+<summary><span class="level level-medium">medium</span>
+<span class="title">macOS Gatekeeper Blocked Unverified Code</span>
+<span class="muted">2026-10-05 14:00:07Z &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Gatekeeper refused to run code downloaded from the Internet, because Apple has not notarized it or knows it as malware, and showed a warning. The block worked, but someone tried to run it; check where it came from, and whether it was later allowed in System Settings.</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 14:00:07Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1204/002">T1204.002</a> User Execution: Malicious File <span class="muted">(Execution)</span></dd>
+  <dt>Rule</dt><dd>macOS Gatekeeper Blocked Unverified Code <code>ad332509-606f-4883-9f73-221f917394f8</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Unsigned tools from developers or open source projects that users install on purpose</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 14:00:07Z</td><td class="nowrap">-</td><td class="nowrap">mac_gatekeeper_xprotect.ndjson:7</td><td class="event">syspolicyd: Adding Gatekeeper denial breadcrumb (direct): PST: (path: 5e1c0a7b93d24f68), (team: (null)), (id: com.example.invoice), (bundle_id: com.example.invoice)</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-ad332509-606f-4883-9f73-221f917394f8-2026-10-05T14:30:04.100000+00:00">
+<summary><span class="level level-medium">medium</span>
+<span class="title">macOS Gatekeeper Blocked Unverified Code</span>
+<span class="muted">2026-10-05 14:30:04Z &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>Gatekeeper refused to run code downloaded from the Internet, because Apple has not notarized it or knows it as malware, and showed a warning. The block worked, but someone tried to run it; check where it came from, and whether it was later allowed in System Settings.</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 14:30:04Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1204/002">T1204.002</a> User Execution: Malicious File <span class="muted">(Execution)</span></dd>
+  <dt>Rule</dt><dd>macOS Gatekeeper Blocked Unverified Code <code>ad332509-606f-4883-9f73-221f917394f8</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Unsigned tools from developers or open source projects that users install on purpose</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 14:30:04Z</td><td class="nowrap">-</td><td class="nowrap">mac_gatekeeper_xprotect.ndjson:11</td><td class="event">syspolicyd: Adding Gatekeeper denial breadcrumb (direct): PST: (path: 0b4f6e2a8c1d3957), (team: ABCDE12345), (id: com.example.tool), (bundle_id: NOT_A_BUNDLE)</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-32d4dc18-6307-4ad1-b937-aa19566eaf42-2026-10-05T16:00:00.100000+00:00">
+<summary><span class="level level-medium">medium</span>
+<span class="title">macOS SSH Brute Force</span>
+<span class="muted">2026-10-05 16:00:00Z &middot; 10 event(s)</span></summary>
+<div class="body">
+<p>At least 10 failed SSH password attempts on a Mac from the same source address within 5 minutes, the signature of an automated password guessing attack against Remote Login.</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 16:00:00Z to 2026-10-05 16:01:03Z</dd>
+<dt>Grouped by</dt><dd><code>src_ip = 203.0.113.77</code> </dd>  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1110/001">T1110.001</a> Brute Force: Password Guessing <span class="muted">(Credential Access)</span></dd>
+  <dt>Rule</dt><dd>macOS SSH Brute Force <code>32d4dc18-6307-4ad1-b937-aa19566eaf42</code> (correlation)</dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>A script or tool retrying an outdated password; Vulnerability scanners run by the security team</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 16:00:00Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:2</td><td class="event">sshd-session: Failed password for invalid user admin from 203.0.113.77 port 51000 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:07Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:3</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51001 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:14Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:4</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51002 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:21Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:5</td><td class="event">sshd-session: Failed password for invalid user admin from 203.0.113.77 port 51003 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:28Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:6</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51004 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:35Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:7</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51005 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:42Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:8</td><td class="event">sshd-session: Failed password for invalid user admin from 203.0.113.77 port 51006 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:49Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:9</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51007 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:00:56Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:10</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51008 ssh2</td></tr>
+<tr><td class="time">2026-10-05 16:01:03Z</td><td class="nowrap">-</td><td class="nowrap">mac_ssh.ndjson:11</td><td class="event">sshd-session: Failed password for invalid user admin from 203.0.113.77 port 51009 ssh2</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-87270cf5-a164-4eb4-bd0b-f92d2ef57c1c-2020-09-14T12:06:03.907000+00:00">
 <summary><span class="level level-low">low</span>
 <span class="title">User Account Created</span>
 <span class="muted">2020-09-14 12:06:03Z &middot; WORKSTATION6.theshire.local &middot; 1 event(s)</span></summary>
@@ -893,7 +1204,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-34">
+<details class="alert" id="alert-87c54c54-38eb-4d79-88a8-714dbb6a656d-2024-03-10T09:09:30+00:00">
 <summary><span class="level level-low">low</span>
 <span class="title">Sudo Authentication Failure</span>
 <span class="muted">2024-03-10 09:09:30Z &middot; web01 &middot; 1 event(s)</span></summary>
@@ -912,7 +1223,7 @@ run with <code>--min-level informational</code> to include them.
 </tbody></table></div>
 </div>
 </details>
-<details class="alert" id="alert-35">
+<details class="alert" id="alert-87c54c54-38eb-4d79-88a8-714dbb6a656d-2024-06-04T08:07:12.781004+00:00">
 <summary><span class="level level-low">low</span>
 <span class="title">Sudo Authentication Failure</span>
 <span class="muted">2024-06-04 08:07:12Z &middot; deb13 &middot; 1 event(s)</span></summary>
@@ -928,6 +1239,44 @@ run with <code>--min-level informational</code> to include them.
 <thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
 <tbody>
 <tr><td class="time">2024-06-04 08:07:12Z</td><td class="nowrap">deb13</td><td class="nowrap">auth_openssh10.log:16</td><td class="event">deploy : 3 incorrect password attempts ; HOST=deb13 ; TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/bin/bash</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-8b06d578-7d99-412a-a095-1513099b48df-2026-10-05T08:05:08.338122+00:00">
+<summary><span class="level level-low">low</span>
+<span class="title">macOS Sudo Authentication Failure</span>
+<span class="muted">2026-10-05 08:05:08Z &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>A user failed to authenticate to sudo on a Mac. Repeated failures can reveal someone trying to guess a password to gain root privileges.</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 08:05:08Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1548/003">T1548.003</a> Abuse Elevation Control Mechanism: Sudo and Sudo Caching <span class="muted">(Privilege Escalation)</span></dd>
+  <dt>Rule</dt><dd>macOS Sudo Authentication Failure <code>8b06d578-7d99-412a-a095-1513099b48df</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Users mistyping their password</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 08:05:08Z</td><td class="nowrap">-</td><td class="nowrap">mac_sudo.ndjson:9</td><td class="event">sudo: opsadmin : 3 incorrect password attempts ; TTY=ttys001 ; PWD=/Users/opsadmin ; USER=root ; COMMAND=/bin/cat /etc/sudoers</td></tr>
+</tbody></table></div>
+</div>
+</details>
+<details class="alert" id="alert-8b06d578-7d99-412a-a095-1513099b48df-2026-10-05T08:05:34.251412+00:00">
+<summary><span class="level level-low">low</span>
+<span class="title">macOS Sudo Authentication Failure</span>
+<span class="muted">2026-10-05 08:05:34Z &middot; 1 event(s)</span></summary>
+<div class="body">
+<p>A user failed to authenticate to sudo on a Mac. Repeated failures can reveal someone trying to guess a password to gain root privileges.</p>
+<dl>
+  <dt>When</dt><dd>2026-10-05 08:05:34Z</dd>
+  <dt>ATT&amp;CK</dt><dd><a href="https://attack.mitre.org/techniques/T1548/003">T1548.003</a> Abuse Elevation Control Mechanism: Sudo and Sudo Caching <span class="muted">(Privilege Escalation)</span></dd>
+  <dt>Rule</dt><dd>macOS Sudo Authentication Failure <code>8b06d578-7d99-412a-a095-1513099b48df</code></dd>
+  <dt>Author</dt><dd>Bouliw</dd>
+<dt>False positives</dt><dd>Users mistyping their password</dd></dl>
+<div class="scroll"><table>
+<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<tbody>
+<tr><td class="time">2026-10-05 08:05:34Z</td><td class="nowrap">-</td><td class="nowrap">mac_sudo.ndjson:13</td><td class="event">sudo: opsadmin : 2 incorrect password attempts ; PWD=/tmp ; USER=root ; COMMAND=/usr/bin/dscl . -read /Users/kiosk</td></tr>
 </tbody></table></div>
 </div>
 </details>
@@ -1306,13 +1655,96 @@ run with <code>--min-level informational</code> to include them.
 <tr><td class="time">2024-07-08 03:12:20Z</td><td class="nowrap">web04</td><td>auth</td>
 <td>-</td><td class="event">Failed password for root from 203.0.113.120 port 55020 ssh2</td>
 <td><span class="level level-medium">medium</span> SSH Brute Force</td></tr>
+<tr><td class="time">2026-10-05 08:05:02Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">opendirectoryd: Authentication failed for &lt;private&gt; (3F2A9C41-7B6D-4E8A-9D15-6C0B2E7A4F93): ODErrorCredentialsInvalid</td>
+<td><span class="level level-medium">medium</span> macOS Repeated Local Password Failures</td></tr>
+<tr><td class="time">2026-10-05 08:05:05Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">opendirectoryd: Authentication failed for &lt;private&gt; (3F2A9C41-7B6D-4E8A-9D15-6C0B2E7A4F93): ODErrorCredentialsInvalid</td>
+<td><span class="level level-medium">medium</span> macOS Repeated Local Password Failures</td></tr>
+<tr><td class="time">2026-10-05 08:05:08Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">opendirectoryd: Authentication failed for &lt;private&gt; (3F2A9C41-7B6D-4E8A-9D15-6C0B2E7A4F93): ODErrorCredentialsInvalid</td>
+<td><span class="level level-medium">medium</span> macOS Repeated Local Password Failures</td></tr>
+<tr><td class="time">2026-10-05 08:05:08Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">sudo: opsadmin : 3 incorrect password attempts ; TTY=ttys001 ; PWD=/Users/opsadmin ; USER=root ; COMMAND=/bin/cat /etc/sudoers</td>
+<td><span class="level level-low">low</span> macOS Sudo Authentication Failure</td></tr>
+<tr><td class="time">2026-10-05 08:05:30Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">opendirectoryd: Authentication failed for &lt;private&gt; (3F2A9C41-7B6D-4E8A-9D15-6C0B2E7A4F93): ODErrorCredentialsInvalid</td>
+<td><span class="level level-medium">medium</span> macOS Repeated Local Password Failures</td></tr>
+<tr><td class="time">2026-10-05 08:05:34Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">opendirectoryd: Authentication failed for &lt;private&gt; (3F2A9C41-7B6D-4E8A-9D15-6C0B2E7A4F93): ODErrorCredentialsInvalid</td>
+<td><span class="level level-medium">medium</span> macOS Repeated Local Password Failures</td></tr>
+<tr><td class="time">2026-10-05 08:05:34Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">sudo: opsadmin : 2 incorrect password attempts ; PWD=/tmp ; USER=root ; COMMAND=/usr/bin/dscl . -read /Users/kiosk</td>
+<td><span class="level level-low">low</span> macOS Sudo Authentication Failure</td></tr>
+<tr><td class="time">2026-10-05 13:00:00Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">syspolicyd: XProtect behavioral detection macOS.Persistence.Launchplists (0x400000)</td>
+<td><span class="level level-medium">medium</span> macOS XProtect Behavioral Detection Of Persistence</td></tr>
+<tr><td class="time">2026-10-05 13:00:00Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">backgroundtaskmanagementd: new legacy agent com.example.updater (updater): /Users/opsadmin/Library/LaunchAgents/com.example.updater.plist</td>
+<td><span class="level level-medium">medium</span> macOS Launch Agent Added</td></tr>
+<tr><td class="time">2026-10-05 13:10:00Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">syspolicyd: XProtect behavioral detection macOS.Persistence.Launchplists (0x400000)</td>
+<td><span class="level level-medium">medium</span> macOS XProtect Behavioral Detection Of Persistence</td></tr>
+<tr><td class="time">2026-10-05 13:10:00Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">backgroundtaskmanagementd: new legacy daemon com.example.vpn.helperd (helperd): /Library/LaunchDaemons/com.example.vpn.helperd.plist</td>
+<td><span class="level level-medium">medium</span> macOS Launch Daemon Added</td></tr>
+<tr><td class="time">2026-10-05 13:20:00Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">syspolicyd: XProtect behavioral detection macOS.Persistence.ShellProfileFiles, macOS.Persistence.Launchplists (0x410000)</td>
+<td><span class="level level-medium">medium</span> macOS XProtect Behavioral Detection Of Persistence</td></tr>
+<tr><td class="time">2026-10-05 13:20:00Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">backgroundtaskmanagementd: new legacy agent com.apple.softwareupdate.check (Software Update): /Users/opsadmin/Library/LaunchAgents/com.apple.softwareupdate.check agent.plist</td>
+<td><span class="level level-high">high</span> macOS Launch Item Masquerading As Apple; macOS Launch Agent Added</td></tr>
+<tr><td class="time">2026-10-05 14:00:07Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">syspolicyd: Adding Gatekeeper denial breadcrumb (direct): PST: (path: 5e1c0a7b93d24f68), (team: (null)), (id: com.example.invoice), (bundle_id: com.example.invoice)</td>
+<td><span class="level level-medium">medium</span> macOS Gatekeeper Blocked Unverified Code</td></tr>
+<tr><td class="time">2026-10-05 14:30:04Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">syspolicyd: Adding Gatekeeper denial breadcrumb (direct): PST: (path: 0b4f6e2a8c1d3957), (team: ABCDE12345), (id: com.example.tool), (bundle_id: NOT_A_BUNDLE)</td>
+<td><span class="level level-medium">medium</span> macOS Gatekeeper Blocked Unverified Code</td></tr>
+<tr><td class="time">2026-10-05 15:00:00Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">syspolicyd: XProtect behavioral detection macOS.InfoStealer.Generic (0x800)</td>
+<td><span class="level level-high">high</span> macOS XProtect Behavioral Detection Of Data Theft</td></tr>
+<tr><td class="time">2026-10-05 15:00:02Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">syspolicyd: XProtect behavioral detection macOS.Browser.Generic, macOS.DataExfil.Keychain (0x80001)</td>
+<td><span class="level level-high">high</span> macOS XProtect Behavioral Detection Of Data Theft</td></tr>
+<tr><td class="time">2026-10-05 16:00:00Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">sshd-session: Failed password for invalid user admin from 203.0.113.77 port 51000 ssh2</td>
+<td><span class="level level-high">high</span> macOS SSH Login After Brute Force; macOS SSH Brute Force</td></tr>
+<tr><td class="time">2026-10-05 16:00:07Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51001 ssh2</td>
+<td><span class="level level-high">high</span> macOS SSH Login After Brute Force; macOS SSH Brute Force</td></tr>
+<tr><td class="time">2026-10-05 16:00:14Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51002 ssh2</td>
+<td><span class="level level-high">high</span> macOS SSH Login After Brute Force; macOS SSH Brute Force</td></tr>
+<tr><td class="time">2026-10-05 16:00:21Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">sshd-session: Failed password for invalid user admin from 203.0.113.77 port 51003 ssh2</td>
+<td><span class="level level-high">high</span> macOS SSH Login After Brute Force; macOS SSH Brute Force</td></tr>
+<tr><td class="time">2026-10-05 16:00:28Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51004 ssh2</td>
+<td><span class="level level-high">high</span> macOS SSH Login After Brute Force; macOS SSH Brute Force</td></tr>
+<tr><td class="time">2026-10-05 16:00:35Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51005 ssh2</td>
+<td><span class="level level-high">high</span> macOS SSH Login After Brute Force; macOS SSH Brute Force</td></tr>
+<tr><td class="time">2026-10-05 16:00:42Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">sshd-session: Failed password for invalid user admin from 203.0.113.77 port 51006 ssh2</td>
+<td><span class="level level-high">high</span> macOS SSH Login After Brute Force; macOS SSH Brute Force</td></tr>
+<tr><td class="time">2026-10-05 16:00:49Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51007 ssh2</td>
+<td><span class="level level-high">high</span> macOS SSH Login After Brute Force; macOS SSH Brute Force</td></tr>
+<tr><td class="time">2026-10-05 16:00:56Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">sshd-session: Failed password for opsadmin from 203.0.113.77 port 51008 ssh2</td>
+<td><span class="level level-high">high</span> macOS SSH Login After Brute Force; macOS SSH Brute Force</td></tr>
+<tr><td class="time">2026-10-05 16:01:03Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">sshd-session: Failed password for invalid user admin from 203.0.113.77 port 51009 ssh2</td>
+<td><span class="level level-high">high</span> macOS SSH Login After Brute Force; macOS SSH Brute Force</td></tr>
+<tr><td class="time">2026-10-05 16:03:30Z</td><td class="nowrap">-</td><td>unifiedlog</td>
+<td>-</td><td class="event">sshd-session: Accepted password for opsadmin from 203.0.113.77 port 51099 ssh2</td>
+<td><span class="level level-high">high</span> macOS SSH Login After Brute Force</td></tr>
 </tbody></table></div>
 
 <h2>Inputs</h2>
 <div class="scroll"><table>
 <thead><tr><th>File</th><th>Format</th><th>Events</th><th>Warnings</th></tr></thead>
 <tbody>
-<tr><td>aptsimulator_cobaltstrike_service_excerpt.json</td><td>winjson</td><td>4</td><td>0</td></tr>
 <tr><td>authlog/auth.log</td><td>authlog</td><td>29</td><td>1</td></tr>
 <tr><td>authlog/auth_benign.log</td><td>authlog</td><td>27</td><td>0</td></tr>
 <tr><td>authlog/auth_bruteforce_timing.log</td><td>authlog</td><td>108</td><td>0</td></tr>
@@ -1322,29 +1754,35 @@ run with <code>--min-level informational</code> to include them.
 <tr><td>authlog/auth_rollover.log</td><td>authlog</td><td>3</td><td>0</td></tr>
 <tr><td>authlog/auth_rsyslog_repeated.log</td><td>authlog</td><td>18</td><td>0</td></tr>
 <tr><td>authlog/auth_sessions.log</td><td>authlog</td><td>8</td><td>0</td></tr>
-<tr><td>cmd_bitsadmin_download_psh_script_excerpt.json</td><td>winjson</td><td>10</td><td>1</td></tr>
-<tr><td>cmd_discover_iexplorer_version_registry_excerpt.json</td><td>winjson</td><td>2</td><td>0</td></tr>
-<tr><td>cmd_mshta_vbscript_execute_psh_excerpt.json</td><td>winjson</td><td>4</td><td>1</td></tr>
-<tr><td>cmd_psexec_lsa_secrets_dump_service_excerpt.json</td><td>winjson</td><td>2</td><td>0</td></tr>
-<tr><td>cmd_psh_stop_netprofm_eventlog_before_reboot_excerpt.json</td><td>winjson</td><td>8</td><td>0</td></tr>
-<tr><td>covenant_dcom_executeexcel4macro_allowed_excerpt.json</td><td>winjson</td><td>1</td><td>0</td></tr>
-<tr><td>empire_persistence_registry_modification_run_keys_standard_user_certutil_excerpt.json</td><td>winjson</td><td>10</td><td>0</td></tr>
-<tr><td>empire_persistence_registry_modification_run_keys_standard_user_excerpt.json</td><td>winjson</td><td>9</td><td>0</td></tr>
-<tr><td>empire_psexec_dcerpc_tcp_svcctl_service_excerpt.json</td><td>winjson</td><td>4</td><td>0</td></tr>
-<tr><td>empire_schtasks_creation_execution_elevated_user_service_excerpt.json</td><td>winjson</td><td>6</td><td>0</td></tr>
-<tr><td>empire_schtasks_creation_standard_user_excerpt.json</td><td>winjson</td><td>1</td><td>0</td></tr>
-<tr><td>empire_shell_rubeus_asktgt_createnetonly_excerpt.json</td><td>winjson</td><td>4</td><td>0</td></tr>
-<tr><td>empire_smbexec_dcerpc_smb_svcctl_excerpt.json</td><td>winjson</td><td>6</td><td>0</td></tr>
-<tr><td>empire_wmi_local_event_subscriptions_elevated_user_excerpt.json</td><td>winjson</td><td>8</td><td>0</td></tr>
-<tr><td>empire_wmi_local_event_subscriptions_elevated_user_lsass_excerpt.json</td><td>winjson</td><td>16</td><td>0</td></tr>
-<tr><td>empire_wmic_add_user_backdoor_excerpt.json</td><td>winjson</td><td>8</td><td>0</td></tr>
-<tr><td>psh_disable_eventlog_service_startuptype_modification_excerpt.json</td><td>winjson</td><td>5</td><td>0</td></tr>
-<tr><td>psh_lsass_memory_dump_comsvcs_excerpt.json</td><td>winjson</td><td>2</td><td>1</td></tr>
-<tr><td>purplesharp_ad_playbook_I_excerpt.json</td><td>winjson</td><td>14</td><td>0</td></tr>
-<tr><td>rdp_interactive_taskmanager_lsass_dump_excerpt.json</td><td>winjson</td><td>8</td><td>0</td></tr>
-<tr><td>schtask_create_excerpt.json</td><td>winjson</td><td>1</td><td>0</td></tr>
-<tr><td>wmic_remote_xsl_jscript_excerpt.json</td><td>winjson</td><td>2</td><td>0</td></tr>
-<tr><td>wmic_remote_xsl_jscript_lsass_excerpt.json</td><td>winjson</td><td>4</td><td>1</td></tr>
+<tr><td>unifiedlog/mac_benign.ndjson</td><td>unifiedlog</td><td>21</td><td>0</td></tr>
+<tr><td>unifiedlog/mac_gatekeeper_xprotect.ndjson</td><td>unifiedlog</td><td>14</td><td>0</td></tr>
+<tr><td>unifiedlog/mac_persistence.ndjson</td><td>unifiedlog</td><td>8</td><td>0</td></tr>
+<tr><td>unifiedlog/mac_ssh.ndjson</td><td>unifiedlog</td><td>14</td><td>0</td></tr>
+<tr><td>unifiedlog/mac_sudo.ndjson</td><td>unifiedlog</td><td>15</td><td>0</td></tr>
+<tr><td>winjson/aptsimulator_cobaltstrike_service_excerpt.json</td><td>winjson</td><td>4</td><td>0</td></tr>
+<tr><td>winjson/cmd_bitsadmin_download_psh_script_excerpt.json</td><td>winjson</td><td>10</td><td>1</td></tr>
+<tr><td>winjson/cmd_discover_iexplorer_version_registry_excerpt.json</td><td>winjson</td><td>2</td><td>0</td></tr>
+<tr><td>winjson/cmd_mshta_vbscript_execute_psh_excerpt.json</td><td>winjson</td><td>4</td><td>1</td></tr>
+<tr><td>winjson/cmd_psexec_lsa_secrets_dump_service_excerpt.json</td><td>winjson</td><td>2</td><td>0</td></tr>
+<tr><td>winjson/cmd_psh_stop_netprofm_eventlog_before_reboot_excerpt.json</td><td>winjson</td><td>8</td><td>0</td></tr>
+<tr><td>winjson/covenant_dcom_executeexcel4macro_allowed_excerpt.json</td><td>winjson</td><td>1</td><td>0</td></tr>
+<tr><td>winjson/empire_persistence_registry_modification_run_keys_standard_user_certutil_excerpt.json</td><td>winjson</td><td>10</td><td>0</td></tr>
+<tr><td>winjson/empire_persistence_registry_modification_run_keys_standard_user_excerpt.json</td><td>winjson</td><td>9</td><td>0</td></tr>
+<tr><td>winjson/empire_psexec_dcerpc_tcp_svcctl_service_excerpt.json</td><td>winjson</td><td>4</td><td>0</td></tr>
+<tr><td>winjson/empire_schtasks_creation_execution_elevated_user_service_excerpt.json</td><td>winjson</td><td>6</td><td>0</td></tr>
+<tr><td>winjson/empire_schtasks_creation_standard_user_excerpt.json</td><td>winjson</td><td>1</td><td>0</td></tr>
+<tr><td>winjson/empire_shell_rubeus_asktgt_createnetonly_excerpt.json</td><td>winjson</td><td>4</td><td>0</td></tr>
+<tr><td>winjson/empire_smbexec_dcerpc_smb_svcctl_excerpt.json</td><td>winjson</td><td>6</td><td>0</td></tr>
+<tr><td>winjson/empire_wmi_local_event_subscriptions_elevated_user_excerpt.json</td><td>winjson</td><td>8</td><td>0</td></tr>
+<tr><td>winjson/empire_wmi_local_event_subscriptions_elevated_user_lsass_excerpt.json</td><td>winjson</td><td>16</td><td>0</td></tr>
+<tr><td>winjson/empire_wmic_add_user_backdoor_excerpt.json</td><td>winjson</td><td>8</td><td>0</td></tr>
+<tr><td>winjson/psh_disable_eventlog_service_startuptype_modification_excerpt.json</td><td>winjson</td><td>5</td><td>0</td></tr>
+<tr><td>winjson/psh_lsass_memory_dump_comsvcs_excerpt.json</td><td>winjson</td><td>2</td><td>1</td></tr>
+<tr><td>winjson/purplesharp_ad_playbook_I_excerpt.json</td><td>winjson</td><td>14</td><td>0</td></tr>
+<tr><td>winjson/rdp_interactive_taskmanager_lsass_dump_excerpt.json</td><td>winjson</td><td>8</td><td>0</td></tr>
+<tr><td>winjson/schtask_create_excerpt.json</td><td>winjson</td><td>1</td><td>0</td></tr>
+<tr><td>winjson/wmic_remote_xsl_jscript_excerpt.json</td><td>winjson</td><td>2</td><td>0</td></tr>
+<tr><td>winjson/wmic_remote_xsl_jscript_lsass_excerpt.json</td><td>winjson</td><td>4</td><td>1</td></tr>
 </tbody></table></div>
 <h3>Parser warnings</h3><ul><li>auth.log:30: unrecognized syslog line</li><li>cmd_bitsadmin_download_psh_script_excerpt.json: timestamps shifted by +04:00 to match Sysmon UtcTime (local time labeled as UTC)</li><li>cmd_mshta_vbscript_execute_psh_excerpt.json: timestamps shifted by +04:00 to match Sysmon UtcTime (local time labeled as UTC)</li><li>psh_lsass_memory_dump_comsvcs_excerpt.json: timestamps shifted by +16:00 to match Sysmon UtcTime (local time labeled as UTC)</li><li>wmic_remote_xsl_jscript_lsass_excerpt.json: timestamps shifted by +04:00 to match Sysmon UtcTime (local time labeled as UTC)</li></ul>
 <footer>© 2026 The MITRE Corporation. This work is reproduced and distributed with the permission of The MITRE Corporation. Rules adapted from SigmaHQ are licensed under the Detection Rule License 1.1; their authors are credited in each alert.</footer>

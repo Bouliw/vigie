@@ -201,3 +201,8 @@ def test_predicate_covers_the_actions_rules_use():
         assert f'"{process}"' in unifiedlog.PREDICATE
     for start in ("Authentication failed for", "Adding Gatekeeper denial", "Got bastion violation"):
         assert start in unifiedlog.PREDICATE
+
+
+def test_readme_export_command_uses_the_predicate():
+    readme = (Path(__file__).parents[2] / "README.md").read_text(encoding="utf-8")
+    assert f"--predicate '{unifiedlog.PREDICATE}'" in readme
