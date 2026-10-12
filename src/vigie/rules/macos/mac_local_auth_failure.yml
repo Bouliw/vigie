@@ -1,0 +1,25 @@
+title: macOS Local Password Failure
+id: 4238e8b1-56d6-4fd4-b6f9-bbf4c9077911
+name: mac_local_auth_failure
+status: test
+description: Open Directory rejected the password of a local account, whatever asked for it (sudo, su, ssh, the screen lock, System Settings, an Apple service). On its own this is a typo; it feeds the repeated password failures correlation.
+references:
+    - https://attack.mitre.org/techniques/T1110/
+author: Bouliw
+date: 2026-10-12
+tags:
+    - attack.credential-access
+    - attack.t1110
+logsource:
+    product: macos
+    service: unifiedlog
+detection:
+    selection:
+        process: opendirectoryd
+        action: local_auth_failure
+        # Locked or disabled accounts fail with other errors: only wrong passwords count.
+        od_error: ODErrorCredentialsInvalid
+    condition: selection
+falsepositives:
+    - Users mistyping their password
+level: low

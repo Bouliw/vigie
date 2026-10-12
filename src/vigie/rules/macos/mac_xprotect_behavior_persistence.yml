@@ -1,0 +1,30 @@
+title: macOS XProtect Behavioral Detection Of Persistence
+id: 06da0f21-d31a-4161-abf7-6c0b95722a62
+status: test
+description: A behavioral rule of XProtect (the "bastion" rules of syspolicyd) caught a program other than an Apple system binary setting up persistence, such as writing a launch agent or daemon, a hidden file in Application Support or /Users/Shared, or a shell profile. The decoded XProtect signature name is in the signature field.
+references:
+    - https://attack.mitre.org/techniques/T1543/001/
+    - https://support.apple.com/guide/security/protecting-against-malware-sec469d47bd8/web
+author: Bouliw
+date: 2026-10-12
+tags:
+    - attack.persistence
+    - attack.stealth
+    - attack.t1543.001
+    - attack.t1543.004
+    - attack.t1546.004
+    - attack.t1564.001
+logsource:
+    product: macos
+    service: unifiedlog
+detection:
+    selection:
+        process: syspolicyd
+        action: xprotect_behavior
+        signature|startswith:
+            - macOS.Persistence.
+            - macOS.ADLOAD.Persistence
+    condition: selection
+falsepositives:
+    - Applications installing a launch agent or editing shell profiles (developer tools, package managers)
+level: medium

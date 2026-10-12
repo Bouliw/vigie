@@ -26,7 +26,7 @@ def test_analyze_writes_html_and_markdown_by_default(logs, tmp_path, capsys):
     assert sorted(p.name for p in out.iterdir()) == ["report.html", "report.md"]
     stdout = capsys.readouterr().out
     assert (
-        "Read 141 events from 2 file(s), 1 parser warning(s) listed in the report. 23 rules loaded."
+        "Read 141 events from 2 file(s), 1 parser warning(s) listed in the report. 36 rules loaded."
         in stdout
     )
     assert "Alerts: 2 high, 3 medium, 1 low (3 below low not shown)." in stdout
@@ -172,7 +172,7 @@ def test_missing_logs(tmp_path, capsys):
 def test_rules_command(capsys):
     assert main(["rules"]) == 0
     lines = capsys.readouterr().out.splitlines()
-    assert len(lines) == 23
+    assert len(lines) == 36
     assert lines[0].startswith("high")
     assert any("SSH Failed Password (feeds a correlation)" in line for line in lines)
     assert any("[T1003.001]" in line for line in lines)

@@ -1,0 +1,30 @@
+title: macOS Launch Item Masquerading As Apple
+id: 8b316231-3fc2-4e5d-bbf1-5ef14bbd26ec
+status: test
+description: A new launch agent or daemon uses a com.apple. label. Apple's own launch items live in /System and are not registered this way, so a com.apple. item showing up in a LaunchAgents or LaunchDaemons folder is most likely a program hiding behind Apple's name to persist.
+references:
+    - https://attack.mitre.org/techniques/T1036/005/
+    - https://attack.mitre.org/techniques/T1543/001/
+author: Bouliw
+date: 2026-10-12
+tags:
+    - attack.stealth
+    - attack.persistence
+    - attack.t1036.005
+    - attack.t1543.001
+    - attack.t1543.004
+logsource:
+    product: macos
+    service: unifiedlog
+detection:
+    selection:
+        process: backgroundtaskmanagementd
+        action: launch_item_added
+        item_type:
+            - legacy agent
+            - legacy daemon
+        item_identifier|startswith: com.apple.
+    condition: selection
+falsepositives:
+    - Apple software installed outside macOS that brings its own launch items
+level: high

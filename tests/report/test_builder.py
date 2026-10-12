@@ -29,7 +29,7 @@ def test_summary(analysis_of):
         "evtx/DE_1102_security_log_cleared.evtx",
         "evtx/sysmon_10_lsass_mimikatz_sekurlsa_logonpasswords.evtx",
     ]
-    assert report.rule_count == 23
+    assert report.rule_count == 36
     assert report.rule_errors == []
     assert report.attack_version == "19.2"
 

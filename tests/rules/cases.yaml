@@ -83,6 +83,92 @@
   negative:
     - fixture: authlog/auth_benign.log  # a PAM failure line, then sudo succeeds
 
+# --- macOS (synthetic unified log fixtures) ----------------------------------
+
+- rule: e9ae903d-6632-4e89-beea-4da9d26a99af  # macOS SSH Failed Password (feeds a correlation)
+  positive:
+    - {fixture: unifiedlog/mac_ssh.ndjson, expected: 12}  # 8 for opsadmin, 4 for an invalid user
+    - {fixture: unifiedlog/mac_benign.ndjson, expected: 2}  # two typos
+  negative:
+    - fixture: unifiedlog/mac_sudo.ndjson  # a failed public key probe, not a password
+
+- rule: be0fb8f5-7dcb-40c1-b1a4-987f053e9409  # macOS SSH Login Accepted
+  positive:
+    - {fixture: unifiedlog/mac_ssh.ndjson, expected: 2}  # the attacker's password login and a key login
+    - {fixture: unifiedlog/mac_benign.ndjson, expected: 1}
+  negative:
+    - fixture: unifiedlog/mac_sudo.ndjson  # a key probe closed before authentication
+
+- rule: 32d4dc18-6307-4ad1-b937-aa19566eaf42  # macOS SSH Brute Force
+  positive:
+    - {fixture: unifiedlog/mac_ssh.ndjson, expected: 1}  # 12 failures in 77 s: one burst of 10
+  negative:
+    - fixture: unifiedlog/mac_benign.ndjson  # two typos
+
+- rule: 73fb79a5-6e95-4cd8-9960-c9f0e70c2e1d  # macOS SSH Login After Brute Force
+  positive:
+    - {fixture: unifiedlog/mac_ssh.ndjson, expected: 1}  # login 2.5 minutes after the brute force alert
+  negative:
+    - fixture: unifiedlog/mac_benign.ndjson  # a login after two typos, from another address
+
+- rule: 8b06d578-7d99-412a-a095-1513099b48df  # macOS Sudo Authentication Failure
+  positive:
+    - {fixture: unifiedlog/mac_sudo.ndjson, expected: 2}  # one line per sudo run, however many attempts
+  negative:
+    - fixture: unifiedlog/mac_benign.ndjson  # a successful sudo command
+
+- rule: 4238e8b1-56d6-4fd4-b6f9-bbf4c9077911  # macOS Local Password Failure (feeds a correlation)
+  positive:
+    - {fixture: unifiedlog/mac_sudo.ndjson, expected: 5}  # one per wrong password typed at sudo
+    - {fixture: unifiedlog/mac_benign.ndjson, expected: 9}
+  negative:
+    - fixture: unifiedlog/mac_gatekeeper_xprotect.ndjson  # weak: no password check at all
+
+- rule: a9f5e58e-3322-4af8-adbe-68150a29350f  # macOS Repeated Local Password Failures
+  positive:
+    - {fixture: unifiedlog/mac_sudo.ndjson, expected: 1}  # 5 wrong passwords in 32 s over two sudo runs
+  negative:
+    # 5 failures over 6 minutes for one account, 4 in 14 s for another.
+    - fixture: unifiedlog/mac_benign.ndjson
+
+- rule: 16b35a31-cc32-4cd0-a8ea-6d34895a14df  # macOS Launch Agent Added
+  positive:
+    - {fixture: unifiedlog/mac_persistence.ndjson, expected: 2}  # an updater, and the fake Apple agent
+  negative:
+    - fixture: unifiedlog/mac_benign.ndjson  # known agents scanned again, a registration that failed
+
+- rule: 65c957df-5998-42b0-9e60-845f851950ad  # macOS Launch Daemon Added
+  positive:
+    - {fixture: unifiedlog/mac_persistence.ndjson, expected: 1}
+  negative:
+    - fixture: unifiedlog/mac_benign.ndjson  # known agents scanned again, a registration that failed
+
+- rule: 8b316231-3fc2-4e5d-bbf1-5ef14bbd26ec  # macOS Launch Item Masquerading As Apple
+  positive:
+    - {fixture: unifiedlog/mac_persistence.ndjson, expected: 1}  # not the two com.example items
+  negative:
+    - fixture: unifiedlog/mac_benign.ndjson  # a com.example agent scanned again
+
+- rule: ad332509-606f-4883-9f73-221f917394f8  # macOS Gatekeeper Blocked Unverified Code
+  positive:
+    - {fixture: unifiedlog/mac_gatekeeper_xprotect.ndjson, expected: 2}  # one breadcrumb per block
+  negative:
+    - fixture: unifiedlog/mac_benign.ndjson  # code Gatekeeper allowed
+
+- rule: 06da0f21-d31a-4161-abf7-6c0b95722a62  # macOS XProtect Behavioral Detection Of Persistence
+  positive:
+    - {fixture: unifiedlog/mac_persistence.ndjson, expected: 3}  # one with two signatures, one alert
+  negative:
+    - fixture: unifiedlog/mac_benign.ndjson  # execution from /tmp and outgoing network signatures
+    - fixture: unifiedlog/mac_gatekeeper_xprotect.ndjson  # data theft signatures
+
+- rule: 3261686f-7d29-4f7b-83a5-c93b34408c61  # macOS XProtect Behavioral Detection Of Data Theft
+  positive:
+    - {fixture: unifiedlog/mac_gatekeeper_xprotect.ndjson, expected: 2}  # one with two signatures, one alert
+  negative:
+    - fixture: unifiedlog/mac_persistence.ndjson  # persistence signatures
+    - fixture: unifiedlog/mac_benign.ndjson  # execution from /tmp, outgoing network, clipboard
+
 # --- Windows (EVTX-ATTACK-SAMPLES and OTRF Security-Datasets) ---------------
 #
 # "weak" marks a negative that only shares the log source with the rule: no

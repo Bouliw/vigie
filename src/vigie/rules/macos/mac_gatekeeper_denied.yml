@@ -1,0 +1,23 @@
+title: macOS Gatekeeper Blocked Unverified Code
+id: ad332509-606f-4883-9f73-221f917394f8
+status: test
+description: Gatekeeper refused to run code downloaded from the Internet, because Apple has not notarized it or knows it as malware, and showed a warning. The block worked, but someone tried to run it; check where it came from, and whether it was later allowed in System Settings.
+references:
+    - https://attack.mitre.org/techniques/T1204/002/
+    - https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df/web
+author: Bouliw
+date: 2026-10-12
+tags:
+    - attack.execution
+    - attack.t1204.002
+logsource:
+    product: macos
+    service: unifiedlog
+detection:
+    selection:
+        process: syspolicyd
+        action: gatekeeper_denied
+    condition: selection
+falsepositives:
+    - Unsigned tools from developers or open source projects that users install on purpose
+level: medium

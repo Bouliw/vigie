@@ -1,0 +1,22 @@
+title: macOS Sudo Authentication Failure
+id: 8b06d578-7d99-412a-a095-1513099b48df
+status: test
+description: A user failed to authenticate to sudo on a Mac. Repeated failures can reveal someone trying to guess a password to gain root privileges.
+references:
+    - https://attack.mitre.org/techniques/T1548/003/
+author: Bouliw
+date: 2026-10-12
+tags:
+    - attack.privilege-escalation
+    - attack.t1548.003
+logsource:
+    product: macos
+    service: unifiedlog
+detection:
+    selection:
+        process: sudo
+        action: sudo_auth_failure
+    condition: selection
+falsepositives:
+    - Users mistyping their password
+level: low

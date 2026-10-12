@@ -1,0 +1,24 @@
+title: macOS Launch Agent Added
+id: 16b35a31-cc32-4cd0-a8ea-6d34895a14df
+status: test
+description: Background Task Management saw a new launch agent, a property list in a LaunchAgents folder that launchd runs for the user, typically at each login. Malware uses launch agents to start again after a reboot. Check the program the property list starts and who wrote it.
+references:
+    - https://attack.mitre.org/techniques/T1543/001/
+    - https://support.apple.com/guide/deployment/manage-login-items-background-tasks-mac-depdca572563/web
+author: Bouliw
+date: 2026-10-12
+tags:
+    - attack.persistence
+    - attack.t1543.001
+logsource:
+    product: macos
+    service: unifiedlog
+detection:
+    selection:
+        process: backgroundtaskmanagementd
+        action: launch_item_added
+        item_type: legacy agent
+    condition: selection
+falsepositives:
+    - Applications installing their updater or helper
+level: medium

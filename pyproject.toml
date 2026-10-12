@@ -32,7 +32,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 "vigie.attack" = ["data/*.json", "data/*.txt", "data/*.md"]
 "vigie.report" = ["templates/*.j2"]
-"vigie.rules" = ["*.md", "linux/*.yml", "windows/*.yml"]
+"vigie.rules" = ["*.md", "linux/*.yml", "macos/*.yml", "windows/*.yml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

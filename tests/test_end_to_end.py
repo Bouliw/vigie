@@ -13,6 +13,8 @@ FEEDERS = {
     "73004885-6e82-4146-ab6a-1b834d099ee5",
     "118338f6-e0cd-41d4-bfdf-58a76f7ba286",
     "0ca0b8d2-4007-47d0-81ec-8c96d0fc2cf1",
+    "e9ae903d-6632-4e89-beea-4da9d26a99af",
+    "4238e8b1-56d6-4fd4-b6f9-bbf4c9077911",
 }
 
 

@@ -64,12 +64,30 @@ CORRELATIONS = {
         timedelta(minutes=10),
         5,
     ),
+    # macOS SSH Brute Force
+    "32d4dc18-6307-4ad1-b937-aa19566eaf42": ("event_count", ("src_ip",), timedelta(minutes=5), 10),
+    # macOS SSH Login After Brute Force
+    "73fb79a5-6e95-4cd8-9960-c9f0e70c2e1d": (
+        "temporal_ordered",
+        ("src_ip",),
+        timedelta(minutes=10),
+        0,
+    ),
+    # macOS Repeated Local Password Failures
+    "a9f5e58e-3322-4af8-adbe-68150a29350f": (
+        "event_count",
+        ("account_uuid",),
+        timedelta(minutes=5),
+        5,
+    ),
 }
 # Rules that only feed correlations and must never raise alerts of their own.
 FEEDER_RULES = {
     "73004885-6e82-4146-ab6a-1b834d099ee5",  # SSH Failed Password
     "118338f6-e0cd-41d4-bfdf-58a76f7ba286",  # Windows Failed Logon
     "0ca0b8d2-4007-47d0-81ec-8c96d0fc2cf1",  # Kerberos Authentication Failure
+    "e9ae903d-6632-4e89-beea-4da9d26a99af",  # macOS SSH Failed Password
+    "4238e8b1-56d6-4fd4-b6f9-bbf4c9077911",  # macOS Local Password Failure
 }
 
 
@@ -247,8 +265,8 @@ def base_rules(rule_id: str) -> list[DetectionRule]:
 
 @pytest.mark.parametrize("path", RULE_FILES, ids=lambda p: p.name)
 def test_rule_file_metadata(path):
-    assert re.fullmatch(r"(win|lnx)_[a-z0-9_]+\.yml", path.name)
-    assert path.parent.name == {"win": "windows", "lnx": "linux"}[path.name[:3]]
+    assert re.fullmatch(r"(win|lnx|mac)_[a-z0-9_]+\.yml", path.name)
+    assert path.parent.name == {"win": "windows", "lnx": "linux", "mac": "macos"}[path.name[:3]]
     (doc,) = documents(path)  # one rule per file
 
     assert uuid.UUID(doc["id"]).version == 4
@@ -262,7 +280,7 @@ def test_rule_file_metadata(path):
     if "correlation" not in doc:
         assert (
             doc["logsource"].get("product")
-            == {"windows": "windows", "linux": "linux"}[path.parent.name]
+            == {"windows": "windows", "linux": "linux", "macos": "macos"}[path.parent.name]
         )
 
 

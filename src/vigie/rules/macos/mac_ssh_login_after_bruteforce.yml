@@ -1,0 +1,30 @@
+title: macOS SSH Login After Brute Force
+id: 73fb79a5-6e95-4cd8-9960-c9f0e70c2e1d
+status: test
+description: A successful SSH login on a Mac from an address whose SSH brute force alert fired in the previous 10 minutes. The attacker has most likely guessed a valid password.
+references:
+    - https://attack.mitre.org/techniques/T1110/001/
+    - https://attack.mitre.org/techniques/T1078/003/
+author: Bouliw
+date: 2026-10-12
+tags:
+    - attack.credential-access
+    - attack.initial-access
+    - attack.t1110.001
+    - attack.t1078.003
+correlation:
+    type: temporal_ordered
+    rules:
+        - mac_ssh_bruteforce
+        - mac_ssh_accepted_login
+    group-by:
+        - src_ip
+    # The 5m brute force window plus 5m between the last failure and the login,
+    # as in the Linux rule.
+    timespan: 10m
+    # Keep the brute force alerts (and the accepted logins, as informational
+    # context) visible next to this one.
+    generate: true
+falsepositives:
+    - A legitimate user who retried many times before remembering the password
+level: high

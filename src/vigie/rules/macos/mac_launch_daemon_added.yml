@@ -1,0 +1,24 @@
+title: macOS Launch Daemon Added
+id: 65c957df-5998-42b0-9e60-845f851950ad
+status: test
+description: Background Task Management saw a new launch daemon, a property list in /Library/LaunchDaemons that launchd runs as root at startup. Writing one needs administrator rights, and gives a program root persistence on the Mac.
+references:
+    - https://attack.mitre.org/techniques/T1543/004/
+    - https://support.apple.com/guide/deployment/manage-login-items-background-tasks-mac-depdca572563/web
+author: Bouliw
+date: 2026-10-12
+tags:
+    - attack.persistence
+    - attack.t1543.004
+logsource:
+    product: macos
+    service: unifiedlog
+detection:
+    selection:
+        process: backgroundtaskmanagementd
+        action: launch_item_added
+        item_type: legacy daemon
+    condition: selection
+falsepositives:
+    - Software installers that need a privileged helper (virtualization, VPN, backup, device drivers)
+level: medium
