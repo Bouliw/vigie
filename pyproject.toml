@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vigie"
-version = "0.1.0"
-description = "Blue team log analyzer: parse Windows EVTX and Linux auth.log, apply Sigma rules, map alerts to MITRE ATT&CK, and render a report."
+version = "0.2.0"
+description = "Blue team log analyzer: read Windows EVTX, Linux auth.log and the macOS unified log, apply Sigma rules, map alerts to MITRE ATT&CK, and report, after the fact or live."
 readme = "README.md"
 license = { text = "MIT; rules adapted from SigmaHQ: DRL-1.1; ATT&CK data: MITRE ATT&CK Terms of Use" }
 authors = [{ name = "Bouliw" }]
@@ -16,6 +16,8 @@ dependencies = [
     "PyYAML>=6",
 ]
 classifiers = [
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Topic :: Security",
 ]
