@@ -3,11 +3,12 @@
 Formats are detected from the file *content* first (EVTX magic bytes, JSON
 shape, syslog lines written by sshd/sudo...), and from the name only as a
 hint, because collected logs are often renamed (``DC01-Security.evtx``,
-``auth.log.3.gz``, ``export.json``).
+``auth.log.3.gz``, ``export.json``, ``mac.ndjson``).
 """
 
 from __future__ import annotations
 
+import itertools
 import json
 import re
 import zipfile
@@ -18,7 +19,7 @@ from functools import partial
 from pathlib import Path
 
 from vigie.models import Event
-from vigie.parsers import ParseResult, authlog, winevtx, winjson
+from vigie.parsers import ParseResult, authlog, unifiedlog, winevtx, winjson
 from vigie.timeutils import UTC
 
 EVTX_MAGIC = b"ElfFile\x00"
@@ -47,7 +48,7 @@ class Collection:
 
 
 def detect_format(path: Path) -> str | None:
-    """Return ``"evtx"``, ``"winjson"``, ``"authlog"`` or ``None`` if the file is not supported."""
+    """The format of a file: evtx, winjson, unifiedlog, authlog, or ``None`` if unsupported."""
     with path.open("rb") as handle:
         head = handle.read(len(EVTX_MAGIC))
     if head == EVTX_MAGIC:
@@ -56,8 +57,8 @@ def detect_format(path: Path) -> str | None:
     suffixes = [suffix.lower() for suffix in path.suffixes]
     if suffixes[-1:] == [".zip"]:
         return "winjson" if _zip_has_json(path) else None
-    if suffixes[-1:] in ([".json"], [".jsonl"]):
-        return "winjson" if _looks_like_windows_json(path) else None
+    if suffixes[-1:] in ([".json"], [".jsonl"], [".ndjson"]):
+        return _json_format(path)
     if _looks_like_authlog(path):
         return "authlog"
     return None
@@ -75,6 +76,7 @@ def collect(root: str | Path, *, year: int | None = None, tz: tzinfo = UTC) -> C
     parsers: dict[str, Callable[[Path], ParseResult]] = {
         "evtx": winevtx.parse,
         "winjson": winjson.parse,
+        "unifiedlog": unifiedlog.parse,
         "authlog": partial(authlog.parse, year=year, tz=tz),
     }
     base = root if root.is_dir() else root.parent
@@ -121,16 +123,24 @@ def _zip_has_json(path: Path) -> bool:
         return False
 
 
-def _looks_like_windows_json(path: Path) -> bool:
+def _json_format(path: Path) -> str | None:
+    """Tell Windows JSON exports from macOS unified log exports by their first object."""
     with path.open(encoding="utf-8", errors="replace") as handle:
-        for line in handle:
-            if line.strip():
-                try:
-                    data = json.loads(line)
-                except json.JSONDecodeError:
-                    return False
-                return isinstance(data, dict) and "Channel" in data and "EventID" in data
-    return False
+        for line in itertools.islice(handle, SNIFF_LINES):
+            if not line.strip() or line.startswith(unifiedlog.STREAM_HEADER):
+                continue
+            try:
+                data = json.loads(line)
+            except json.JSONDecodeError:
+                return None
+            if not isinstance(data, dict):
+                return None
+            if "Channel" in data and "EventID" in data:
+                return "winjson"
+            if "eventMessage" in data or "eventType" in data:
+                return "unifiedlog"
+            return None
+    return None
 
 
 def _looks_like_authlog(path: Path) -> bool:

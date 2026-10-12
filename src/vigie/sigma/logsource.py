@@ -108,6 +108,13 @@ LINUX_SERVICES: Mapping[str, tuple[Target, ...]] = MappingProxyType(
 )
 
 
+# The macOS unified log has no Sigma taxonomy: "unifiedlog" is Vigie's own
+# service name, and rules select the writing process with the `process` field.
+MACOS_SERVICES: Mapping[str, tuple[Target, ...]] = MappingProxyType(
+    {"unifiedlog": (Target("unifiedlog"),)}
+)
+
+
 def resolve_logsource(logsource: Any) -> tuple[Target, ...]:
     """Return the targets for a rule's ``logsource``, or raise SigmaError if unsupported."""
     if not isinstance(logsource, Mapping):
@@ -125,4 +132,6 @@ def resolve_logsource(logsource: Any) -> tuple[Target, ...]:
             return (Target(service),)
     elif product == "linux" and service in LINUX_SERVICES and not category:
         return LINUX_SERVICES[service]
+    elif product == "macos" and service in MACOS_SERVICES and not category:
+        return MACOS_SERVICES[service]
     raise SigmaError(f"unsupported logsource ({description or 'empty'})")

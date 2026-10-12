@@ -46,3 +46,9 @@ def test_synthetic_auth_logs_are_listed():
     readme = (FIXTURES / "README.md").read_text(encoding="utf-8")
     listed = set(re.findall(r"^\| `([^`/]+\.log)` \|", readme, re.MULTILINE))
     assert listed == {path.name for path in (FIXTURES / "authlog").glob("*.log")}
+
+
+def test_synthetic_unified_logs_are_listed():
+    readme = (FIXTURES / "README.md").read_text(encoding="utf-8")
+    listed = set(re.findall(r"^\| `([^`/]+\.ndjson)` \|", readme, re.MULTILINE))
+    assert listed == {path.name for path in (FIXTURES / "unifiedlog").glob("*.ndjson")}

@@ -172,9 +172,22 @@ def build_report(
 
 
 def summarize(event: Event) -> str:
-    """One readable line for an event: the auth.log message, or the key Windows fields."""
+    """One readable line for an event: its log message, or the key Windows fields."""
     if event.source == "auth":
         text = str(event.get("message") or event.raw)
+    elif event.source == "unifiedlog":
+        message = event.get("message")
+        if event.get("action") == "launch_item_added":
+            # The Background Task Management line buries the plist path under item details.
+            where = event.get("item_path") or event.get("item_url")
+            message = (
+                f"new {event.get('item_type')} {event.get('item_identifier')} "
+                f"({event.get('item_name')}): {where}"
+            )
+        elif event.get("action") == "xprotect_behavior":
+            signatures = ", ".join(event.get("signature") or ())
+            message = f"XProtect behavioral detection {signatures} ({event.get('bastion_mask')})"
+        text = f"{event.get('process')}: {message}"
     else:
         parts = [
             f"{name}={_flat(event.get(name))}"

@@ -162,6 +162,15 @@ class TestDetectFormat:
         path.write_text("\n" + json.dumps({"Channel": "Security", "EventID": 4625}) + "\n")
         assert detect_format(path) == "winjson"
 
+    @pytest.mark.parametrize("name", ["mac.ndjson", "mac.json", "mac.jsonl"])
+    def test_unified_log_export(self, tmp_path, name):
+        path = tmp_path / name
+        shutil.copy(FIXTURES / "unifiedlog" / "mac_sudo.ndjson", path)
+        assert detect_format(path) == "unifiedlog"
+
+    def test_unified_log_stream_starts_with_a_header(self):
+        assert detect_format(FIXTURES / "unifiedlog" / "mac_ssh.ndjson") == "unifiedlog"
+
     @pytest.mark.parametrize("name", ["auth.log", "auth.log.1", "secure", "secure-20240310"])
     def test_authlog_by_name(self, tmp_path, name):
         path = tmp_path / name

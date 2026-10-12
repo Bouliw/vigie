@@ -38,6 +38,12 @@ def test_linux_services(make_event):
     assert not sshd.accepts(make_event("sysmon", event_id=1))
 
 
+def test_macos_unified_log(make_event):
+    (target,) = resolve_logsource({"product": "macos", "service": "unifiedlog"})
+    assert target.accepts(make_event("unifiedlog", process="sudo"))
+    assert not target.accepts(make_event("auth", program="sudo"))
+
+
 def test_definition_is_ignored():
     logsource = {"product": "windows", "service": "sysmon", "definition": "Requires Sysmon"}
     assert resolve_logsource(logsource)[0].source == "sysmon"
@@ -51,6 +57,7 @@ def test_definition_is_ignored():
         {"product": "linux", "category": "process_creation"},
         {"product": "linux", "service": "auditd"},
         {"product": "macos", "category": "process_creation"},
+        {"product": "macos", "service": "unifiedlog", "category": "file_event"},
         {"category": "firewall"},
         {},
     ],

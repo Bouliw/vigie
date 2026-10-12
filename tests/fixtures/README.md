@@ -7,6 +7,7 @@ under their license, or synthetic files written for Vigie.
 | Directory | Origin | License |
 |---|---|---|
 | `authlog/` | Synthetic, written for Vigie | MIT (project license) |
+| `unifiedlog/` | Synthetic, written for Vigie | MIT (project license) |
 | `evtx/` | EVTX-ATTACK-SAMPLES, unmodified | GPL-3.0, see [`evtx/README.md`](evtx/README.md) |
 | `winjson/` | OTRF Security-Datasets, excerpt | MIT, see below |
 
@@ -33,6 +34,34 @@ formats, and use only:
 - fictitious host names (`web01`, `web02`, `app01`, `backup01`, `bastion`,
   `db01`, `deb13`, `web04`) and account names (`deploy`, `opsadmin`, `svc_update`, `backup`),
   plus usernames commonly tried by SSH scanners (`root`, `admin`, `oracle`...).
+
+They are covered by the project's MIT license.
+
+## `unifiedlog/`: synthetic
+
+macOS unified log exports, one JSON object per line as written by
+`log show --style ndjson`, with the keys Vigie reads (`timestamp`,
+`processImagePath`, `subsystem`, `category`, `messageType`,
+`eventMessage`...). `mac_ssh.ndjson` starts with the header line of
+`log stream`, and the other files end with the `{"count": ..., "finished": 1}`
+line of `log show`.
+
+| File | Content |
+|---|---|
+| `mac_sudo.ndjson` | A successful `sudo`, then two `sudo` runs with wrong passwords (3 then 2 attempts, 5 Open Directory failures in 32 seconds), and an SSH key probe. |
+| `mac_benign.ndjson` | A routine day: 5 password typos spread over 6 minutes, an Apple service retrying a stale password 4 times, a successful `sudo`, SSH logins (by key, and after two typos), launch items scanned again and a failed registration, code Gatekeeper allows, XProtect behavioral detections outside the persistence and data theft families (execution from `/tmp`, outgoing network, clipboard). |
+| `mac_persistence.ndjson` | Background Task Management registering a new launch agent, a launch daemon and a launch agent with a `com.apple.` label, each preceded by the XProtect behavioral detection of the launch plist write. |
+| `mac_gatekeeper_xprotect.ndjson` | Two applications blocked by Gatekeeper (one with its whole evaluation), XProtect behavioral detections of execution from `/tmp` and of browser, keychain and info stealer access. |
+| `mac_ssh.ndjson` | An SSH brute force against Remote Login (12 failures in 77 seconds, OpenSSH 10 `sshd-session`) followed by a successful password login, and a key-based login. |
+
+These files are **synthetic**. Their message texts were captured on a Mac
+running macOS 27 and OpenSSH 10 (`sudo`, `opendirectoryd`,
+`backgroundtaskmanagementd`, `syspolicyd`, `sshd-session`), then rewritten
+with fictitious values only:
+
+- account names `opsadmin` and `kiosk`, and random account UUIDs;
+- IPv4 documentation ranges (RFC 5737), `com.example` identifiers and paths;
+- made-up process IDs, trace IDs and code hashes.
 
 They are covered by the project's MIT license.
 

@@ -148,6 +148,34 @@ def test_summarize():
     assert (
         summarize(event("security", Data=("a", "b"), TargetUserName="bob")) == "TargetUserName=bob"
     )
+    mac = event("unifiedlog", process="sudo", message="  bob : 1 incorrect password attempt")
+    assert summarize(mac) == "sudo: bob : 1 incorrect password attempt"
+    agent = event(
+        "unifiedlog",
+        process="backgroundtaskmanagementd",
+        message="registerLaunchItem: result=no error, new item=uuid=...",
+        action="launch_item_added",
+        item_type="legacy agent",
+        item_identifier="com.example.agent",
+        item_name="agent",
+        item_path="/Users/bob/Library/LaunchAgents/com.example.agent.plist",
+    )
+    xprotect = event(
+        "unifiedlog",
+        process="syspolicyd",
+        message="Got bastion violation 0x400800 path <private> responsible path: <private>",
+        action="xprotect_behavior",
+        bastion_mask="0x400800",
+        signature=("macOS.InfoStealer.Generic", "macOS.Persistence.Launchplists"),
+    )
+    assert summarize(xprotect) == (
+        "syspolicyd: XProtect behavioral detection macOS.InfoStealer.Generic, "
+        "macOS.Persistence.Launchplists (0x400800)"
+    )
+    assert summarize(agent) == (
+        "backgroundtaskmanagementd: new legacy agent com.example.agent (agent): "
+        "/Users/bob/Library/LaunchAgents/com.example.agent.plist"
+    )
     long = summarize(event("auth", message="x" * 500))
     assert len(long) == 240
     assert long.endswith("\u2026")
