@@ -63,12 +63,12 @@ Runtime dependencies: `evtx` (EVTX decoding, Rust wheels), `PyYAML` and `Jinja2`
 ## Usage
 
 ```bash
-vigie analyze ./logs -o ./report
+vigie analyze tests/fixtures -o ./report
 ```
 
 ```text
-Read 368 events from 33 file(s), 5 parser warning(s) listed in the report. 23 rules loaded.
-Alerts: 12 high, 20 medium, 3 low (16 below low not shown).
+Read 1318 events from 57 file(s), 4 skipped, 5 parser warning(s) listed in the report. 36 rules loaded.
+Alerts: 31 high, 39 medium, 7 low (19 below low not shown).
 Report: report/report.html, report/report.md
 ```
 
