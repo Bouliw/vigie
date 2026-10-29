@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/banner-dark.png">
+  <img src="docs/banner-light.png" alt="vigie" width="100%">
+</picture>
+
 # Vigie
 
 [![CI](https://github.com/Bouliw/vigie/actions/workflows/ci.yml/badge.svg)](https://github.com/Bouliw/vigie/actions/workflows/ci.yml)
