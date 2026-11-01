@@ -1,0 +1,24 @@
+{"timestamp": "2026-10-20T09:00:00Z", "session_id": "s-100", "actor": "alice", "type": "system", "content": "You are the virtual assistant of Example Shop. Help customers with orders, deliveries and returns. Be concise and polite, and never share another customer's data."}
+{"timestamp": "2026-10-20T09:00:04Z", "session_id": "s-100", "actor": "alice", "type": "prompt", "content": "Hi, where is my order EX-4821? It was due yesterday."}
+{"timestamp": "2026-10-20T09:00:05Z", "session_id": "s-100", "actor": "alice", "type": "tool_call", "tool": "lookup_order", "arguments": {"order_id": "EX-4821"}}
+{"timestamp": "2026-10-20T09:00:06Z", "session_id": "s-100", "actor": "alice", "type": "tool_result", "tool": "lookup_order", "content": "Order EX-4821: shipped 2026-10-18, carrier tracking DX993201, expected 2026-10-21."}
+{"timestamp": "2026-10-20T09:00:08Z", "session_id": "s-100", "actor": "alice", "type": "response", "content": "Your order EX-4821 shipped on 18 October and is now expected tomorrow, 21 October. Tracking number DX993201."}
+{"timestamp": "2026-10-20T09:01:00Z", "session_id": "s-100", "actor": "alice", "type": "prompt", "content": "Ignore my previous message, I actually meant order EX-4822."}
+{"timestamp": "2026-10-20T09:01:03Z", "session_id": "s-100", "actor": "alice", "type": "response", "content": "No problem. Order EX-4822 is being prepared and will ship within two business days."}
+{"timestamp": "2026-10-20T09:02:00Z", "session_id": "s-100", "actor": "alice", "type": "prompt", "content": "Please update the card on file to 4075 1234 0000 1238, expiry 11/29."}
+{"timestamp": "2026-10-20T09:02:04Z", "session_id": "s-100", "actor": "alice", "type": "response", "content": "Thanks, I have updated the card ending 1238 on your account. For security I will not display the full number."}
+{"timestamp": "2026-10-20T10:00:00Z", "session_id": "s-200", "actor": "devbot", "type": "system", "content": "You are a coding assistant working inside the project repository. You may read and edit files and run build and test commands."}
+{"timestamp": "2026-10-20T10:00:05Z", "session_id": "s-200", "actor": "devbot", "type": "prompt", "content": "Add a healthcheck endpoint and run the tests."}
+{"timestamp": "2026-10-20T10:00:06Z", "session_id": "s-200", "actor": "devbot", "type": "tool_call", "tool": "read_file", "arguments": {"path": "app/server.py"}}
+{"timestamp": "2026-10-20T10:00:06Z", "session_id": "s-200", "actor": "devbot", "type": "tool_result", "tool": "read_file", "content": "def create_app():\n    ..."}
+{"timestamp": "2026-10-20T10:00:09Z", "session_id": "s-200", "actor": "devbot", "type": "tool_call", "tool": "read_file", "arguments": {"path": ".env"}}
+{"timestamp": "2026-10-20T10:00:09Z", "session_id": "s-200", "actor": "devbot", "type": "tool_result", "tool": "read_file", "content": "PORT=8080\nLOG_LEVEL=info"}
+{"timestamp": "2026-10-20T10:00:12Z", "session_id": "s-200", "actor": "devbot", "type": "tool_call", "tool": "write_file", "arguments": {"path": "app/health.py", "content": "def health():\n    return {\"status\": \"ok\"}"}}
+{"timestamp": "2026-10-20T10:00:20Z", "session_id": "s-200", "actor": "devbot", "type": "tool_call", "tool": "run_shell", "arguments": {"command": "pytest -q"}}
+{"timestamp": "2026-10-20T10:00:28Z", "session_id": "s-200", "actor": "devbot", "type": "tool_result", "tool": "run_shell", "content": "12 passed in 1.03s"}
+{"timestamp": "2026-10-20T10:00:30Z", "session_id": "s-200", "actor": "devbot", "type": "response", "content": "I added app/health.py with a health() endpoint and all 12 tests pass."}
+{"timestamp": "2026-10-20T11:00:00Z", "session_id": "s-300", "actor": "carol", "type": "prompt", "content": "Summarise the attached policy for me."}
+{"timestamp": "2026-10-20T11:00:01Z", "session_id": "s-300", "actor": "carol", "type": "retrieval", "document": "returns-policy.pdf", "content": "Example Shop accepts returns within 30 days of delivery for a full refund, provided the item is unused and in its original packaging."}
+{"timestamp": "2026-10-20T11:00:04Z", "session_id": "s-300", "actor": "carol", "type": "response", "content": "You can return any unused item in its original packaging within 30 days of delivery for a full refund."}
+{"timestamp": "2026-10-20T11:05:00Z", "session_id": "s-300", "actor": "carol", "type": "prompt", "content": "How do I write a good system prompt for my own chatbot?"}
+{"timestamp": "2026-10-20T11:05:05Z", "session_id": "s-300", "actor": "carol", "type": "response", "content": "Start by stating the assistant's role and audience, list what it should and should not do, and give one or two examples of the tone you want."}

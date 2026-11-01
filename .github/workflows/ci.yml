@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -37,3 +38,30 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]"
       - run: pytest --cov=vigie --cov-report=term-missing
+
+  windows:
+    # The tests, then the double-click installer's script and the demo, as a
+    # Windows user would run them.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -e ".[dev]"
+      - run: pytest
+      - name: Install with installer\install.ps1
+        shell: powershell
+        env:
+          VIGIE_INSTALL_NO_PAUSE: "1"
+          VIGIE_INSTALL_NO_LAUNCH: "1"
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\install.ps1
+          $code = $LASTEXITCODE
+          Get-Content "$env:LOCALAPPDATA\Vigie\install.log"
+          if ($code -ne 0) { exit $code }
+      - name: Run the demo from the installed environment
+        shell: powershell
+        run: |
+          & "$env:LOCALAPPDATA\Vigie\venv\Scripts\python.exe" -m vigie demo --no-open
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -70,7 +70,10 @@ class AttackData:
     def __init__(self, data: dict[str, Any]) -> None:
         self.version: str = data["attack_version"]
         self.copyright: str = data["copyright"]
-        self.tactics: tuple[Tactic, ...] = tuple(Tactic(**tactic) for tactic in data["tactics"])
+        self.tactics: tuple[Tactic, ...] = tuple(
+            Tactic(**{key: value for key, value in tactic.items() if key != "summary"})
+            for tactic in data["tactics"]
+        )
         self._tactic_rank = {tactic.shortname: rank for rank, tactic in enumerate(self.tactics)}
         self._tactics_by_id = {tactic.id: tactic for tactic in self.tactics}
         self._tactics_by_name = {tactic.shortname: tactic for tactic in self.tactics}
@@ -88,6 +91,10 @@ class AttackData:
             for technique_id, entry in raw.items()
         }
         self._revoked: dict[str, str] = data["revoked"]
+        # One or two sentences of each description, for the HTML report.
+        self._summaries: dict[str, str] = {
+            item["id"]: item["summary"] for item in data["tactics"] if item.get("summary")
+        } | {key: entry["summary"] for key, entry in raw.items() if entry.get("summary")}
 
     @classmethod
     def load(cls, path: str | Path | None = None) -> AttackData:
@@ -102,6 +109,10 @@ class AttackData:
         key = technique_id.upper()
         key = self._revoked.get(key, key)
         return self._techniques.get(key)
+
+    def summary(self, object_id: str) -> str:
+        """The first sentences of a technique's or tactic's description, or ``""``."""
+        return self._summaries.get(object_id.upper(), "")
 
     def tactic(self, name: str) -> Tactic | None:
         """Look a tactic up by shortname (``credential-access`` or ``credential_access``)."""

@@ -25,3 +25,34 @@ def analysis_of(tmp_path):
         return analyze(folder, year=2024)
 
     return run
+
+
+# A rule tagged with MITRE ATLAS, run on the synthetic auth.log: what it tests is
+# the ATLAS mapping in reports, not a detection.
+ATLAS_RULE = """\
+title: Test Rule Mapped To ATLAS
+id: 0f6d3d0e-6f2a-4a51-9b0c-2b1f4f0f7a11
+status: test
+description: Accepted SSH logins, tagged as if they were an AI agent invoking a tool.
+author: Vigie tests
+tags:
+    - atlas.execution
+    - atlas.aml.t0053
+    - atlas.aml.t0051.000
+logsource:
+    product: linux
+    service: sshd
+detection:
+    selection:
+        action: ssh_accepted
+    condition: selection
+level: medium
+"""
+
+
+@pytest.fixture
+def atlas_rule(tmp_path):
+    path = tmp_path / "rules" / "atlas_rule.yml"
+    path.parent.mkdir()
+    path.write_text(ATLAS_RULE, encoding="utf-8")
+    return path

@@ -1,0 +1,35 @@
+title: AI Agent Sensitive Tool Call After Prompt Injection
+id: 99ee5c2d-b5e7-47d6-b14b-3358dd2300a8
+status: experimental
+description: In the same session, within 10 minutes, untrusted content carrying a prompt injection (rule "LLM Prompt Injection In Retrieved Content Or Tool Result") entered the agent's context, and the agent then ran a shell or code command, wrote or deleted a file, sent a request or a message, or touched a credential store (rule "AI Agent Sensitive Tool Call"). The agent has most likely followed the injected instructions with the user's privileges. Read the injected text, then check what each tool call did.
+references:
+    - https://atlas.mitre.org/techniques/AML.T0051.001
+    - https://atlas.mitre.org/techniques/AML.T0053
+    - https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
+author: Bouliw
+date: 2026-10-29
+tags:
+    - atlas.execution
+    - atlas.privilege-escalation
+    - atlas.aml.t0051.001
+    - atlas.aml.t0053
+    - owasp.llm01
+    - owasp.llm06
+    - owasp.asi01
+    - owasp.asi02
+correlation:
+    type: temporal_ordered
+    rules:
+        - ai_indirect_prompt_injection
+        - ai_sensitive_tool_call
+    group-by:
+        - session_id
+    # An agent acts on what it just read within seconds or minutes; 10 minutes covers
+    # a slow multi-step run without linking unrelated tasks of a long session.
+    timespan: 10m
+    # Keep the injection alerts (and the tool calls, as informational context) visible
+    # next to this one.
+    generate: true
+falsepositives:
+    - An agent processing an article about prompt injection, then making an unrelated tool call within 10 minutes
+level: high

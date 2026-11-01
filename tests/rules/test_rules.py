@@ -18,10 +18,12 @@ from pathlib import Path
 import pytest
 import yaml
 
+from vigie.atlas import default_atlas_data
 from vigie.attack import default_attack_data
 from vigie.attack.mapping import OTHER_ATTACK_TAG, TECHNIQUE_TAG
 from vigie.collect import collect
 from vigie.models import LEVELS
+from vigie.owasp import default_owasp_data
 from vigie.rules import RULES_DIR
 from vigie.sigma.correlation import CorrelationRule
 from vigie.sigma.engine import Engine, Evaluation
@@ -80,6 +82,15 @@ CORRELATIONS = {
         timedelta(minutes=5),
         5,
     ),
+    # AI Agent Sensitive Tool Call After Prompt Injection
+    "99ee5c2d-b5e7-47d6-b14b-3358dd2300a8": (
+        "temporal_ordered",
+        ("session_id",),
+        timedelta(minutes=10),
+        0,
+    ),
+    # Abnormal LLM Request Volume From One User
+    "937a055d-aba7-43b2-9129-fc526cc84aa4": ("event_count", ("actor",), timedelta(minutes=5), 50),
 }
 # Rules that only feed correlations and must never raise alerts of their own.
 FEEDER_RULES = {
@@ -88,6 +99,7 @@ FEEDER_RULES = {
     "0ca0b8d2-4007-47d0-81ec-8c96d0fc2cf1",  # Kerberos Authentication Failure
     "e9ae903d-6632-4e89-beea-4da9d26a99af",  # macOS SSH Failed Password
     "4238e8b1-56d6-4fd4-b6f9-bbf4c9077911",  # macOS Local Password Failure
+    "58dc991d-93ea-434e-ae77-b62daf019a03",  # LLM Prompt Received
 }
 
 
@@ -263,10 +275,16 @@ def base_rules(rule_id: str) -> list[DetectionRule]:
 # --- Metadata of each rule file ------------------------------------------------
 
 
+DIR_PRODUCT = {"windows": "windows", "linux": "linux", "macos": "macos", "ai": "ai"}
+
+
 @pytest.mark.parametrize("path", RULE_FILES, ids=lambda p: p.name)
 def test_rule_file_metadata(path):
-    assert re.fullmatch(r"(win|lnx|mac)_[a-z0-9_]+\.yml", path.name)
-    assert path.parent.name == {"win": "windows", "lnx": "linux", "mac": "macos"}[path.name[:3]]
+    assert re.fullmatch(r"(win|lnx|mac|ai)_[a-z0-9_]+\.yml", path.name)
+    prefix = path.name.split("_")[0]
+    assert (
+        path.parent.name == {"win": "windows", "lnx": "linux", "mac": "macos", "ai": "ai"}[prefix]
+    )
     (doc,) = documents(path)  # one rule per file
 
     assert uuid.UUID(doc["id"]).version == 4
@@ -278,31 +296,54 @@ def test_rule_file_metadata(path):
     assert doc.get("references"), "at least one reference"
     assert doc.get("falsepositives"), "at least one false positive"
     if "correlation" not in doc:
-        assert (
-            doc["logsource"].get("product")
-            == {"windows": "windows", "linux": "linux", "macos": "macos"}[path.parent.name]
-        )
+        assert doc["logsource"].get("product") == DIR_PRODUCT[path.parent.name]
 
 
 @pytest.mark.parametrize("path", RULE_FILES, ids=lambda p: p.name)
 def test_rule_attack_tags(path):
+    """Each rule maps to techniques in exactly one framework (ATT&CK or MITRE ATLAS)."""
     (doc,) = documents(path)
-    mapping = default_attack_data().map_tags(doc.get("tags", []))
-    assert mapping.techniques, "at least one ATT&CK technique"
+    tags = doc.get("tags", [])
+    attack = default_attack_data().map_tags(tags)
+    atlas = default_atlas_data().map_tags(tags)
+    namespace = "atlas." if path.parent.name == "ai" else "attack."
+    mapping = atlas if namespace == "atlas." else attack
+    other = attack if namespace == "atlas." else atlas
+
+    assert mapping.techniques, f"at least one {namespace.rstrip('.').upper()} technique"
     assert mapping.unknown == ()
-    assert mapping.revoked == (), "use current ATT&CK ids"
-    # Tactic tags are compared as written: only ATT&CK 19.2 shortnames, so a legacy
-    # "defense-evasion" or a "credential_access" spelling is rejected.
+    assert mapping.revoked == (), "use current ids"
+    assert other.techniques == (), "do not mix ATT&CK and ATLAS tags in one rule"
+    # Tactic tags are compared as written, so a wrong spelling or a legacy name is rejected.
     tagged_tactics = {
         value
-        for tag in doc["tags"]
-        if tag.startswith("attack.")
-        and not TECHNIQUE_TAG.match(value := tag.removeprefix("attack."))
+        for tag in tags
+        if tag.startswith(namespace)
+        and not TECHNIQUE_TAG.match(value := tag.removeprefix(namespace).removeprefix("aml."))
         and not OTHER_ATTACK_TAG.match(value)
+        and not re.fullmatch(r"(?:m|cs)\d{4}", value)  # ATLAS mitigations and case studies
     }
     technique_tactics = {tactic.shortname for tactic in mapping.tactics}
     assert tagged_tactics, "tag the tactic too"
     assert tagged_tactics <= technique_tactics, "tactic tags must belong to the techniques"
+
+
+@pytest.mark.parametrize("path", RULE_FILES, ids=lambda p: p.name)
+def test_rule_owasp_tags(path):
+    """AI rules also map to the OWASP Top 10 lists, with ids that exist; other rules do not."""
+    (doc,) = documents(path)
+    tags = doc.get("tags", [])
+    owasp = [tag for tag in tags if tag.startswith("owasp.")]
+    mapping = default_owasp_data().map_tags(tags)
+    assert mapping.unknown == ()
+    assert len(mapping.items) == len(owasp), "one tag per entry, no duplicate"
+    if path.parent.name == "ai":
+        assert mapping.items, "at least one OWASP Top 10 entry"
+        assert owasp == sorted(owasp, key=lambda tag: (tag[6:9] != "llm", tag)), (
+            "LLM entries first, then agentic ones, each in order"
+        )
+    else:
+        assert owasp == []
 
 
 @pytest.mark.parametrize("path", RULE_FILES, ids=lambda p: p.name)

@@ -3,25 +3,31 @@
 The model holds only what the reader needs, already sorted and filtered:
 
 * a summary (events read, alerts per severity, time range);
-* the ATT&CK tactics and techniques seen, in matrix order;
-* the alerts, most severe first, each with its rule, ATT&CK mapping, author
-  (the Detection Rule License requires crediting rule authors in alerts) and
-  the events that triggered it;
+* the ATT&CK tactics and techniques seen, in matrix order, and likewise the
+  MITRE ATLAS ones for the rules about AI systems;
+* the entries of the OWASP Top 10 lists for LLM and agentic applications the
+  AI alerts map to, in published order, with the rules behind them;
+* the alerts, most severe first, each with its rule, ATT&CK, ATLAS and OWASP
+  mapping, author (the Detection Rule License requires crediting rule authors
+  in alerts) and the events that triggered it;
 * a timeline of the events behind the shown alerts, or of every event;
 * what was read, skipped, or rejected (files, parser warnings, rule errors).
 """
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
 
 from vigie import __version__
 from vigie.analysis import Analysis
+from vigie.atlas import AtlasData, default_atlas_data
 from vigie.attack import AttackData, AttackMapping, Tactic, Technique, default_attack_data
 from vigie.collect import FileReport
 from vigie.models import LEVELS, Alert, Event, RuleMeta
+from vigie.owasp import OwaspData, OwaspItem, OwaspList, OwaspMapping, default_owasp_data
 
 # Fields worth showing in a one-line event summary, in order of interest.
 SUMMARY_FIELDS = (
@@ -44,6 +50,10 @@ SUMMARY_FIELDS = (
 )
 SUMMARY_LENGTH = 240
 EVIDENCE_LIMIT = 10
+# Unicode tag characters: invisible, but read by language models. The parser decodes
+# them into the hidden_text field, which the summary shows; the report never carries
+# the invisible text itself to its readers.
+_TAG_CHARACTERS = re.compile("[\U000e0000-\U000e007f]")
 
 
 @dataclass(frozen=True)
@@ -62,6 +72,8 @@ class EventView:
 class AlertView:
     rule: RuleMeta
     attack: AttackMapping
+    atlas: AttackMapping  # MITRE ATLAS techniques and tactics, for rules about AI systems
+    owasp: OwaspMapping  # OWASP Top 10 entries, for rules about AI systems
     first_seen: datetime
     last_seen: datetime
     hosts: tuple[str, ...]
@@ -87,6 +99,19 @@ class TacticView:
     techniques: tuple[Technique, ...]
 
 
+@dataclass(frozen=True)
+class OwaspItemView:
+    item: OwaspItem
+    alert_count: int
+    rules: tuple[RuleMeta, ...]  # the rules behind those alerts, most severe first
+
+
+@dataclass(frozen=True)
+class OwaspListView:
+    list: OwaspList
+    items: tuple[OwaspItemView, ...]  # only the entries some alert maps to
+
+
 @dataclass
 class Report:
     generated_at: datetime
@@ -94,12 +119,17 @@ class Report:
     vigie_version: str = __version__
     attack_version: str = ""
     attack_copyright: str = ""
+    atlas_version: str = ""
+    atlas_copyright: str = ""
+    owasp_copyright: str = ""
     event_count: int = 0
     first_event: datetime | None = None
     last_event: datetime | None = None
     level_counts: dict[str, int] = field(default_factory=dict)  # shown alerts per level
     hidden_by_level: dict[str, int] = field(default_factory=dict)  # alerts below min_level
     tactics: list[TacticView] = field(default_factory=list)
+    atlas_tactics: list[TacticView] = field(default_factory=list)  # empty without AI alerts
+    owasp: list[OwaspListView] = field(default_factory=list)  # empty without AI alerts
     rules: list[RuleSummary] = field(default_factory=list)  # one line per rule that fired
     alerts: list[AlertView] = field(default_factory=list)
     timeline: list[EventView] = field(default_factory=list)
@@ -126,11 +156,15 @@ def build_report(
     full_timeline: bool = False,
     timeline_limit: int = 5000,
     attack: AttackData | None = None,
+    atlas: AtlasData | None = None,
+    owasp: OwaspData | None = None,
 ) -> Report:
     """Build the report model. Alerts below ``min_level`` are counted but not shown."""
     if min_level not in LEVELS:
         raise ValueError(f"unknown level {min_level!r}, expected one of {', '.join(LEVELS)}")
     attack = attack or default_attack_data()
+    atlas = atlas or default_atlas_data()
+    owasp = owasp or default_owasp_data()
     threshold = LEVELS.index(min_level)
     all_alerts = analysis.evaluation.alerts
     shown = [alert for alert in all_alerts if alert.rule.severity >= threshold]
@@ -143,6 +177,9 @@ def build_report(
         min_level=min_level,
         attack_version=attack.version,
         attack_copyright=attack.copyright,
+        atlas_version=atlas.version,
+        atlas_copyright=atlas.copyright,
+        owasp_copyright=owasp.copyright,
         event_count=len(events),
         first_event=events[0].timestamp if events else None,
         last_event=events[-1].timestamp if events else None,
@@ -163,9 +200,22 @@ def build_report(
             links.setdefault(id(event), []).append(alert)
 
     mappings = {alert.rule.id: attack.map_tags(alert.rule.tags) for alert in shown}
-    report.alerts = [_alert_view(alert, mappings[alert.rule.id], links) for alert in shown]
+    atlas_mappings = {alert.rule.id: atlas.map_tags(alert.rule.tags) for alert in shown}
+    owasp_mappings = {alert.rule.id: owasp.map_tags(alert.rule.tags) for alert in shown}
+    report.alerts = [
+        _alert_view(
+            alert,
+            mappings[alert.rule.id],
+            atlas_mappings[alert.rule.id],
+            owasp_mappings[alert.rule.id],
+            links,
+        )
+        for alert in shown
+    ]
     report.tactics = _tactic_views(shown, mappings, attack)
+    report.atlas_tactics = _tactic_views(shown, atlas_mappings, atlas)
     report.rules = _rule_summaries(shown)
+    report.owasp = _owasp_views(report.rules, owasp_mappings, owasp)
 
     # The timeline shows the events behind the shown alerts, or every event on request.
     selected = events if full_timeline else [event for event in events if id(event) in links]
@@ -176,7 +226,9 @@ def build_report(
 
 def summarize(event: Event) -> str:
     """One readable line for an event: its log message, or the key Windows fields."""
-    if event.source == "auth":
+    if event.source == "agentlog":
+        text = _agent_summary(event)
+    elif event.source == "auth":
         text = str(event.get("message") or event.raw)
     elif event.source == "unifiedlog":
         message = event.get("message")
@@ -202,6 +254,31 @@ def summarize(event: Event) -> str:
     return text if len(text) <= SUMMARY_LENGTH else text[: SUMMARY_LENGTH - 1] + "…"
 
 
+def _agent_summary(event: Event) -> str:
+    """``tool_call run_shell (alice, session s-7): {"command": "id"}`` for an AI agent record."""
+    kind = str(event.get("type"))
+    subject = {
+        "tool_call": event.get("tool"),
+        "tool_result": event.get("tool"),
+        "tool_definition": event.get("tool"),
+        "retrieval": event.get("document"),
+        "response": event.get("model"),
+    }.get(kind)
+    if kind == "tool_definition" and event.get("server"):
+        # Which server offered the tool matters as much as its name.
+        subject = f"{subject or ''} from {event.get('server')}".strip()
+    who = [str(event.get("actor") or "")]
+    if event.get("session_id"):
+        who.append(f"session {event.get('session_id')}")
+    who = [part for part in who if part]
+    head = kind + (f" {subject}" if subject else "") + (f" ({', '.join(who)})" if who else "")
+    # Hidden text first: the end of a long line is cut.
+    if event.get("hidden_text"):
+        head += f" [hidden text: {event.get('hidden_text')}]"
+    body = event.get("arguments") if kind == "tool_call" else event.get("content")
+    return f"{head}: {_TAG_CHARACTERS.sub('', str(body or ''))}"
+
+
 def _flat(value: object) -> str:
     return ", ".join(value) if isinstance(value, tuple) else str(value)
 
@@ -221,11 +298,19 @@ def _event_view(event: Event, links: dict[int, list[Alert]]) -> EventView:
     )
 
 
-def _alert_view(alert: Alert, mapping: AttackMapping, links: dict[int, list[Alert]]) -> AlertView:
+def _alert_view(
+    alert: Alert,
+    mapping: AttackMapping,
+    atlas: AttackMapping,
+    owasp: OwaspMapping,
+    links: dict[int, list[Alert]],
+) -> AlertView:
     hosts = tuple(sorted({event.host for event in alert.events if event.host}))
     return AlertView(
         rule=alert.rule,
         attack=mapping,
+        atlas=atlas,
+        owasp=owasp,
         first_seen=alert.timestamp,
         last_seen=alert.last_seen,
         hosts=hosts,
@@ -242,8 +327,9 @@ def _evidence(events: tuple[Event, ...]) -> tuple[Event, ...]:
 
 
 def _tactic_views(
-    alerts: list[Alert], mappings: dict[str, AttackMapping], attack: AttackData
+    alerts: list[Alert], mappings: dict[str, AttackMapping], framework: AttackData | AtlasData
 ) -> list[TacticView]:
+    """The tactics of ``framework`` (ATT&CK or ATLAS) the alerts map to, in matrix order."""
     counts: Counter[str] = Counter()
     techniques: dict[str, dict[str, Technique]] = {}
     for alert in alerts:
@@ -261,9 +347,33 @@ def _tactic_views(
                 sorted(techniques.get(tactic.shortname, {}).values(), key=lambda t: t.id)
             ),
         )
-        for tactic in attack.tactics
+        for tactic in framework.tactics
         if counts[tactic.shortname]
     ]
+
+
+def _owasp_views(
+    rules: list[RuleSummary], mappings: dict[str, OwaspMapping], owasp: OwaspData
+) -> list[OwaspListView]:
+    """The OWASP entries the alerts map to, list by list, in published order."""
+    counts: Counter[str] = Counter()
+    behind: dict[str, list[RuleMeta]] = {}
+    for summary in rules:  # most severe rule first
+        for item in mappings[summary.rule.id].items:
+            counts[item.id] += summary.alert_count
+            behind.setdefault(item.id, []).append(summary.rule)
+    views = [
+        OwaspListView(
+            list=owasp_list,
+            items=tuple(
+                OwaspItemView(item=item, alert_count=counts[item.id], rules=tuple(behind[item.id]))
+                for item in owasp_list.items
+                if counts[item.id]
+            ),
+        )
+        for owasp_list in owasp.lists
+    ]
+    return [view for view in views if view.items]
 
 
 def _rule_summaries(alerts: list[Alert]) -> list[RuleSummary]:

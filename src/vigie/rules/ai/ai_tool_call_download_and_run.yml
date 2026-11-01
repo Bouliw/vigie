@@ -1,0 +1,31 @@
+title: AI Agent Tool Call Runs Downloaded Code
+id: 604de437-adfe-47eb-ae98-30ca783c3247
+status: experimental
+description: An AI agent asked a tool to run a command that downloads a script and pipes it straight into a shell (curl ... | sh), decodes Base64 into a shell, or runs a PowerShell download cradle (IEX ... DownloadString). Coding agents run many commands, but these run code nobody has reviewed, fetched from a remote party; "run this setup script first" is a classic goal of prompt injections against agents.
+references:
+    - https://atlas.mitre.org/techniques/AML.T0050
+    - https://atlas.mitre.org/techniques/AML.T0053
+author: Bouliw
+date: 2026-10-29
+tags:
+    - atlas.execution
+    - atlas.privilege-escalation
+    - atlas.aml.t0050
+    - atlas.aml.t0053
+    - owasp.asi02
+    - owasp.asi05
+logsource:
+    product: ai
+    service: agentlog
+detection:
+    selection:
+        type: tool_call
+        arguments|re:
+            - '(?i)\b(?:curl|wget)\b[^|;&]*\|\s*(?:sudo\s+(?:-\S+\s+)*)?(?:ba|z|da|k|fi)?sh\b'
+            - '(?i)\bbase64\s+(?:-d|--decode|-D)\b[^|;&]*\|\s*(?:sudo\s+)?(?:ba|z|da|k)?sh\b'
+            - '(?i)\b(?:iex|invoke-expression)\b.{0,100}\b(?:downloadstring|invoke-webrequest|iwr|irm|invoke-restmethod)\b'
+            - '(?i)\b(?:downloadstring|invoke-webrequest|iwr|irm)\b.{0,150}\|\s*(?:iex|invoke-expression)\b'
+    condition: selection
+falsepositives:
+    - Installation instructions of a trusted tool that the user asked the agent to follow
+level: high

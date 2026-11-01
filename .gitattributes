@@ -1,2 +1,8 @@
 # Log fixtures must stay byte-for-byte identical to their upstream source.
 tests/fixtures/** -text
+src/vigie/demo/logs/** -text
+# Double-click installers: Windows scripts keep CRLF line endings, shell scripts LF.
+*.bat -text
+*.ps1 -text
+*.command text eol=lf
+*.sh text eol=lf

@@ -114,6 +114,13 @@ MACOS_SERVICES: Mapping[str, tuple[Target, ...]] = MappingProxyType(
     {"unifiedlog": (Target("unifiedlog"),)}
 )
 
+# Neither do AI agents and LLM applications: their rules use Vigie's own
+# `product: ai, service: agentlog`, and select the kind of record (prompt,
+# response, tool_call...) with the `type` field.
+AI_SERVICES: Mapping[str, tuple[Target, ...]] = MappingProxyType(
+    {"agentlog": (Target("agentlog"),)}
+)
+
 
 def resolve_logsource(logsource: Any) -> tuple[Target, ...]:
     """Return the targets for a rule's ``logsource``, or raise SigmaError if unsupported."""
@@ -134,4 +141,6 @@ def resolve_logsource(logsource: Any) -> tuple[Target, ...]:
         return LINUX_SERVICES[service]
     elif product == "macos" and service in MACOS_SERVICES and not category:
         return MACOS_SERVICES[service]
+    elif product == "ai" and service in AI_SERVICES and not category:
+        return AI_SERVICES[service]
     raise SigmaError(f"unsupported logsource ({description or 'empty'})")

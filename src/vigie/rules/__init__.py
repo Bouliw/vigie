@@ -1,6 +1,7 @@
 """Detection rules shipped with Vigie, as Sigma YAML files.
 
-``windows/`` and ``linux/`` hold one rule per file. Rules adapted from the
+``windows/``, ``linux/``, ``macos/`` and ``ai/`` (AI agents and LLM applications,
+mapped to MITRE ATLAS and the OWASP Top 10) hold one rule per file. Rules adapted from the
 SigmaHQ project keep their original authors, link and license (Detection Rule
 License 1.1, see ``LICENSE.DRL-1.1.md``); the other rules are covered by
 Vigie's MIT license.

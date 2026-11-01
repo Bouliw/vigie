@@ -1,0 +1,30 @@
+title: Payment Card Or IBAN In LLM Response
+id: 57c548dc-da0b-420c-9ae5-db829cb1edc2
+status: experimental
+description: A model response contains a payment card number (issuer range, length and Luhn checksum all valid) or an IBAN (valid ISO 7064 checksum) that the user did not write earlier in the same session. The model disclosed personal data from its context - a retrieved record, a tool result, its memory of other conversations. Numbers that payment documentation uses as examples (4242 4242 4242 4242...) are left out, and so is a number the user gave and the assistant repeats.
+references:
+    - https://atlas.mitre.org/techniques/AML.T0085
+    - https://atlas.mitre.org/techniques/AML.T0136
+    - https://genai.owasp.org/llmrisk/llm022025-sensitive-information-disclosure/
+author: Bouliw
+date: 2026-10-29
+tags:
+    - atlas.collection
+    - atlas.exfiltration
+    - atlas.aml.t0085
+    - atlas.aml.t0136
+    - owasp.llm02
+logsource:
+    product: ai
+    service: agentlog
+detection:
+    selection:
+        type: response
+        pii:
+            - payment_card
+            - iban
+    condition: selection
+falsepositives:
+    - An assistant built to show account details to their authenticated owner
+    - A 16-digit reference number that happens to pass the card checks
+level: medium

@@ -1,202 +1,364 @@
 {% set r = report %}
+{% set live = r.watch_started and r.refresh %}
+{% set owasp_note = (", and to the " ~ (r.owasp | map(attribute="list.title") | join(" and the "))) if r.owasp else "" %}
+{% set ns = namespace(top=None, top_count=0) %}
+{% for level, count in r.level_counts.items() %}
+{% if count and ns.top is none %}{% set ns.top = level %}{% set ns.top_count = count %}{% endif %}
+{% endfor %}
+{% macro chevron() %}<svg class="icon" aria-hidden="true"><use href="#i-chev"/></svg>{% endmacro %}
+{% macro copy_icons() %}<svg class="icon cp" aria-hidden="true"><use href="#i-copy"/></svg><svg class="icon ok" aria-hidden="true"><use href="#i-ok"/></svg>{% endmacro %}
+{% macro copy_button(label, text=none) %}<button type="button" class="copy js-only" aria-label="{{ label }}"{% if text is not none %} data-copy="{{ text }}"{% endif %}>{{ copy_icons() }}</button>{% endmacro %}
+{% macro technique_box(t) %}<div class="tech">
+            <div class="tech-head"><a class="idref" href="{{ t.url }}">{{ t.id }}</a> {{ copy_button("Copy technique id", t.id) }}</div>
+            <strong>{{ t.display_name }}</strong>
+            <div class="tactics">{{ view.data.techniques[t.id].tactics | join(", ") }}</div>
+            {% if view.summary(t.id) %}<p>{{ view.summary(t.id) }}</p>{% endif %}
+          </div>{% endmacro %}
+{% macro help_button(key, label) %}<button type="button" class="help js-only" data-help="{{ key }}" aria-label="What is this? {{ label }}" aria-expanded="false">?</button>{% endmacro %}
+{% macro technique_chip(t) %}<a class="chip" href="#t-{{ t.id | replace('.', '-') }}" data-technique="{{ t.id }}" aria-haspopup="dialog" aria-expanded="false"><span class="id">{{ t.id }}</span> <span class="nm">{{ t.name }}</span></a>{% endmacro %}
 <!doctype html>
-<html lang="en">
+<html lang="en" class="no-js">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="Vigie {{ r.vigie_version }}">
 {% if r.refresh %}
-<meta http-equiv="refresh" content="{{ r.refresh }}">
+<noscript><meta http-equiv="refresh" content="{{ r.refresh }}"></noscript>
 {% endif %}
 <title>Vigie report</title>
+<script>
+document.documentElement.className = window.self !== window.top ? "js framed" : "js";
+try { var vigieTheme = localStorage.getItem("vigie-theme"); if (vigieTheme === "light" || vigieTheme === "dark") { document.documentElement.setAttribute("data-theme", vigieTheme); } } catch (e) {}
+</script>
 <style>
-:root {
-  --bg: #ffffff; --panel: #f6f7f9; --text: #1b1f24; --muted: #5b6470; --border: #d9dde3;
-  --link: #0b5cad; --code: #eef1f4;
-  --critical: #8e1b1b; --high: #c2410c; --medium: #a16207; --low: #1d4ed8; --informational: #4b5563;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #111418; --panel: #1a1f25; --text: #e6e9ed; --muted: #9aa4b0; --border: #2c333b;
-    --link: #7cb7ff; --code: #232a31;
-    --critical: #f87171; --high: #fb923c; --medium: #facc15; --low: #93c5fd; --informational: #cbd5e1;
-  }
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
-h1 { font-size: 1.6rem; margin: 0 0 4px; }
-h2 { font-size: 1.25rem; margin: 36px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
-a { color: var(--link); }
-.muted { color: var(--muted); }
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; }
-.card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
-.card .value { font-size: 1.5rem; font-weight: 600; }
-.card .label { color: var(--muted); font-size: .85rem; }
-.scroll { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: .9rem; }
-th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--border); }
-th { color: var(--muted); font-weight: 600; white-space: nowrap; }
-td.time, td.nowrap { white-space: nowrap; }
-td.event { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .82rem;
-  word-break: break-word; }
-.level { display: inline-block; min-width: 84px; padding: 1px 8px; border-radius: 10px; font-size: .78rem;
-  font-weight: 600; text-transform: uppercase; letter-spacing: .02em; color: var(--bg); text-align: center; }
-{% for level in LEVELS %}
-.level-{{ level }} { background: var(--{{ level }}); }
-{% endfor %}
-details.alert { border: 1px solid var(--border); border-radius: 8px; margin: 10px 0; background: var(--panel); }
-details.alert > summary { cursor: pointer; padding: 10px 14px; display: flex; gap: 12px; align-items: baseline;
-  flex-wrap: wrap; }
-details.alert > summary .title { font-weight: 600; }
-details.alert .body { padding: 0 14px 12px; }
-dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 8px 0 12px; }
-dt { color: var(--muted); }
-dd { margin: 0; }
-code { background: var(--code); padding: 1px 4px; border-radius: 4px; font-size: .85em; }
-footer { margin-top: 40px; color: var(--muted); font-size: .8rem; }
+{% include "_report.css.j2" %}
 </style>
 </head>
-<body>
-<main>
-<h1>Vigie report</h1>
-{% if r.watch_started and r.refresh %}
-<p class="muted"><strong>Live</strong>: <code>vigie watch</code> has been running since {{ r.watch_started | ts }}
-and updated this page at {{ r.generated_at | ts }}; it reloads every {{ r.refresh }} s.
-Vigie {{ r.vigie_version }}, alerts mapped to MITRE ATT&amp;CK {{ r.attack_version }}. All times are UTC.</p>
-{% elif r.watch_started %}
-<p class="muted"><code>vigie watch</code> ran from {{ r.watch_started | ts }} to {{ r.generated_at | ts }}.
-Vigie {{ r.vigie_version }}, alerts mapped to MITRE ATT&amp;CK {{ r.attack_version }}. All times are UTC.</p>
-{% else %}
-<p class="muted">Generated on {{ r.generated_at | ts }} by Vigie {{ r.vigie_version }}.
-Alerts are mapped to MITRE ATT&amp;CK {{ r.attack_version }}. All times are UTC.</p>
+<body{% if live %} data-refresh="{{ r.refresh }}"{% endif %}>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 3.5v-.4A1.1 1.1 0 0 0 9.4 2H3.1A1.1 1.1 0 0 0 2 3.1v6.3a1.1 1.1 0 0 0 1.1 1.1h.4"/></symbol>
+  <symbol id="i-ok" viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7"/></symbol>
+  <symbol id="mark" viewBox="0 0 32 32"><path d="M16 2.2 4.4 6.6v8.6c0 7.2 4.9 12.6 11.6 14.6 6.7-2 11.6-7.4 11.6-14.6V6.6z" fill="var(--ink)"/><path d="M9.2 17.6a6.8 6.8 0 0 1 13.6 0" fill="none" stroke="var(--paper)" stroke-width="2.2" stroke-linecap="round"/><circle cx="16" cy="17.4" r="2.5" fill="var(--paper)"/><path d="M8.4 21.4h15.2" stroke="var(--paper)" stroke-width="2" stroke-linecap="round"/></symbol>
+</svg>
+<header class="masthead">
+  <div class="wrap">
+    <a class="brand" href="#top" id="top"><svg aria-hidden="true"><use href="#mark"/></svg>Vigie <small>report</small></a>
+    <nav aria-label="Sections"><ul class="jump">
+      <li><a href="#alerts">Alerts</a></li>
+      <li><a href="#rules">Rules</a></li>
+      <li><a href="#techniques">Techniques</a></li>
+      <li><a href="#timeline">Timeline</a></li>
+      <li><a href="#inputs">Inputs</a></li>
+    </ul></nav>
+    <button type="button" class="btn btn-quiet btn-icon js-only" id="theme" aria-label="Switch to dark theme" title="Switch theme"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.6 9.9A5.8 5.8 0 0 1 6.1 2.4a5.8 5.8 0 1 0 7.5 7.5z"/></svg></button>
+  </div>
+</header>
+{% if live %}
+<div class="live" id="live">
+  <div class="wrap">
+    <span class="pulse" aria-hidden="true"></span>
+    <p><strong>Live</strong>: <code>vigie watch</code> has been running since {{ r.watch_started | ts }}
+and updated this page at {{ r.generated_at | ts }}; it reloads every {{ r.refresh }} s.</p>
+    <button type="button" class="btn js-only" id="pause" aria-pressed="false">Pause updates</button>
+  </div>
+</div>
 {% endif %}
+<main class="wrap">
+<section class="verdict" aria-labelledby="verdict">
+  {% if r.alert_count == 1 %}
+  <h1 id="verdict">1 alert to review, rated {{ ns.top }}</h1>
+  {% elif r.alert_count and ns.top_count == r.alert_count %}
+  <h1 id="verdict">{{ r.alert_count | num }} alerts to review, all rated {{ ns.top }}</h1>
+  {% elif r.alert_count %}
+  <h1 id="verdict">{{ r.alert_count | num }} alerts to review, {{ ns.top_count | num }} of them rated {{ ns.top }}</h1>
+  {% else %}
+  <h1 id="verdict">No alert at level {{ r.min_level }} or above.</h1>
+  {% endif %}
+  <p class="lede">Vigie read {{ r.event_count | num }} event{{ "s" if r.event_count != 1 }} from {{ r.files | length | num }} {% if r.watch_started %}source{{ "s" if r.files | length != 1 }}{% else %}file{{ "s" if r.files | length != 1 }}{% endif %} with {{ r.rule_count | num }} detection rules{% if r.first_event %}. The logs run from {{ r.first_event | ts }} to {{ r.last_event | ts }}{% if r.first_event != r.last_event %}, {{ r.first_event | duration(r.last_event) }}{% endif %}{% endif %}.</p>
+  {% if live %}
+  <p class="meta">Vigie {{ r.vigie_version }}, alerts mapped to MITRE ATT&amp;CK {{ r.attack_version }}{% if r.atlas_tactics %} and MITRE ATLAS {{ r.atlas_version }}{% endif %}{{ owasp_note }}. All times are UTC.</p>
+  {% elif r.watch_started %}
+  <p class="meta"><code>vigie watch</code> ran from {{ r.watch_started | ts }} to {{ r.generated_at | ts }}.
+Vigie {{ r.vigie_version }}, alerts mapped to MITRE ATT&amp;CK {{ r.attack_version }}{% if r.atlas_tactics %} and MITRE ATLAS {{ r.atlas_version }}{% endif %}{{ owasp_note }}. All times are UTC.</p>
+  {% else %}
+  <p class="meta">Generated on {{ r.generated_at | ts }} by Vigie {{ r.vigie_version }}.
+Alerts are mapped to MITRE ATT&amp;CK {{ r.attack_version }}{% if r.atlas_tactics %} and MITRE ATLAS {{ r.atlas_version }}{% endif %}{{ owasp_note }}. All times are UTC.</p>
+  {% endif %}
 
-<section class="cards" aria-label="Summary">
-  <div class="card"><div class="value">{{ r.event_count }}</div><div class="label">events analyzed</div></div>
-  <div class="card"><div class="value">{{ r.files | length }}</div><div class="label">{% if r.watch_started %}sources followed{% else %}files read{% endif %}{% if r.skipped %}, {{ r.skipped | length }} skipped{% endif %}</div></div>
-  <div class="card"><div class="value">{{ r.alert_count }}</div><div class="label">alerts (level {{ r.min_level }} and above)</div></div>
-  {% for level, count in r.level_counts.items() %}
-  <div class="card"><div class="value">{{ count }}</div><div class="label"><span class="level level-{{ level }}">{{ level }}</span></div></div>
-  {% endfor %}
-</section>
-<p class="muted">Time range: {{ r.first_event | ts }} to {{ r.last_event | ts }}. {{ r.rule_count }} rules loaded{% if r.rule_errors %}, {{ r.rule_errors | length }} rejected (see Inputs){% endif %}.
+  <div class="severity" aria-label="Alerts by severity">
+    {% if r.alert_count %}
+    <div class="sevbar" aria-hidden="true">{% for level, count in r.level_counts.items() if count %}<span class="sev-{{ level }}" style="flex: {{ count }}; background: var(--c)"></span>{% endfor %}</div>
+    {% endif %}
+    <div class="tiles">
+      {% for level, count in r.level_counts.items() %}
+      <div class="tile-wrap">
+        <a class="tile sev-{{ level }}{% if not count %} zero{% endif %}" href="#alerts" data-level="{{ level }}"><span class="n" data-count="{{ count }}">{{ count | num }}</span> <span class="l">{{ level }}</span></a>
+        {{ help_button(level, level ~ " alerts") }}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="facts-row">
+      <div class="fact"><span class="n" data-count="{{ r.alert_count }}">{{ r.alert_count | num }}</span> <span class="l">alerts (level {{ r.min_level }} and above)</span> {{ help_button("alerts", "alerts") }}</div>
+      <div class="fact"><span class="n" data-count="{{ r.event_count }}">{{ r.event_count | num }}</span> <span class="l">events analyzed</span> {{ help_button("events", "events analyzed") }}</div>
+      <div class="fact"><span class="n">{{ r.files | length | num }}</span> <span class="l">{% if r.watch_started %}sources followed{% else %}files read{% endif %}{% if r.skipped %}, {{ r.skipped | length }} skipped{% endif %}</span> {{ help_button("sources" if r.watch_started else "files", "files") }}</div>
+      <div class="fact"><span class="n">{{ r.rule_count | num }}</span> <span class="l">rules loaded{% if r.rule_errors %}, {{ r.rule_errors | length }} rejected{% endif %}</span> {{ help_button("rules", "rules loaded") }}</div>
+    </div>
+  </div>
+  {% if r.hidden_by_level or r.rule_errors %}
+  <p class="meta note-line">{% if r.rule_errors %}{{ r.rule_errors | length }} rule(s) rejected, see Inputs. {% endif %}
 {% if r.hidden_by_level %}
 {{ r.hidden_by_level.values() | sum }} alert(s) below the "{{ r.min_level }}" level are not shown
 ({% for level, count in r.hidden_by_level.items() %}{{ level }}: {{ count }}{% if not loop.last %}, {% endif %}{% endfor %});
 run with <code>--min-level {{ r.hidden_by_level | first }}</code> to include them.
 {% endif %}</p>
+  {% endif %}
 
-<h2>MITRE ATT&amp;CK</h2>
+  {% for strip in view.strips %}
+  <div class="coverage">
+    <h2 id="strip-{{ strip.key }}">Where the alerts sit in an attack, by {{ strip.label }} tactic</h2>
+    <p class="hint">Tactics run from the first steps of an attack on the left to its goal on the right. Darker means more alerts.</p>
+    <ul class="strip" style="--cols: {{ strip.cells | length }}" aria-labelledby="strip-{{ strip.key }}">
+      {% for cell in strip.cells %}
+      <li>{% if cell.count %}<button type="button" class="cell h{{ cell.heat }}" data-tactic="{{ cell.tactic.id }}" aria-haspopup="dialog" aria-expanded="false"><b>{{ cell.count }}</b> <span>{{ cell.tactic.name }}</span></button>{% else %}<div class="cell"><b>0</b> <span>{{ cell.tactic.name }}</span></div>{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="section" id="alerts" aria-labelledby="alerts-h">
+  <div class="section-head"><h2 id="alerts-h">Alerts</h2><p>Most severe first. Open one to see why it fired and the events behind it.</p></div>
+  {% if r.alerts %}
+  <div class="toolbar js-only" id="toolbar" role="group" aria-label="Filter alerts">
+    <div class="toolbar-row">
+      <div class="search">
+        <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="m10.4 10.4 3.4 3.4"/></svg>
+        <input id="q" type="search" placeholder="Search rules, techniques, hosts, evidence" aria-label="Search alerts" autocomplete="off" spellcheck="false">
+        <kbd aria-hidden="true">/</kbd>
+      </div>
+      <div class="chips-sev" role="group" aria-label="Severity">
+        {% for level, count in r.level_counts.items() %}
+        <button type="button" class="chip-sev sev-{{ level }}" data-level="{{ level }}" aria-pressed="false"{% if not count %} disabled{% endif %}><span class="dot" aria-hidden="true"></span>{{ level }} <span class="count">{{ count | num }}</span></button>
+        {% endfor %}
+      </div>
+      {% if view.both %}
+      <div class="seg" role="group" aria-label="Framework">
+        <button type="button" data-fw="all" aria-pressed="true">All</button>
+        <button type="button" data-fw="attack" aria-pressed="false">ATT&amp;CK</button>
+        <button type="button" data-fw="atlas" aria-pressed="false">ATLAS</button>
+      </div>
+      {% endif %}
+      <button type="button" class="btn" id="expand-all" aria-pressed="false">Expand all</button>
+    </div>
+    <div class="results">
+      <output id="count" role="status" aria-live="polite">Showing {{ r.alert_count }} of {{ r.alert_count }} alerts</output>
+      <span id="facet" class="facet" hidden><span></span><button type="button" aria-label="Remove this filter"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 4.5 7 7m0-7-7 7"/></svg></button></span>
+      <button type="button" class="linkish" id="clear" hidden>Clear filters</button>
+    </div>
+  </div>
+  {% endif %}
+  <div class="cards" id="alert-list">
+  {% for a in r.alerts %}
+  {% set card = view.cards[loop.index0] %}
+  <article class="card sev-{{ a.rule.level }}" id="{{ card.anchor }}" data-level="{{ a.rule.level }}" data-rule="{{ a.rule.id }}" data-techniques="{{ card.techniques }}" data-tactics="{{ card.tactics }}" data-frameworks="{{ card.frameworks }}" data-hosts="{{ a.hosts | join(' ') }}" aria-labelledby="{{ card.anchor }}-t">
+    <div class="card-head">
+      <div>
+        <div class="card-line"><span class="badge">{{ a.rule.level }}</span> <h3 class="card-title" id="{{ card.anchor }}-t">{{ a.rule.title }}</h3></div>
+        <dl class="card-meta">
+          <div><dt>First seen</dt> <dd>{{ a.first_seen | ts }}</dd></div>
+          {% if a.hosts %}<div><dt>Host{{ "s" if a.hosts | length > 1 }}</dt> <dd>{{ a.hosts | join(", ") }}</dd></div>{% endif %}
+          <div><dt>Events</dt> <dd>{{ a.event_count }} event(s)</dd></div>
+        </dl>
+        {% if a.attack.techniques or a.atlas.techniques %}
+        <ul class="chips" aria-label="Techniques">
+          {% for t in a.attack.techniques %}<li>{{ technique_chip(t) }}</li>{% endfor %}
+          {% for t in a.atlas.techniques %}<li>{{ technique_chip(t) }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+      <button type="button" class="why js-only" aria-expanded="false" aria-controls="{{ card.anchor }}-b">Why this fired {{ chevron() }}</button>
+    </div>
+    <div class="card-body" id="{{ card.anchor }}-b" role="region" aria-labelledby="{{ card.anchor }}-t">
+      <div class="inner"><div class="content">
+        <div class="c-desc">
+          <h4>What the rule looks for</h4>
+          <p>{{ a.rule.description }}</p>
+          <dl class="kv">
+            <dt>When</dt><dd>{{ a.first_seen | ts }}{% if a.last_seen != a.first_seen %} to {{ a.last_seen | ts }}{% endif %}</dd>
+            <dt>Hosts</dt><dd>{{ a.hosts | join(", ") if a.hosts else "-" }}</dd>
+            {% if a.group %}<dt>Grouped by</dt><dd>{% for key, value in a.group.items() %}<code>{{ key }} = {{ value }}</code> {% endfor %}</dd>{% endif %}
+          </dl>
+        </div>
+        <div class="c-tech">
+          {% if a.attack.tactics or not a.atlas.tactics %}
+          <h4>What the technique{{ "s" if (a.attack.techniques | length) + (a.atlas.techniques | length) > 1 }} mean{{ "s" if (a.attack.techniques | length) + (a.atlas.techniques | length) <= 1 }}</h4>
+          <dl class="kv"><dt>ATT&amp;CK</dt><dd>{% for t in a.attack.techniques %}{{ t.id }}{% if not loop.last %}, {% endif %}{% else %}no technique{% endfor %}{% if a.attack.tactics %} <span class="muted">({{ a.attack.tactics | map(attribute="name") | join(", ") }})</span>{% endif %}</dd></dl>
+          {% for t in a.attack.techniques %}{{ technique_box(t) }}{% endfor %}
+          {% endif %}
+          {% if a.atlas.tactics %}
+          {% if not (a.attack.tactics or not a.atlas.tactics) %}<h4>What the technique{{ "s" if a.atlas.techniques | length > 1 }} mean{{ "s" if a.atlas.techniques | length <= 1 }}</h4>{% endif %}
+          <dl class="kv"><dt>ATLAS</dt><dd>{% for t in a.atlas.techniques %}{{ t.id }}{% if not loop.last %}, {% endif %}{% endfor %} <span class="muted">({{ a.atlas.tactics | map(attribute="name") | join(", ") }})</span></dd></dl>
+          {% for t in a.atlas.techniques %}{{ technique_box(t) }}{% endfor %}
+          {% endif %}
+          {% if a.owasp.items %}
+          <dl class="kv"><dt>OWASP</dt><dd>{% for i in a.owasp.items %}<a class="idref" href="{{ i.url }}">{{ i.id }}</a> {{ i.name }}{% if not loop.last %}<br>{% endif %}{% endfor %}</dd></dl>
+          {% endif %}
+        </div>
+        <div class="c-evid">
+          <div class="ev-head"><h4>Evidence: {{ a.event_count }} event(s)</h4><button type="button" class="btn btn-quiet copy-all js-only" data-copy-table>{{ copy_icons() }}Copy all</button></div>
+          <ol class="events">
+            {% for e in a.evidence %}
+            <li class="ev">
+              <div class="ev-meta"><span><span class="visually-hidden">Time </span>{{ e.timestamp | ts }}</span> <span><span class="k">Host</span> {{ e.host or "-" }}</span> <span><span class="k">Source</span> {{ e.source }}{% if e.event_id is not none %} {{ e.event_id }}{% endif %}</span> <span><span class="k">Origin</span> {{ e.origin }}</span></div>
+              <div class="ev-text">{{ e.summary }}</div>
+            </li>
+            {% endfor %}
+          </ol>
+          {% if a.event_count > a.evidence | length %}<p class="note">{{ a.event_count - a.evidence | length }} event(s) between the first {{ a.evidence | length - 1 }} and the last one are not shown.</p>{% endif %}
+        </div>
+        <div class="c-fp">
+          {% if a.rule.falsepositives %}
+          <h4>False positives to rule out</h4>
+          <ul>{% for fp in a.rule.falsepositives %}<li>{{ fp }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+        <div class="c-rule">
+          <h4>Rule</h4>
+          <dl class="kv">
+            <dt>Title</dt><dd>{{ a.rule.title }}{% if a.rule.kind == "correlation" %} (correlation){% endif %}</dd>
+            <dt>ID</dt><dd><code>{{ a.rule.id }}</code>{{ copy_button("Copy rule id", a.rule.id) }}</dd>
+            <dt>Level</dt><dd>{{ a.rule.level }}</dd>
+            {% if a.rule.status %}<dt>Status</dt><dd>{{ a.rule.status }}</dd>{% endif %}
+            <dt>Author</dt><dd>{{ a.rule.author }}{% if a.rule.license %} <span class="muted">(rule licensed under {{ a.rule.license }})</span>{% endif %}</dd>
+            {% if a.rule.date %}<dt>Date</dt><dd>{{ a.rule.date }}</dd>{% endif %}
+            {% if a.rule.path %}<dt>File</dt><dd><code>{{ rule_path(a.rule.path) }}</code></dd>{% endif %}
+            {% if a.rule.references %}<dt>References</dt><dd><ul class="lst">{% for ref in a.rule.references %}<li>{% if safe_url(ref) %}<a href="{{ ref }}" rel="noreferrer">{{ ref }}</a>{% else %}{{ ref }}{% endif %}</li>{% endfor %}</ul></dd>{% endif %}
+          </dl>
+        </div>
+      </div></div>
+    </div>
+  </article>
+  {% else %}
+  <p>No alert at level {{ r.min_level }} or above.</p>
+  {% endfor %}
+  </div>
+  {% if r.alerts %}
+  <div class="empty js-only" id="empty" hidden>
+    <strong>No alert matches these filters</strong>
+    <p>Try another search, or show every alert again.</p>
+    <button type="button" class="btn" id="empty-clear">Clear filters</button>
+  </div>
+  {% endif %}
+</section>
+
+{% if r.rules %}
+<section class="section" id="rules" aria-labelledby="rules-h">
+  <div class="section-head"><h2 id="rules-h">Rules that fired</h2><p class="js-only">Pick a rule to list only its alerts.</p></div>
+  <div class="scroll"><table>
+  <thead><tr><th>Severity</th><th>Rule</th><th>Alerts</th><th>First seen</th><th>Last seen</th></tr></thead>
+  <tbody>
+  {% for s in r.rules %}
+  <tr class="sev-{{ s.rule.level }}" data-level="{{ s.rule.level }}"><td><span class="badge">{{ s.rule.level }}</span></td><td><button type="button" class="rule-link" data-rule="{{ s.rule.id }}" disabled>{{ s.rule.title }}</button></td>
+  <td class="num">{{ s.alert_count }}</td><td class="time">{{ s.first_seen | ts }}</td><td class="time">{{ s.last_seen | ts }}</td></tr>
+  {% endfor %}
+  </tbody></table></div>
+</section>
+{% endif %}
+
+<section class="section" id="techniques" aria-label="Techniques">
+{% set glossary = namespace(seen=[]) %}
+{% if r.tactics or not r.atlas_tactics %}
+<div class="section-head"><h2>MITRE ATT&amp;CK</h2><p>Tactics and techniques of MITRE ATT&amp;CK {{ r.attack_version }} the alerts map to, in matrix order.</p></div>
 {% if r.tactics %}
 <div class="scroll"><table>
 <thead><tr><th>Tactic</th><th>Alerts</th><th>Techniques</th></tr></thead>
 <tbody>
-{% for view in r.tactics %}
-<tr><td class="nowrap"><a href="{{ view.tactic.url }}">{{ view.tactic.name }}</a> <span class="muted">{{ view.tactic.id }}</span></td>
-<td>{{ view.alert_count }}</td>
-<td>{% for t in view.techniques %}<a href="{{ t.url }}">{{ t.id }}</a> {{ t.display_name }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>
+{% for tv in r.tactics %}
+<tr><td><a href="{{ tv.tactic.url }}">{{ tv.tactic.name }}</a> <span class="muted">{{ tv.tactic.id }}</span>{% if view.summary(tv.tactic.id) %} <span class="desc">{{ view.summary(tv.tactic.id) }}</span>{% endif %}</td>
+<td class="num">{{ tv.alert_count }}</td>
+<td><ul class="techlist">{% for t in tv.techniques %}<li{% if t.id not in glossary.seen %} id="t-{{ t.id | replace('.', '-') }}"{% set glossary.seen = glossary.seen + [t.id] %}{% endif %}><a href="{{ t.url }}">{{ t.id }}</a> {{ t.display_name }}{% if view.summary(t.id) %} <span class="desc">{{ view.summary(t.id) }}</span>{% endif %}</li>{% endfor %}</ul></td></tr>
 {% endfor %}
 </tbody></table></div>
 {% else %}
 <p>No alert, so no ATT&amp;CK technique observed.</p>
 {% endif %}
-
-<h2>Alerts</h2>
-{% if r.rules %}
-<div class="scroll"><table>
-<thead><tr><th>Severity</th><th>Rule</th><th>Alerts</th><th>First seen</th><th>Last seen</th></tr></thead>
-<tbody>
-{% for s in r.rules %}
-<tr><td><span class="level level-{{ s.rule.level }}">{{ s.rule.level }}</span></td><td>{{ s.rule.title }}</td>
-<td>{{ s.alert_count }}</td><td class="time">{{ s.first_seen | ts }}</td><td class="time">{{ s.last_seen | ts }}</td></tr>
-{% endfor %}
-</tbody></table></div>
-<h3>Details</h3>
 {% endif %}
-{% for a in r.alerts %}
-<details class="alert" id="alert-{{ a.rule.id }}-{{ a.first_seen.isoformat() }}"{% if a.rule.severity >= 3 %} open{% endif %}>
-<summary><span class="level level-{{ a.rule.level }}">{{ a.rule.level }}</span>
-<span class="title">{{ a.rule.title }}</span>
-<span class="muted">{{ a.first_seen | ts }}{% if a.hosts %} &middot; {{ a.hosts | join(", ") }}{% endif %} &middot; {{ a.event_count }} event(s)</span></summary>
-<div class="body">
-<p>{{ a.rule.description }}</p>
-<dl>
-  <dt>When</dt><dd>{{ a.first_seen | ts }}{% if a.last_seen != a.first_seen %} to {{ a.last_seen | ts }}{% endif %}</dd>
-  {% if a.group %}<dt>Grouped by</dt><dd>{% for key, value in a.group.items() %}<code>{{ key }} = {{ value }}</code> {% endfor %}</dd>{% endif %}
-  <dt>ATT&amp;CK</dt><dd>{% for t in a.attack.techniques %}<a href="{{ t.url }}">{{ t.id }}</a> {{ t.display_name }}{% if not loop.last %}; {% endif %}{% endfor %}{% if a.attack.tactics %} <span class="muted">({{ a.attack.tactics | map(attribute="name") | join(", ") }})</span>{% endif %}</dd>
-  <dt>Rule</dt><dd>{{ a.rule.title }} <code>{{ a.rule.id }}</code>{% if a.rule.kind == "correlation" %} (correlation){% endif %}</dd>
-  <dt>Author</dt><dd>{{ a.rule.author }}{% if a.rule.license %} <span class="muted">(rule licensed under {{ a.rule.license }})</span>{% endif %}</dd>
-  {% if a.rule.falsepositives %}<dt>False positives</dt><dd>{{ a.rule.falsepositives | join("; ") }}</dd>{% endif %}
-</dl>
+{% if r.atlas_tactics %}
+<div class="section-head"{% if r.tactics or not r.atlas_tactics %} style="margin-top: 30px"{% endif %}><h2>MITRE ATLAS</h2><p>Tactics and techniques of MITRE ATLAS {{ r.atlas_version }}, the knowledge base of attacks on AI systems, the alerts map to.</p></div>
 <div class="scroll"><table>
-<thead><tr><th>Time</th><th>Host</th><th>Origin</th><th>Event</th></tr></thead>
+<thead><tr><th>Tactic</th><th>Alerts</th><th>Techniques</th></tr></thead>
 <tbody>
-{% for e in a.evidence %}
-<tr><td class="time">{{ e.timestamp | ts }}</td><td class="nowrap">{{ e.host or "-" }}</td><td class="nowrap">{{ e.origin }}</td><td class="event">{{ e.summary }}</td></tr>
+{% for tv in r.atlas_tactics %}
+<tr><td><a href="{{ tv.tactic.url }}">{{ tv.tactic.name }}</a> <span class="muted">{{ tv.tactic.id }}</span>{% if view.summary(tv.tactic.id) %} <span class="desc">{{ view.summary(tv.tactic.id) }}</span>{% endif %}</td>
+<td class="num">{{ tv.alert_count }}</td>
+<td><ul class="techlist">{% for t in tv.techniques %}<li{% if t.id not in glossary.seen %} id="t-{{ t.id | replace('.', '-') }}"{% set glossary.seen = glossary.seen + [t.id] %}{% endif %}><a href="{{ t.url }}">{{ t.id }}</a> {{ t.display_name }}{% if view.summary(t.id) %} <span class="desc">{{ view.summary(t.id) }}</span>{% endif %}</li>{% endfor %}</ul></td></tr>
 {% endfor %}
 </tbody></table></div>
-{% if a.event_count > a.evidence | length %}<p class="muted">{{ a.event_count - a.evidence | length }} event(s) between the first {{ a.evidence | length - 1 }} and the last one are not shown.</p>{% endif %}
-</div>
-</details>
-{% else %}
-<p>No alert at level {{ r.min_level }} or above.</p>
+{% endif %}
+{% if r.owasp %}
+<div class="section-head" style="margin-top: 30px"><h2>OWASP Top 10</h2><p>Entries of the OWASP Top 10 lists of risks for AI applications the alerts map to, in published order, with the rules behind them.</p></div>
+{% for group in r.owasp %}
+<h3><a href="{{ group.list.url }}">{{ group.list.title }}</a></h3>
+<div class="scroll"><table>
+<thead><tr><th>Risk</th><th>Alerts</th><th>Rules</th></tr></thead>
+<tbody>
+{% for v in group.items %}
+<tr><td><a href="{{ v.item.url }}">{{ v.item.id }}</a> {{ v.item.name }}</td>
+<td class="num">{{ v.alert_count }}</td>
+<td><ul class="techlist">{% for rule in v.rules %}<li><button type="button" class="rule-link" data-rule="{{ rule.id }}" disabled>{{ rule.title }}</button></li>{% endfor %}</ul></td></tr>
 {% endfor %}
+</tbody></table></div>
+{% endfor %}
+{% endif %}
+</section>
 
-<h2>Timeline</h2>
-<p class="muted">{% if r.full_timeline %}Every event read{% else %}Events behind the alerts above{% endif %}, in time order{% if r.timeline_omitted %}; the last {{ r.timeline_omitted }} are not shown{% endif %}.</p>
+<section class="section" id="timeline" aria-labelledby="timeline-h">
+<div class="section-head"><h2 id="timeline-h">Timeline</h2><p>{% if r.full_timeline %}Every event read{% else %}Events behind the alerts above{% endif %}, in time order{% if r.timeline_omitted %}; the last {{ r.timeline_omitted }} are not shown{% endif %}.</p></div>
 {% if r.timeline %}
 <div class="scroll"><table>
 <thead><tr><th>Time</th><th>Host</th><th>Source</th><th>ID</th><th>Event</th><th>Alerts</th></tr></thead>
 <tbody>
 {% for e in r.timeline %}
-<tr><td class="time">{{ e.timestamp | ts }}</td><td class="nowrap">{{ e.host or "-" }}</td><td>{{ e.source }}</td>
+<tr{% if e.level %} class="sev-{{ e.level }}" data-level="{{ e.level }}"{% endif %}><td class="time">{{ e.timestamp | ts }}</td><td class="nowrap">{{ e.host or "-" }}</td><td>{{ e.source }}</td>
 <td>{{ e.event_id if e.event_id is not none else "-" }}</td><td class="event">{{ e.summary }}</td>
-<td>{% if e.level %}<span class="level level-{{ e.level }}">{{ e.level }}</span> {% endif %}{{ e.alert_titles | join("; ") }}</td></tr>
+<td>{% if e.level %}<span class="badge">{{ e.level }}</span> {% endif %}{{ e.alert_titles | join("; ") }}</td></tr>
 {% endfor %}
 </tbody></table></div>
 {% else %}
 <p>Nothing to show.</p>
 {% endif %}
+</section>
 
-<h2>Inputs</h2>
+<section class="section" id="inputs" aria-labelledby="inputs-h">
+<div class="section-head"><h2 id="inputs-h">Inputs</h2><p>What Vigie read, skipped or rejected.</p></div>
 <div class="scroll"><table>
 <thead><tr><th>File</th><th>Format</th><th>Events</th><th>Warnings</th></tr></thead>
 <tbody>
 {% for f in r.files %}
-<tr><td>{{ f.path }}</td><td>{{ f.format }}</td><td>{{ f.events }}</td><td>{{ f.warnings | length }}</td></tr>
+<tr><td>{{ f.path }}</td><td>{{ f.format }}</td><td class="num">{{ f.events }}</td><td class="num">{{ f.warnings | length }}</td></tr>
 {% endfor %}
 </tbody></table></div>
 {% for f in r.files if f.warnings %}
-{% if loop.first %}<h3>Parser warnings</h3><ul>{% endif %}
+{% if loop.first %}<h3>Parser warnings</h3><ul class="lst">{% endif %}
 {% for w in f.warnings[:20] %}<li>{{ w }}</li>{% endfor %}
 {% if f.warnings | length > 20 %}<li>{{ f.path }}: {{ f.warnings | length - 20 }} more warning(s)</li>{% endif %}
 {% if loop.last %}</ul>{% endif %}
 {% endfor %}
-{% if r.skipped %}<h3>Skipped</h3><ul>{% for s in r.skipped %}<li>{{ s }}</li>{% endfor %}</ul>{% endif %}
-{% if r.rule_errors %}<h3>Rejected rules</h3><ul>{% for e in r.rule_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+{% if r.skipped %}<h3>Skipped</h3><ul class="lst">{% for s in r.skipped %}<li>{{ s }}</li>{% endfor %}</ul>{% endif %}
+{% if r.rule_errors %}<h3>Rejected rules</h3><ul class="lst">{% for e in r.rule_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+</section>
 
-{% if r.refresh %}
-<script>
-// The page reloads itself: keep the scroll position and the alerts the reader opened or closed.
-(function () {
-  var key = "vigie-watch-state";
-  var alerts = document.querySelectorAll("details.alert");
-  try {
-    var state = JSON.parse(sessionStorage.getItem(key) || "{}");
-    alerts.forEach(function (d) { if (d.id in (state.open || {})) { d.open = state.open[d.id]; } });
-    if (state.y) { window.scrollTo(0, state.y); }
-  } catch (e) {}
-  window.addEventListener("pagehide", function () {
-    var open = {};
-    alerts.forEach(function (d) { open[d.id] = d.open; });
-    try { sessionStorage.setItem(key, JSON.stringify({y: window.scrollY, open: open})); } catch (e) {}
-  });
-})();
-</script>
-{% endif %}
-<footer>{{ r.attack_copyright }} Rules adapted from SigmaHQ are licensed under the Detection Rule License 1.1; their authors are credited in each alert.</footer>
+<footer>
+<p>{{ r.attack_copyright }}{% if r.atlas_tactics %} {{ r.atlas_copyright }}{% endif %}{% if r.owasp %} {{ r.owasp_copyright }}{% endif %} Rules adapted from SigmaHQ are licensed under the Detection Rule License 1.1; their authors are credited in each alert.</p>
+<p>Vigie {{ r.vigie_version }}. This page works offline; log content in it is shown as text, never run.</p>
+</footer>
 </main>
+<div class="popover" id="popover" role="dialog" aria-labelledby="popover-title" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7"/></svg><span>Copied</span></div>
+<script type="application/json" id="vigie-data">{{ view.data | tojson }}</script>
+<script>
+{% include "_report.js.j2" %}
+</script>
 </body>
 </html>

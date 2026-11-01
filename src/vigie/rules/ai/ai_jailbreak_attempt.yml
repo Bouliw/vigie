@@ -1,0 +1,37 @@
+title: LLM Jailbreak Attempt
+id: d5ea057c-7637-43ab-813a-b13170f75977
+status: experimental
+description: A user prompt uses the wording of well-known jailbreaks, which try to make the model drop its safety rules - "DAN" ("Do Anything Now"), "Developer Mode enabled", "AIM" ("Always Intelligent and Machiavellian"), "you are jailbroken", or asking the model to act as an unfiltered or uncensored assistant, or to answer without ethical or safety guidelines. Check whether the model complied in the next responses of the session.
+references:
+    - https://atlas.mitre.org/techniques/AML.T0054
+    - https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+author: Bouliw
+date: 2026-10-29
+tags:
+    - atlas.defense-evasion
+    - atlas.privilege-escalation
+    - atlas.aml.t0054
+    - owasp.llm01
+    - owasp.asi01
+logsource:
+    product: ai
+    service: agentlog
+detection:
+    selection:
+        type: prompt
+        content|re:
+            - '(?i)\bdo\s+anything\s+now\b'
+            # DAN in capitals only: "write to Dan" is not a jailbreak.
+            - '(?i:\b(?:act\s+as|you\s+are|you.re|pretend\s+to\s+be|become|stay))\s+(?:a\s+)?DAN\b|\bDAN\s+(?i:mode|prompt)\b'
+            - '(?i)\bdeveloper\s+mode\s+(?:enabled|output|response)s?\b'
+            - '(?i)\b(?:act\s+as|simulate|pretend\s+to\s+be|you\s+are\s+now)\b[^.\n]{0,60}\bwith\s+developer\s+mode\b'
+            - '(?i)\byou\s+(?:are|have\s+been)\s+(?:now\s+)?jailbroken\b'
+            - '(?i)\balways\s+intelligent\s+and\s+machiavellian\b'
+            - '(?i)\b(?:act\s+as|you\s+are(?:\s+now)?|pretend\s+(?:to\s+be|you\s+are)|roleplay\s+as|become)\s+(?:an?\s+)?(?:unfiltered|uncensored|unrestricted|amoral|unaligned)\b'
+            - '(?i)\b(?:you\s+(?:are|have|must|will)|act|respond|answer|reply)\b[^.\n]{0,40}\b(?:no|without|free\s+(?:from|of)|ignor\w*|bypass\w*)\s+(?:any\s+|all\s+|your\s+)?(?:ethical|moral|safety|content)\s+(?:guidelines|restrictions|filters|limits|limitations|constraints|policies|principles|boundaries)\b'
+            - '(?i)\byou\s+(?:are|will\s+be)\s+no\s+longer\s+(?:bound|restricted|limited)\s+by\b'
+    condition: selection
+falsepositives:
+    - Red team or evaluation runs testing the model's guardrails
+    - A user asking what these jailbreaks are, in the same words
+level: medium

@@ -1,0 +1,130 @@
+name: Apps
+
+# The standalone apps, which need no Python: Vigie.exe for Windows and Vigie.app
+# for macOS (Apple silicon), built with PyInstaller from packaging/vigie.spec and
+# tried as a user would. A version tag also publishes them in a GitHub Release.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apps-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Windows app
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install Vigie and PyInstaller
+        run: pip install . pyinstaller==6.22.3
+      - name: Build Vigie.exe
+        run: pyinstaller --noconfirm --clean packaging/vigie.spec
+      - name: Run the demo with the built program
+        run: |
+          $watch = [Diagnostics.Stopwatch]::StartNew()
+          $run = Start-Process dist\Vigie\Vigie.exe -ArgumentList 'demo', '--no-open', '-o', 'out' -Wait -PassThru
+          $watch.Stop()
+          if ($run.ExitCode -ne 0) { throw "Vigie.exe demo: exit code $($run.ExitCode)" }
+          if (-not (Test-Path out\report.html)) { throw 'no out\report.html' }
+          $info = (Get-Item dist\Vigie\Vigie.exe).VersionInfo
+          $size = (Get-Item out\report.html).Length
+          "::notice title=Vigie.exe::$($info.FileDescription) $($info.ProductVersion), demo in $([math]::Round($watch.Elapsed.TotalSeconds, 1)) s, report.html of $size bytes"
+      - name: Try the app and the desktop icon
+        run: python packaging/smoke_test.py dist\Vigie\Vigie.exe --shortcut
+      - name: Zip the app
+        run: python -c "import shutil; shutil.make_archive('Vigie-windows', 'zip', 'dist', 'Vigie')"
+      - name: Check the zip
+        run: python packaging/check_zip.py Vigie-windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Vigie-windows
+          path: Vigie-windows.zip
+          compression-level: 0
+          if-no-files-found: error
+
+  macos:
+    name: macOS app
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install Vigie and PyInstaller
+        run: pip install . pyinstaller==6.22.3
+      - name: Build Vigie.app
+        run: pyinstaller --noconfirm --clean packaging/vigie.spec
+      - name: Check the bundle and its signature
+        run: |
+          codesign --verify --deep --strict --verbose=2 dist/Vigie.app
+          codesign --display --verbose=2 dist/Vigie.app 2>&1 | tee codesign.txt
+          grep -q "Signature=adhoc" codesign.txt
+          plutil -p dist/Vigie.app/Contents/Info.plist
+          archs=$(lipo -archs dist/Vigie.app/Contents/MacOS/Vigie)
+          minos=$(otool -l dist/Vigie.app/Contents/MacOS/Vigie | awk '/minos/ {print $2; exit}')
+          signature=$(grep -E "^(Identifier|Format|Signature)=" codesign.txt | tr '\n' ' ')
+          echo "::notice title=Vigie.app::$signature, architectures: $archs, built for macOS $minos and later"
+      - name: Run the demo with the built program
+        run: |
+          start=$(python -c "import time; print(time.time())")
+          dist/Vigie.app/Contents/MacOS/Vigie demo --no-open -o out
+          test -f out/report.html
+          took=$(python -c "import time; print(round(time.time() - $start, 1))")
+          echo "::notice title=Vigie.app demo::demo in $took s, report.html of $(wc -c < out/report.html | tr -d ' ') bytes"
+      - name: Try the app and a double-click
+        run: python packaging/smoke_test.py dist/Vigie.app/Contents/MacOS/Vigie --double-click dist/Vigie.app
+      - name: Zip the app
+        # ditto keeps the bundle whole: its symbolic links and signature.
+        run: ditto -c -k --keepParent dist/Vigie.app Vigie-macos.zip
+      - name: Check the zip
+        run: python packaging/check_zip.py Vigie-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Vigie-macos
+          path: Vigie-macos.zip
+          compression-level: 0
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check that the tag is the version of Vigie
+        run: |
+          version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/vigie/__init__.py)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "The tag $GITHUB_REF_NAME does not match Vigie's version, $version." >&2
+            exit 1
+          fi
+      - uses: actions/download-artifact@v4
+        with:
+          path: apps
+          merge-multiple: true
+      - name: Attach the apps to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" apps/Vigie-windows.zip apps/Vigie-macos.zip --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" apps/Vigie-windows.zip apps/Vigie-macos.zip \
+              --title "$GITHUB_REF_NAME" --verify-tag --generate-notes
+          fi

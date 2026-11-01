@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Vigie</title>
+  <defs>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#245689"/>
+      <stop offset="1" stop-color="#0e1b2a"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dbe5ef"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#sea)"/>
+  <!-- A lookout's eye over the horizon, inside a shield. -->
+  <g transform="translate(208 196) scale(19)">
+    <path d="M16 2.2 4.4 6.6v8.6c0 7.2 4.9 12.6 11.6 14.6 6.7-2 11.6-7.4 11.6-14.6V6.6z" fill="url(#shield)"/>
+    <path d="M9.2 17.6a6.8 6.8 0 0 1 13.6 0" fill="none" stroke="#13304f" stroke-width="2.3" stroke-linecap="round"/>
+    <circle cx="16" cy="17.4" r="2.6" fill="#f2a93b"/>
+    <path d="M8.4 21.4h15.2" stroke="#13304f" stroke-width="2.1" stroke-linecap="round"/>
+  </g>
+</svg>

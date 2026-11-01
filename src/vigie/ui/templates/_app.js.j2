@@ -1,0 +1,544 @@
+{% raw %}
+// The Vigie app: uploads, analyses with live progress, recent reports and the Watch tab.
+(function () {
+  "use strict";
+  var doc = document;
+  var root = doc.documentElement;
+  var $ = function (sel, scope) { return (scope || doc).querySelector(sel); };
+  var reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var TOKEN = $('meta[name="vigie-token"]').getAttribute("content");
+  var fmt = function (n) { return Number(n || 0).toLocaleString("en-US"); };
+  var LEVELS = ["critical", "high", "medium", "low", "informational"];
+
+  function api(method, path, body) {
+    return fetch(path, {
+      method: method,
+      headers: { "X-Vigie-Token": TOKEN, "Content-Type": "application/json" },
+      body: method === "GET" ? undefined : JSON.stringify(body || {}),
+      credentials: "same-origin",
+    }).then(function (response) {
+      return response.json().catch(function () { return {}; }).then(function (data) {
+        if (!response.ok) { throw new Error(data.error || response.statusText); }
+        return data;
+      });
+    });
+  }
+  function el(tag, cls, text) {
+    var node = doc.createElement(tag);
+    if (cls) { node.className = cls; }
+    if (text !== undefined && text !== null) { node.textContent = text; }
+    return node;
+  }
+  function badge(level, text) {
+    var b = el("span", "badge sev-" + level, text || level);
+    return b;
+  }
+
+  // Keep the server running while this page is open.
+  function beat() { api("POST", "/api/heartbeat").catch(function () {}); }
+  setInterval(beat, 20000);
+  doc.addEventListener("visibilitychange", function () { if (!doc.hidden) { beat(); } });
+
+  // ---- Theme (shared with the report pages, same storage key) ----
+  var themeBtn = $("#theme");
+  var MOON = '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.6 9.9A5.8 5.8 0 0 1 6.1 2.4a5.8 5.8 0 1 0 7.5 7.5z"/></svg>';
+  var SUN = '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>';
+  function theme() {
+    return root.getAttribute("data-theme") ||
+      (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  }
+  function syncTheme() {
+    var dark = theme() === "dark";
+    themeBtn.innerHTML = dark ? SUN : MOON;
+    themeBtn.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
+  }
+  themeBtn.addEventListener("click", function () {
+    var next = theme() === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("vigie-theme", next); } catch (e) { /* storage blocked */ }
+    syncTheme();
+    var frame = $("#report-frame");
+    try { if (frame.contentDocument) { frame.contentDocument.documentElement.setAttribute("data-theme", next); } } catch (e) { /* not loaded */ }
+  });
+  syncTheme();
+
+  var toastEl = $("#toast");
+  var toastTimer = 0;
+  function toast(text) {
+    toastEl.querySelector("span").textContent = text;
+    toastEl.classList.add("is-on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove("is-on"); }, 2200);
+  }
+
+  // ---- Counters that count up to their latest value ----
+  var tweens = new Map();
+  function setCount(node, value) {
+    var target = Number(value) || 0;
+    if (reduced) { node.textContent = fmt(target); return; }
+    var from = Number(node.getAttribute("data-value") || 0);
+    node.setAttribute("data-value", String(target));
+    if (from === target) { node.textContent = fmt(target); return; }
+    cancelAnimationFrame(tweens.get(node) || 0);
+    var start = 0;
+    var step = function (t) {
+      if (!start) { start = t; }
+      var p = Math.min(1, (t - start) / 420);
+      node.textContent = fmt(Math.round(from + (target - from) * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) { tweens.set(node, requestAnimationFrame(step)); }
+    };
+    tweens.set(node, requestAnimationFrame(step));
+  }
+
+  // ---- Views ----
+  var views = { home: $("#view-home"), progress: $("#view-progress"), results: $("#view-results"), watch: $("#view-watch") };
+  function show(name) {
+    Object.keys(views).forEach(function (key) { views[key].hidden = key !== name; });
+    var tab = name === "watch" ? "watch" : "analyze";
+    doc.querySelectorAll(".tabs a").forEach(function (a) {
+      if (a.getAttribute("data-tab") === tab) { a.setAttribute("aria-current", "page"); } else { a.removeAttribute("aria-current"); }
+    });
+    window.scrollTo(0, 0);
+  }
+  var state = { recent: [], watches: [] };
+  function route() {
+    var hash = location.hash || "#/";
+    var report = hash.match(/^#\/report\/([0-9a-f-]+)$/);
+    var job = hash.match(/^#\/analysis\/([0-9a-f-]+)$/);
+    if (report) { openReport(report[1]); }
+    else if (job) { show("progress"); }
+    else if (hash === "#/watch") { show("watch"); resumeWatch(); }
+    else { show("home"); loadState(); }
+  }
+  window.addEventListener("hashchange", route);
+
+  function loadState() {
+    return api("GET", "/api/state").then(function (data) {
+      state = data;
+      renderRecent();
+      return data;
+    }).catch(function () {});
+  }
+
+  function countsLine(counts, small) {
+    var wrap = el("span", small ? "minicounts" : "result-counts");
+    var any = false;
+    LEVELS.forEach(function (level) {
+      if (counts && counts[level]) { any = true; wrap.appendChild(badge(level, counts[level] + " " + level)); }
+    });
+    if (!any) { wrap.appendChild(el("span", "none", "No alert")); }
+    return wrap;
+  }
+  function when(iso) {
+    try { return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }); } catch (e) { return iso; }
+  }
+  function renderRecent() {
+    var list = $("#recent-list");
+    list.textContent = "";
+    var items = state.recent || [];
+    $("#recent").hidden = items.length === 0;
+    items.forEach(function (entry, i) {
+      var li = el("li", "recent-item");
+      if (!reduced && i < 8) { li.style.animation = "rise .5s var(--ease-out) both"; li.style.animationDelay = (i * 40) + "ms"; }
+      var main = el("div");
+      var name = el("a", "name" + (entry.kind === "path" ? " mono" : ""), entry.label);
+      name.href = "#/report/" + entry.id;
+      main.appendChild(name);
+      main.appendChild(el("div", "sub", when(entry.created) + "   " + fmt(entry.events) + " events from " + fmt(entry.files) + " file" + (entry.files === 1 ? "" : "s")));
+      main.appendChild(countsLine(entry.counts, true));
+      var acts = el("div", "acts");
+      var open = el("a", "btn", "Open");
+      open.href = "#/report/" + entry.id;
+      var remove = el("button", "btn btn-quiet", "Remove");
+      remove.type = "button";
+      remove.setAttribute("aria-label", "Remove " + entry.label + " from recent analyses");
+      remove.addEventListener("click", function () {
+        api("DELETE", "/api/reports/" + entry.id).then(function () {
+          li.animate ? li.animate([{ opacity: 1 }, { opacity: 0, transform: "scale(.97)" }], { duration: 180 }).onfinish = loadState : loadState();
+        }).catch(function (err) { toast(err.message); });
+      });
+      acts.appendChild(open);
+      acts.appendChild(remove);
+      li.appendChild(main);
+      li.appendChild(acts);
+      list.appendChild(li);
+    });
+  }
+
+  // ---- Starting an analysis ----
+  function homeError(message) {
+    var box = $("#home-error");
+    box.textContent = message || "";
+    box.hidden = !message;
+  }
+  $("#sample").addEventListener("click", function () {
+    homeError("");
+    start({ source: "sample" }, "Sample logs", "Analyzing the sample logs");
+  });
+  $("#path-form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    var path = $("#path").value.trim();
+    if (!path) { homeError("Type the path of a log file or a folder of logs."); $("#path").focus(); return; }
+    homeError("");
+    start({ source: "path", path: path }, path, "Analyzing");
+  });
+
+  function start(body, label, kind) {
+    resetProgress(label, kind, false);
+    return api("POST", "/api/analyses", body).then(function (job) {
+      history.replaceState(null, "", "#/analysis/" + job.id);
+      follow(job.id);
+    }).catch(function (err) {
+      location.hash = "#/";
+      homeError(err.message);
+    });
+  }
+
+  function resetProgress(label, kind, uploading) {
+    $("#progress-kind").textContent = kind;
+    // A path shows its last part as the title, and in full below it.
+    var parts = String(label).split(/[\\/]/).filter(Boolean);
+    var isPath = /[\\/]/.test(label) && !uploading;
+    $("#progress-title").textContent = isPath ? parts[parts.length - 1] || label : label;
+    $("#progress-path").textContent = isPath ? label : "";
+    $("#progress-path").hidden = !isPath;
+    ["#c-files", "#c-events", "#c-alerts"].forEach(function (id) { var n = $(id); n.setAttribute("data-value", "0"); n.textContent = "0"; });
+    $("#c-files-l").textContent = "files read";
+    $("#bar").classList.remove("is-done");
+    setBar(0);
+    $("#failed").hidden = true;
+    $("#s-read").textContent = "";
+    $("#s-match").textContent = "";
+    $("#s-upload").textContent = "";
+    doc.querySelectorAll("#steps li").forEach(function (li) { li.classList.remove("is-active", "is-done"); });
+    $('#steps li[data-step="upload"]').hidden = !uploading;
+    stepState(uploading ? "upload" : "read");
+    show("progress");
+  }
+  function setBar(fraction) {
+    var value = Math.max(0, Math.min(100, Math.round(fraction * 100)));
+    $("#bar span").style.width = value + "%";
+    $("#bar").setAttribute("aria-valuenow", String(value));
+  }
+  var ORDER = ["upload", "read", "match", "report"];
+  function stepState(current) {
+    var index = ORDER.indexOf(current);
+    doc.querySelectorAll("#steps li").forEach(function (li) {
+      var i = ORDER.indexOf(li.getAttribute("data-step"));
+      li.classList.toggle("is-done", i < index || current === "finished");
+      li.classList.toggle("is-active", i === index && current !== "finished");
+    });
+  }
+
+  function follow(jobId) {
+    var source = new EventSource("/api/analyses/" + jobId + "/events");
+    var total = 0;
+    source.addEventListener("progress", function (event) {
+      var d = JSON.parse(event.data);
+      if (d.stage === "start") { setCount($("#c-rules"), d.rules); stepState("read"); }
+      if (d.stage === "file") {
+        total = d.total;
+        stepState("read");
+        $("#s-read").textContent = d.path;
+        $("#c-files-l").textContent = "of " + fmt(d.total) + " files read";
+        setBar(0.6 * (d.index / Math.max(1, d.total)));
+      }
+      if (d.stage === "parsed") {
+        setCount($("#c-events"), d.events);
+        setCount($("#c-files"), Number($("#c-files").getAttribute("data-value") || 0) + 1);
+      }
+      if (d.stage === "match") {
+        stepState("match");
+        $("#s-read").textContent = "";
+        $("#s-match").textContent = fmt(d.done) + " of " + fmt(d.total) + " events";
+        setBar(0.6 + 0.35 * (d.done / Math.max(1, d.total)));
+      }
+      if (d.stage === "done") { stepState("report"); setBar(0.97); }
+    });
+    source.addEventListener("done", function (event) {
+      source.close();
+      var entry = JSON.parse(event.data);
+      if (!total) { setCount($("#c-files"), entry.files); }
+      setCount($("#c-alerts"), entry.alerts);
+      stepState("finished");
+      setBar(1);
+      $("#bar").classList.add("is-done");
+      setTimeout(function () { location.hash = "#/report/" + entry.id; }, reduced ? 0 : 650);
+    });
+    source.addEventListener("failed", function (event) {
+      source.close();
+      $("#failed-text").textContent = JSON.parse(event.data).message;
+      $("#failed").hidden = false;
+      doc.querySelectorAll("#steps li.is-active").forEach(function (li) { li.classList.remove("is-active"); });
+    });
+  }
+
+  // ---- Uploads: files, a folder, or a drop of both ----
+  var drop = $("#drop");
+  var depth = 0;
+  ["dragenter", "dragover"].forEach(function (type) {
+    doc.addEventListener(type, function (event) {
+      if (views.home.hidden || !event.dataTransfer || Array.prototype.indexOf.call(event.dataTransfer.types, "Files") < 0) { return; }
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      if (type === "dragenter") { depth++; }
+      drop.classList.add("is-over");
+    });
+  });
+  doc.addEventListener("dragleave", function () {
+    depth = Math.max(0, depth - 1);
+    if (!depth) { drop.classList.remove("is-over"); }
+  });
+  doc.addEventListener("drop", function (event) {
+    if (views.home.hidden || !event.dataTransfer) { return; }
+    event.preventDefault();
+    depth = 0;
+    drop.classList.remove("is-over");
+    gather(event.dataTransfer).then(function (files) { upload(files); });
+  });
+  $("#pick-files").addEventListener("change", function (event) {
+    upload(Array.prototype.map.call(event.target.files, function (f) { return { file: f, path: f.name }; }));
+    event.target.value = "";
+  });
+  $("#pick-folder").addEventListener("change", function (event) {
+    upload(Array.prototype.map.call(event.target.files, function (f) { return { file: f, path: f.webkitRelativePath || f.name }; }));
+    event.target.value = "";
+  });
+
+  function gather(transfer) {
+    var entries = Array.prototype.map.call(transfer.items || [], function (item) {
+      return item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+    }).filter(Boolean);
+    if (!entries.length) {
+      return Promise.resolve(Array.prototype.map.call(transfer.files || [], function (f) { return { file: f, path: f.name }; }));
+    }
+    var out = [];
+    function walk(entry, prefix) {
+      if (entry.isFile) {
+        return new Promise(function (resolve) {
+          entry.file(function (f) { out.push({ file: f, path: prefix + f.name }); resolve(); }, resolve);
+        });
+      }
+      if (!entry.isDirectory) { return Promise.resolve(); }
+      var reader = entry.createReader();
+      return new Promise(function (resolve) {
+        var all = [];
+        (function more() {
+          reader.readEntries(function (batch) {
+            if (!batch.length) {
+              Promise.all(all.map(function (child) { return walk(child, prefix + entry.name + "/"); })).then(resolve);
+              return;
+            }
+            all = all.concat(Array.prototype.slice.call(batch));
+            more();
+          }, resolve);
+        })();
+      });
+    }
+    return Promise.all(entries.map(function (entry) { return walk(entry, ""); })).then(function () { return out; });
+  }
+
+  function upload(files) {
+    files = files.filter(function (item) {
+      return !item.path.split("/").some(function (part) { return part.charAt(0) === "."; });
+    });
+    if (!files.length) { homeError("Nothing to analyze: pick log files or a folder that holds some."); return; }
+    homeError("");
+    var top = files[0].path.split("/")[0];
+    var label = files.length === 1 ? files[0].path : (files.every(function (f) { return f.path.split("/")[0] === top; }) && files[0].path.indexOf("/") > 0 ? top + " (" + files.length + " files)" : files.length + " files");
+    resetProgress(label, "Analyzing", true);
+    $("#progress-kind").textContent = "Sending " + fmt(files.length) + " file" + (files.length === 1 ? "" : "s") + " to Vigie, on this computer";
+    var totalBytes = files.reduce(function (sum, item) { return sum + item.file.size; }, 0) || 1;
+    var sent = 0;
+    var next = 0;
+    var progressOf = new Map();
+    function report() {
+      var done = sent;
+      progressOf.forEach(function (n) { done += n; });
+      $("#s-upload").textContent = Math.round(100 * done / totalBytes) + "%";
+      setBar(0.25 * done / totalBytes);
+    }
+    return api("POST", "/api/uploads").then(function (created) {
+      function one() {
+        if (next >= files.length) { return Promise.resolve(); }
+        var item = files[next++];
+        return new Promise(function (resolve, reject) {
+          var xhr = new XMLHttpRequest();
+          var path = item.path.split("/").map(encodeURIComponent).join("/");
+          xhr.open("PUT", "/api/uploads/" + created.id + "/" + path);
+          xhr.setRequestHeader("X-Vigie-Token", TOKEN);
+          xhr.setRequestHeader("X-Last-Modified", String(item.file.lastModified || ""));
+          xhr.upload.onprogress = function (e) { progressOf.set(xhr, e.loaded); report(); };
+          xhr.onload = function () {
+            progressOf.delete(xhr);
+            if (xhr.status >= 200 && xhr.status < 300) { sent += item.file.size; report(); resolve(); }
+            else {
+              var message = "The upload of " + item.path + " failed";
+              try { message = JSON.parse(xhr.responseText).error || message; } catch (e) { /* not JSON */ }
+              reject(new Error(message));
+            }
+          };
+          xhr.onerror = function () { reject(new Error("The upload of " + item.path + " failed")); };
+          xhr.send(item.file);
+        }).then(one);
+      }
+      return Promise.all([one(), one(), one()]).then(function () {
+        stepState("read");
+        $("#progress-kind").textContent = "Analyzing";
+        return api("POST", "/api/analyses", { source: "upload", upload: created.id, label: label });
+      });
+    }).then(function (job) {
+      history.replaceState(null, "", "#/analysis/" + job.id);
+      follow(job.id);
+    }).catch(function (err) {
+      $("#failed-text").textContent = err.message;
+      $("#failed").hidden = false;
+    });
+  }
+
+  // ---- Results ----
+  var current = null;
+  function openReport(id) {
+    var shown = function (entry) {
+      if (!entry) { location.hash = "#/"; return; }
+      current = entry;
+      $("#results-title").textContent = entry.label;
+      $("#results-meta").textContent = fmt(entry.events) + " events from " + fmt(entry.files) + " file" + (entry.files === 1 ? "" : "s") +
+        ", analyzed " + when(entry.created) + (entry.seconds !== undefined ? " in " + entry.seconds + " s" : "");
+      var counts = $("#results-counts");
+      counts.replaceWith(countsLine(entry.counts, false));
+      $(".result-counts").id = "results-counts";
+      var frame = $("#report-frame");
+      var src = "/reports/" + entry.id + "/report.html";
+      if (frame.getAttribute("src") !== src) { frame.setAttribute("src", src); }
+      show("results");
+    };
+    var known = (state.recent || []).filter(function (e) { return e.id === id; })[0];
+    if (known) { shown(known); }
+    else { loadState().then(function () { shown((state.recent || []).filter(function (e) { return e.id === id; })[0]); }); }
+  }
+  $("#report-frame").addEventListener("load", function () {
+    var frame = $("#report-frame");
+    try {
+      var t = root.getAttribute("data-theme");
+      if (t && frame.contentDocument) { frame.contentDocument.documentElement.setAttribute("data-theme", t); }
+    } catch (e) { /* cross-origin never happens here */ }
+  });
+  $("#open-browser").addEventListener("click", function () {
+    if (!current) { return; }
+    api("POST", "/api/reports/" + current.id + "/open").then(function () { toast("Opened in your browser"); }).catch(function (err) { toast(err.message); });
+  });
+  $("#reveal").addEventListener("click", function () {
+    if (!current) { return; }
+    api("POST", "/api/reports/" + current.id + "/reveal").catch(function (err) { toast(err.message); });
+  });
+
+  // ---- Watch ----
+  var watch = null;
+  function watchError(message) {
+    var box = $("#watch-error");
+    box.textContent = message || "";
+    box.hidden = !message;
+  }
+  $("#watch-form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    var path = $("#watch-path").value.trim();
+    if (!path) { watchError("Type the path of a log file, or of a folder of logs."); return; }
+    watchError("");
+    api("POST", "/api/watches", { path: path }).then(function (session) {
+      startWatchView(session.id, session.label);
+    }).catch(function (err) { watchError(err.message); });
+  });
+  function resumeWatch() {
+    if (watch) { return; }
+    loadState().then(function (data) {
+      var running = ((data && data.watches) || []).filter(function (w) { return w.running; })[0];
+      if (running && !watch) { startWatchView(running.id, running.label); }
+    });
+  }
+  function startWatchView(id, label) {
+    if (watch && watch.source) { watch.source.close(); }
+    watch = { id: id, paused: false, seen: 0 };
+    $("#watch-form").hidden = true;
+    $("#watching").hidden = false;
+    $("#feed").textContent = "";
+    $("#feed-empty").hidden = false;
+    $("#w-label").textContent = label;
+    $("#w-state").textContent = "Watching";
+    $("#w-report").href = "/watches/" + id + "/report.html";
+    $("#statusbar").classList.remove("is-paused", "is-stopped");
+    syncPause();
+    var source = new EventSource("/api/watches/" + id + "/events");
+    watch.source = source;
+    source.addEventListener("alert", function (event) {
+      var a = JSON.parse(event.data);
+      $("#feed-empty").hidden = true;
+      var li = el("li", "alert-toast sev-" + a.level);
+      li.appendChild(badge(a.level, a.level === "informational" ? "info" : a.level));
+      var title = el("div", "t", a.title);
+      var time = el("time", "", a.time);
+      title.appendChild(time);
+      if (a.techniques && a.techniques.length) {
+        var tech = el("span", "techs");
+        a.techniques.forEach(function (t) { tech.appendChild(el("span", "", t)); });
+        title.appendChild(tech);
+      }
+      li.appendChild(title);
+      li.appendChild(el("div", "d", a.what));
+      var feed = $("#feed");
+      feed.insertBefore(li, feed.firstChild);
+      while (feed.children.length > 200) { feed.removeChild(feed.lastChild); }
+    });
+    source.addEventListener("status", function (event) {
+      var s = JSON.parse(event.data);
+      setCount($("#w-events"), s.events);
+      $("#w-rate").textContent = String(s.rate);
+      setCount($("#w-alerts"), s.alerts);
+      var m = Math.floor(s.seconds / 60);
+      $("#w-time").textContent = (m >= 60 ? Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0") : m) + ":" + String(s.seconds % 60).padStart(2, "0");
+    });
+    source.addEventListener("failed", function (event) { watchError(JSON.parse(event.data).message); });
+    source.addEventListener("stopped", function () {
+      source.close();
+      $("#statusbar").classList.add("is-stopped");
+      $("#w-state").textContent = "Stopped. The report holds everything that was seen.";
+      $("#w-pause").hidden = true;
+      $("#w-stop").innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Watch something else';
+      watch.stopped = true;
+    });
+  }
+  function syncPause() {
+    var b = $("#w-pause");
+    b.hidden = false;
+    b.setAttribute("aria-pressed", String(!!(watch && watch.paused)));
+    b.innerHTML = watch && watch.paused
+      ? '<svg class="icon" aria-hidden="true"><use href="#i-play"/></svg><span>Resume</span>'
+      : '<svg class="icon" aria-hidden="true"><use href="#i-pause"/></svg><span>Pause</span>';
+    $("#statusbar").classList.toggle("is-paused", !!(watch && watch.paused));
+    $("#w-stop").innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-stop"/></svg>Stop';
+  }
+  $("#w-pause").addEventListener("click", function () {
+    if (!watch) { return; }
+    var paused = !watch.paused;
+    api("POST", "/api/watches/" + watch.id + "/pause", { paused: paused }).then(function (r) {
+      watch.paused = r.paused;
+      syncPause();
+      $("#w-state").textContent = r.paused ? "Paused: new lines wait until you resume" : "Watching";
+    }).catch(function (err) { toast(err.message); });
+  });
+  $("#w-stop").addEventListener("click", function () {
+    if (!watch) { return; }
+    if (watch.stopped) {
+      watch = null;
+      $("#watching").hidden = true;
+      $("#watch-form").hidden = false;
+      $("#watch-path").focus();
+      return;
+    }
+    api("POST", "/api/watches/" + watch.id + "/stop").catch(function (err) { toast(err.message); });
+  });
+
+  route();
+  beat();
+})();
+{% endraw %}

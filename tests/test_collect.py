@@ -49,7 +49,8 @@ def test_collect_fixture_tree(tree):
         "evtx/sysmon_10_lsass_mimikatz_sekurlsa_logonpasswords.evtx": "evtx",
         "winjson/cmd_bitsadmin_download_psh_script_excerpt.json": "winjson",
     }
-    assert result.skipped == [
+    # Sorted here: paths sort without regard to case on Windows.
+    assert sorted(result.skipped) == [
         "README.md (unsupported format)",
         "evtx/LICENSE.GPL (unsupported format)",
     ]
@@ -170,6 +171,23 @@ class TestDetectFormat:
 
     def test_unified_log_stream_starts_with_a_header(self):
         assert detect_format(FIXTURES / "unifiedlog" / "mac_ssh.ndjson") == "unifiedlog"
+
+    @pytest.mark.parametrize(
+        "fixture", ["agent_benign.jsonl", "agent_openai.jsonl", "agent_mcp.jsonl"]
+    )
+    @pytest.mark.parametrize("suffix", [".jsonl", ".json", ".ndjson"])
+    def test_ai_agent_logs_in_each_dialect(self, tmp_path, fixture, suffix):
+        path = tmp_path / f"agent{suffix}"
+        shutil.copy(FIXTURES / "agentlog" / fixture, path)
+        assert detect_format(path) == "agentlog"
+
+    def test_ai_agent_log_is_collected(self, tmp_path):
+        shutil.copy(FIXTURES / "agentlog" / "agent_mcp.jsonl", tmp_path / "mcp.jsonl")
+        result = collect(tmp_path)
+        assert [(f.path, f.format, f.events) for f in result.files] == [
+            ("mcp.jsonl", "agentlog", 4)
+        ]
+        assert {event.source for event in result.events} == {"agentlog"}
 
     @pytest.mark.parametrize("name", ["auth.log", "auth.log.1", "secure", "secure-20240310"])
     def test_authlog_by_name(self, tmp_path, name):

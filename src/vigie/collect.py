@@ -3,7 +3,7 @@
 Formats are detected from the file *content* first (EVTX magic bytes, JSON
 shape, syslog lines written by sshd/sudo...), and from the name only as a
 hint, because collected logs are often renamed (``DC01-Security.evtx``,
-``auth.log.3.gz``, ``export.json``, ``mac.ndjson``).
+``auth.log.3.gz``, ``export.json``, ``mac.ndjson``, ``agent.jsonl``).
 """
 
 from __future__ import annotations
@@ -17,15 +17,19 @@ from dataclasses import dataclass, field
 from datetime import tzinfo
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 from vigie.models import Event
-from vigie.parsers import ParseResult, authlog, unifiedlog, winevtx, winjson
+from vigie.parsers import ParseResult, agentlog, authlog, unifiedlog, winevtx, winjson
 from vigie.timeutils import UTC
 
 EVTX_MAGIC = b"ElfFile\x00"
 AUTHLOG_NAME = re.compile(r"^(auth\.log|secure)([.-].*)?$")
 SNIFF_LINES = 50
 SNIFF_BYTES = 64 * 1024
+
+# Called as progress(stage, **details) while an analysis runs, to show it (see analysis.py).
+Progress = Callable[..., Any]
 
 
 @dataclass
@@ -48,7 +52,7 @@ class Collection:
 
 
 def detect_format(path: Path) -> str | None:
-    """The format of a file: evtx, winjson, unifiedlog, authlog, or ``None`` if unsupported."""
+    """The format of a file: evtx, winjson, unifiedlog, agentlog, authlog, or ``None``."""
     with path.open("rb") as handle:
         head = handle.read(len(EVTX_MAGIC))
     if head == EVTX_MAGIC:
@@ -64,10 +68,18 @@ def detect_format(path: Path) -> str | None:
     return None
 
 
-def collect(root: str | Path, *, year: int | None = None, tz: tzinfo = UTC) -> Collection:
+def collect(
+    root: str | Path,
+    *,
+    year: int | None = None,
+    tz: tzinfo = UTC,
+    progress: Progress | None = None,
+) -> Collection:
     """Parse every supported file under ``root`` (a folder, searched recursively, or one file).
 
     ``year`` and ``tz`` are passed to the auth.log parser, see :func:`vigie.parsers.authlog.parse`.
+    ``progress``, when given, is told which file is read (``"file"``) and how many events
+    were read so far (``"parsed"``).
     """
     root = Path(root)
     if not root.exists():
@@ -77,13 +89,17 @@ def collect(root: str | Path, *, year: int | None = None, tz: tzinfo = UTC) -> C
         "evtx": winevtx.parse,
         "winjson": winjson.parse,
         "unifiedlog": unifiedlog.parse,
+        "agentlog": agentlog.parse,
         "authlog": partial(authlog.parse, year=year, tz=tz),
     }
     base = root if root.is_dir() else root.parent
     collection = Collection()
 
-    for path in _candidate_files(root):
+    candidates = _candidate_files(root)
+    for index, path in enumerate(candidates):
         relative = path.relative_to(base).as_posix()
+        if progress:
+            progress("file", path=relative, index=index, total=len(candidates))
         try:
             fmt = detect_format(path)
         except OSError as exc:
@@ -99,6 +115,8 @@ def collect(root: str | Path, *, year: int | None = None, tz: tzinfo = UTC) -> C
             continue
         collection.events.extend(result.events)
         collection.files.append(FileReport(relative, fmt, len(result.events), result.warnings))
+        if progress:
+            progress("parsed", path=relative, events=len(collection.events))
 
     # sort() is stable: events with the same timestamp keep their file order.
     collection.events.sort(key=lambda event: event.timestamp)
@@ -124,7 +142,7 @@ def _zip_has_json(path: Path) -> bool:
 
 
 def _json_format(path: Path) -> str | None:
-    """Tell Windows JSON exports from macOS unified log exports by their first object."""
+    """Tell Windows, macOS unified log and AI agent JSON logs apart by their first object."""
     with path.open(encoding="utf-8", errors="replace") as handle:
         for line in itertools.islice(handle, SNIFF_LINES):
             if not line.strip() or line.startswith(unifiedlog.STREAM_HEADER):
@@ -139,6 +157,8 @@ def _json_format(path: Path) -> str | None:
                 return "winjson"
             if "eventMessage" in data or "eventType" in data:
                 return "unifiedlog"
+            if agentlog.dialect_of(data) is not None:
+                return "agentlog"
             return None
     return None
 

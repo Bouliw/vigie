@@ -1,0 +1,30 @@
+Mar 10 08:58:01 web01 CRON[1201]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+Mar 10 08:58:01 web01 CRON[1201]: pam_unix(cron:session): session closed for user root
+Mar 10 09:02:14 web01 sshd[1310]: Accepted publickey for deploy from 192.0.2.10 port 51514 ssh2: ED25519 SHA256:q2Vd0fXzG1kq3v8mY7s1x2bT9cQeWnR4uHjK5aLpZoE
+Mar 10 09:02:14 web01 sshd[1310]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+Mar 10 09:05:40 web01 sshd[1344]: Invalid user oracle from 203.0.113.45 port 40022
+Mar 10 09:05:42 web01 sshd[1344]: Failed password for invalid user oracle from 203.0.113.45 port 40022 ssh2
+Mar 10 09:05:49 web01 sshd[1347]: Failed password for root from 203.0.113.45 port 40030 ssh2
+Mar 10 09:05:56 web01 sshd[1350]: Failed password for root from 203.0.113.45 port 40038 ssh2
+Mar 10 09:06:03 web01 sshd[1353]: Failed password for invalid user admin from 203.0.113.45 port 40046 ssh2
+Mar 10 09:06:10 web01 sshd[1356]: Failed password for invalid user admin from 203.0.113.45 port 40054 ssh2
+Mar 10 09:06:17 web01 sshd[1359]: Failed password for invalid user test from 203.0.113.45 port 40062 ssh2
+Mar 10 09:06:24 web01 sshd[1362]: Failed password for root from 203.0.113.45 port 40070 ssh2
+Mar 10 09:06:31 web01 sshd[1365]: Failed password for opsadmin from 203.0.113.45 port 40078 ssh2
+Mar 10 09:06:38 web01 sshd[1368]: Failed password for opsadmin from 203.0.113.45 port 40086 ssh2
+Mar 10 09:06:45 web01 sshd[1371]: Failed password for invalid user ubuntu from 203.0.113.45 port 40094 ssh2
+Mar 10 09:06:52 web01 sshd[1374]: Failed password for root from 203.0.113.45 port 40102 ssh2
+Mar 10 09:06:59 web01 sshd[1377]: Failed password for opsadmin from 203.0.113.45 port 40110 ssh2
+Mar 10 09:07:05 web01 sshd[1390]: Accepted password for opsadmin from 203.0.113.45 port 40188 ssh2
+Mar 10 09:07:05 web01 sshd[1390]: pam_unix(sshd:session): session opened for user opsadmin(uid=1002) by (uid=0)
+Mar 10 09:08:12 web01 sudo: opsadmin : TTY=pts/1 ; PWD=/home/opsadmin ; USER=root ; COMMAND=/usr/sbin/useradd -m -s /bin/bash svc_update
+Mar 10 09:08:12 web01 sudo: pam_unix(sudo:session): session opened for user root(uid=0) by opsadmin(uid=1002)
+Mar 10 09:08:12 web01 useradd[1422]: new group: name=svc_update, GID=1003
+Mar 10 09:08:12 web01 useradd[1422]: new user: name=svc_update, UID=1003, GID=1003, home=/home/svc_update, shell=/bin/bash, from=/dev/pts/1
+Mar 10 09:09:30 web01 sudo:   deploy : 3 incorrect password attempts ; TTY=pts/0 ; PWD=/srv/app ; USER=root ; COMMAND=/bin/bash
+Mar 10 09:10:02 web01 su: (to root) opsadmin on pts/1
+Mar 10 09:10:02 web01 su: pam_unix(su:session): session opened for user root(uid=0) by opsadmin(uid=1002)
+Mar 10 09:12:44 web01 sshd[1501]: Failed password for deploy from 198.51.100.7 port 60122 ssh2
+Mar 10 09:12:50 web01 sshd[1501]: Accepted password for deploy from 198.51.100.7 port 60122 ssh2
+Mar 10 09:15:00 web01 systemd-logind[640]: New session 12 of user deploy.
+-- this line is not syslog and must be reported as a warning --

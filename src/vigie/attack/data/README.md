@@ -1,7 +1,8 @@
 # MITRE ATT&CK extract
 
 `enterprise_attack.json` is a reduced copy of the Enterprise ATT&CK STIX
-bundle: for each tactic and technique, only the id, name, tactics and URL are
+bundle: for each tactic and technique, only the id, name, tactics, URL and the
+first sentences of the description (at most 320 characters, as plain text) are
 kept, plus the list of revoked technique ids and their replacements.
 
 - Source: https://github.com/mitre-attack/attack-stix-data

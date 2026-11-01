@@ -1,6 +1,6 @@
 # Vigie report
 
-Generated on 2026-10-12 20:59:04Z by Vigie 0.2.0. Alerts are mapped to MITRE ATT&CK 19.2. All times are UTC.
+Generated on 2026-11-01 18:22:15Z by Vigie 0.4.2. Alerts are mapped to MITRE ATT&CK 19.2. All times are UTC.
 
 ## Summary
 
@@ -9,7 +9,7 @@ Generated on 2026-10-12 20:59:04Z by Vigie 0.2.0. Alerts are mapped to MITRE ATT
 | Events analyzed | 441 |
 | Time range | 2020-09-04 07:07:19Z to 2026-10-05 16:20:00Z |
 | Files read | 38 |
-| Rules loaded | 36 |
+| Rules loaded | 53 |
 | Alerts shown | 52 (level low and above) |
 
 | Severity | Alerts |

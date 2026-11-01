@@ -1,0 +1,41 @@
+title: LLM Prompt Injection In Retrieved Content Or Tool Result
+id: 3bae5d5e-2f8a-455c-bb7a-2d7be6144de4
+name: ai_indirect_prompt_injection
+status: experimental
+description: A document added to the model's context by a retrieval step, or the result of a tool (a web page, an email, a ticket, a file), carries instructions meant for the model rather than for the reader. The rule looks for the wording of prompt injections ("ignore previous instructions"), text addressed to AI assistants ("note to the AI", "if you are an AI model"), requests to hide something from the user ("do not tell the user"), the <IMPORTANT> blocks of poisoned tool outputs, chat template role tokens, and text hidden in invisible Unicode tag characters, which no legitimate document needs. Whoever controls that content can steer the agent with the user's privileges; check the tool calls and answers that followed in the session.
+references:
+    - https://atlas.mitre.org/techniques/AML.T0051.001
+    - https://arxiv.org/abs/2302.12173
+    - https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks
+author: Bouliw
+date: 2026-10-29
+tags:
+    - atlas.execution
+    - atlas.aml.t0051.001
+    - owasp.llm01
+    - owasp.asi01
+logsource:
+    product: ai
+    service: agentlog
+detection:
+    selection_type:
+        type:
+            - retrieval
+            - tool_result
+    selection_wording:
+        content|re:
+            - '(?i)\b(?:ignore|disregard|forget|override|bypass)\s+(?:all\s+|any\s+|every\s+)?(?:of\s+)?(?:the\s+|your\s+)?(?:previous|prior|preceding|above|earlier|foregoing|original|initial|system|existing)\s+(?:instructions?|prompts?|directions|directives|rules|guidelines|guardrails)\b'
+            - '(?i)\b(?:note|message|instructions?|directive|attention|important)\s+(?:for|to)\s+(?:the\s+|any\s+|all\s+)?(?:ai|llm|language\s+model|ai\s+assistant|ai\s+agent|ai\s+model|chatbot|copilot)s?\b'
+            # Not "if you are an agent", which help pages write for support agents.
+            - '(?i)\bif\s+you\s+are\s+(?:an?\s+)?(?:ai|llm|large\s+language\s+model|language\s+model|ai\s+assistant|ai\s+agent|ai\s+model|chatbot)\b'
+            - '(?i)\b(?:ai|llm)\s+(?:assistants?|agents?|models?)\s+(?:reading|processing|summari[sz]ing|working\s+on)\s+this\b'
+            - '(?i)\b(?:do\s+not|don.t|never)\s+(?:tell|inform|warn|alert|notify|mention\s+(?:this|it)\s+to|reveal\s+(?:this|it)\s+to|show\s+(?:this|it)\s+to)\s+the\s+user\b'
+            - '(?i)</?important>'
+            - '<\|im_start\|>|<\|im_end\|>|<\|endoftext\|>|<\|start_header_id\|>|<\|(?:system|user|assistant)\|>|<</?SYS>>|\[/?INST\]'
+    selection_hidden:
+        hidden_text|exists: true
+    condition: selection_type and (selection_wording or selection_hidden)
+falsepositives:
+    - Articles, papers or security tickets about prompt injection that quote payloads
+    - Test documents planted on purpose by a red team
+level: high

@@ -1,7 +1,7 @@
 {% set r = report %}
 # Vigie report
 
-Generated on {{ r.generated_at | ts }} by Vigie {{ r.vigie_version | md }}. Alerts are mapped to MITRE ATT&CK {{ r.attack_version | md }}. All times are UTC.
+Generated on {{ r.generated_at | ts }} by Vigie {{ r.vigie_version | md }}. Alerts are mapped to MITRE ATT&CK {{ r.attack_version | md }}{% if r.atlas_tactics %} and MITRE ATLAS {{ r.atlas_version | md }}{% endif %}{% if r.owasp %}, and to the {{ r.owasp | map(attribute="list.title") | join(" and the ") }}{% endif %}. All times are UTC.
 
 ## Summary
 
@@ -23,6 +23,7 @@ Generated on {{ r.generated_at | ts }} by Vigie {{ r.vigie_version | md }}. Aler
 {{ r.hidden_by_level.values() | sum }} alert(s) below the "{{ r.min_level }}" level are not shown ({% for level, count in r.hidden_by_level.items() %}{{ level }}: {{ count }}{% if not loop.last %}, {% endif %}{% endfor %}). Run with `--min-level {{ r.hidden_by_level | first }}` to include them.
 {% endif %}
 
+{% if r.tactics or not r.atlas_tactics %}
 ## MITRE ATT&CK
 
 {% if r.tactics %}
@@ -35,6 +36,31 @@ Generated on {{ r.generated_at | ts }} by Vigie {{ r.vigie_version | md }}. Aler
 No alert, so no ATT&CK technique observed.
 {% endif %}
 
+{% endif %}
+{% if r.atlas_tactics %}
+## MITRE ATLAS
+
+| Tactic | Alerts | Techniques |
+|---|---|---|
+{% for view in r.atlas_tactics %}
+| [{{ view.tactic.name | md }}]({{ view.tactic.url }}) ({{ view.tactic.id }}) | {{ view.alert_count }} | {% for t in view.techniques %}[{{ t.id }}]({{ t.url }}) {{ t.display_name | md }}{% if not loop.last %}<br>{% endif %}{% endfor %} |
+{% endfor %}
+
+{% endif %}
+{% if r.owasp %}
+## OWASP Top 10
+
+{% for group in r.owasp %}
+### {{ group.list.title | md }}
+
+| Risk | Alerts | Rules |
+|---|---|---|
+{% for view in group.items %}
+| [{{ view.item.id }}]({{ view.item.url }}) {{ view.item.name | md }} | {{ view.alert_count }} | {{ view.rules | map(attribute="title") | map("md") | join("<br>") }} |
+{% endfor %}
+
+{% endfor %}
+{% endif %}
 ## Alerts
 
 {% if r.alerts %}
@@ -54,8 +80,17 @@ No alert, so no ATT&CK technique observed.
 - **Grouped by:** {% for key, value in a.group.items() %}{{ key | md }} = {{ value | md }}{% if not loop.last %}, {% endif %}{% endfor %}
 
 {% endif %}
+{% if a.attack.tactics or not a.atlas.tactics %}
 - **ATT&CK:** {% for t in a.attack.techniques %}[{{ t.id }}]({{ t.url }}) {{ t.display_name | md }}{% if not loop.last %}; {% endif %}{% endfor %}{% if a.attack.tactics %} ({{ a.attack.tactics | map(attribute="name") | join(", ") }}){% endif %}
 
+{% endif %}
+{% if a.atlas.tactics %}
+- **ATLAS:** {% for t in a.atlas.techniques %}[{{ t.id }}]({{ t.url }}) {{ t.display_name | md }}{% if not loop.last %}; {% endif %}{% endfor %} ({{ a.atlas.tactics | map(attribute="name") | join(", ") }})
+{% endif %}
+{% if a.owasp.items %}
+- **OWASP:** {% for i in a.owasp.items %}[{{ i.id }}]({{ i.url }}) {{ i.name | md }}{% if not loop.last %}; {% endif %}{% endfor %}
+
+{% endif %}
 - **Rule:** {{ a.rule.title | md }}, `{{ a.rule.id }}`{% if a.rule.kind == "correlation" %}, correlation{% endif %}
 
 - **Author:** {{ a.rule.author | md }}{% if a.rule.license %} (rule licensed under {{ a.rule.license | md }}){% endif %}
@@ -134,4 +169,4 @@ Rejected rules:
 
 ---
 
-{{ r.attack_copyright | md }} Rules adapted from SigmaHQ are licensed under the Detection Rule License 1.1; their authors are credited in each alert.
+{{ r.attack_copyright | md }}{% if r.atlas_tactics %} {{ r.atlas_copyright | md }}{% endif %}{% if r.owasp %} {{ r.owasp_copyright | md }}{% endif %} Rules adapted from SigmaHQ are licensed under the Detection Rule License 1.1; their authors are credited in each alert.

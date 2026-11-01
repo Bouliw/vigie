@@ -4,19 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vigie"
-version = "0.2.0"
-description = "Blue team log analyzer: read Windows EVTX, Linux auth.log and the macOS unified log, apply Sigma rules, map alerts to MITRE ATT&CK, and report, after the fact or live."
+version = "0.4.2"
+description = "Blue team log analyzer: read Windows EVTX, Linux auth.log, the macOS unified log and AI agent logs, apply Sigma rules, map alerts to MITRE ATT&CK, ATLAS and the OWASP Top 10 for LLM and agentic applications, and report, after the fact or live."
 readme = "README.md"
-license = { text = "MIT; rules adapted from SigmaHQ: DRL-1.1; ATT&CK data: MITRE ATT&CK Terms of Use" }
+license = { text = "MIT; rules adapted from SigmaHQ: DRL-1.1; ATT&CK data: MITRE ATT&CK Terms of Use; ATLAS data: Apache-2.0; OWASP Top 10 names: CC-BY-SA-4.0" }
 authors = [{ name = "Bouliw" }]
 requires-python = ">=3.10"
 dependencies = [
     "evtx>=0.13,<1",
     "Jinja2>=3.1",
     "PyYAML>=6",
+    "tzdata; sys_platform == 'win32'",
 ]
 classifiers = [
     "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Topic :: Security",
@@ -32,9 +34,13 @@ dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6"]
 where = ["src"]
 
 [tool.setuptools.package-data]
+"vigie.atlas" = ["data/*.json", "data/*.txt", "data/*.md"]
 "vigie.attack" = ["data/*.json", "data/*.txt", "data/*.md"]
+"vigie.demo" = ["README.md", "logs/*"]
+"vigie.icons" = ["*.svg", "*.png", "*.ico", "*.icns"]
+"vigie.ui" = ["templates/*.j2"]
 "vigie.report" = ["templates/*.j2"]
-"vigie.rules" = ["*.md", "linux/*.yml", "macos/*.yml", "windows/*.yml"]
+"vigie.rules" = ["*.md", "ai/*.yml", "linux/*.yml", "macos/*.yml", "windows/*.yml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

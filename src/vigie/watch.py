@@ -1,7 +1,8 @@
 """``vigie watch``: follow logs as they are written and raise alerts as they happen.
 
-Sources are log files followed like ``tail -F`` (auth.log, or unified log
-exports in ndjson) and the live macOS unified log, read from ``log stream``.
+Sources are log files followed like ``tail -F`` (auth.log, unified log
+exports in ndjson, AI agent logs in JSON Lines) and the live macOS unified
+log, read from ``log stream``.
 Each new event goes through the rules of ``vigie analyze``, evaluated one
 event at a time (:class:`vigie.sigma.engine.Stream`). Every alert is printed;
 the most severe ones also raise a macOS notification; and an HTML report,
@@ -17,25 +18,28 @@ import sys
 import tempfile
 import threading
 import time
+from collections import deque
 from collections.abc import Callable, Sequence
 from datetime import datetime, tzinfo
 from pathlib import Path
-from typing import Protocol, TextIO
+from typing import BinaryIO, Protocol, TextIO
 
 from vigie.analysis import Analysis
+from vigie.atlas import AtlasData, default_atlas_data
 from vigie.attack import AttackData, default_attack_data
 from vigie.collect import Collection, FileReport
 from vigie.models import LEVELS, Alert, Event
-from vigie.parsers import authlog, unifiedlog
+from vigie.parsers import agentlog, authlog, unifiedlog
 from vigie.report.builder import build_report, summarize
 from vigie.report.render import render_html, timestamp
 from vigie.sigma.engine import Evaluation, Stream, sort_alerts
 from vigie.sigma.loader import RuleSet
+from vigie.term import Console, toast
 from vigie.timeutils import UTC
 
 LOG_COMMAND = "/usr/bin/log"
 OSASCRIPT = "/usr/bin/osascript"
-FOLLOWED_FORMATS = ("authlog", "unifiedlog")
+FOLLOWED_FORMATS = ("authlog", "unifiedlog", "agentlog")
 NOTIFY_COOLDOWN = 60.0  # seconds between two notifications of the same rule
 ANSI_COLORS = {"critical": "1;31", "high": "31", "medium": "33", "low": "34", "informational": "2"}
 
@@ -52,6 +56,38 @@ class Source(Protocol):
     def close(self) -> None: ...
 
 
+def _open_shared(path: Path) -> BinaryIO:
+    """Open ``path`` for reading without stopping others from renaming or deleting it.
+
+    On Windows, a file opened the usual way cannot be renamed or deleted while it
+    is open, so following a log would block its rotation. There it is opened with
+    FILE_SHARE_DELETE, as ``tail -F`` relies on everywhere else.
+    """
+    if os.name != "nt":
+        return path.open("rb")
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    create_file = ctypes.WinDLL("kernel32", use_last_error=True).CreateFileW
+    create_file.restype = wintypes.HANDLE
+    create_file.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    ]
+    generic_read, share_all, open_existing, normal = 0x80000000, 0x7, 3, 0x80
+    handle = create_file(str(path), generic_read, share_all, None, open_existing, normal, None)
+    if handle is None or handle == ctypes.c_void_p(-1).value:
+        error = ctypes.get_last_error()
+        raise OSError(None, ctypes.FormatError(error).strip(), str(path), error)
+    return os.fdopen(msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY), "rb")
+
+
 class FileSource:
     """A log file followed like ``tail -F``: new lines only, through rotation and truncation."""
 
@@ -62,6 +98,9 @@ class FileSource:
         self.format = fmt
         self.tz = tz
         self.report = FileReport(str(path), fmt, 0)
+        # An agent log record can depend on earlier ones (the system prompt of its
+        # session, the MCP call it answers): one reader for the life of the source.
+        self._agent_reader = agentlog.Reader()
         self._open()
         # Start at the end, but count the lines so origins match the file's line numbers.
         self._lineno = sum(
@@ -86,7 +125,7 @@ class FileSource:
         self._handle.close()
 
     def _open(self) -> None:
-        self._handle = self.path.open("rb")
+        self._handle = _open_shared(self.path)
         self._inode = os.fstat(self._handle.fileno()).st_ino
         self._partial = b""
 
@@ -110,6 +149,8 @@ class FileSource:
             self.report.warnings += result.warnings
             return result.events
         origin = f"{name}:{self._lineno}"
+        if self.format == "agentlog":
+            return self._agent_reader.read_line(text, origin=origin, warnings=self.report.warnings)
         event = unifiedlog.parse_line(text, origin=origin, warnings=self.report.warnings)
         return [event] if event else []
 
@@ -211,6 +252,8 @@ class Watcher:
         notifier: Callable[[str, str], None] = notify,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
         attack: AttackData | None = None,
+        atlas: AtlasData | None = None,
+        console: Console | None = None,
     ) -> None:
         self.sources = list(sources)
         self.ruleset = ruleset
@@ -218,17 +261,24 @@ class Watcher:
         self.min_level = min_level
         self.notify_level = notify_level
         self.refresh = refresh
-        self.out = out or sys.stdout
+        self.console = console
+        self.out = out or (console.out if console else sys.stdout)
         self.notifier = notifier
         self.clock = clock
         self.attack = attack or default_attack_data()
+        self.atlas = atlas or default_atlas_data()
         self.stream = Stream(ruleset)
         self.started = clock()
         self.alerts: list[Alert] = []
         self.event_count = 0
         self.first_event: datetime | None = None
         self.last_event: datetime | None = None
-        self._color = self.out.isatty() and "NO_COLOR" not in os.environ
+        # On a terminal, a console shows alerts as colored toasts above a status line;
+        # without one, alerts are plain lines (colored levels on a terminal, as before).
+        self._fancy = bool(console and console.fancy)
+        self._color = console is None and self.out.isatty() and "NO_COLOR" not in os.environ
+        self._rate: deque[tuple[float, int]] = deque()  # (monotonic time, events read)
+        self._beat = False
         self._notified: dict[str, float] = {}  # rule id -> monotonic time of its last notification
         self._last_write = float("-inf")
         self._events_changed = self._alerts_changed = False
@@ -265,11 +315,43 @@ class Watcher:
         for alert in fired:
             self.alerts.append(alert)
             if alert.rule.severity >= LEVELS.index(self.min_level):
-                print(self.format_alert(alert), file=self.out, flush=True)
+                if self._fancy and self.console:
+                    self.console.print(self.format_toast(alert))
+                else:
+                    print(self.format_alert(alert), file=self.out, flush=True)
             self._notify(alert)
         self._events_changed |= bool(events)
         self._alerts_changed |= bool(fired)
+        if self._fancy:
+            self._status(len(events))
         return fired
+
+    def _status(self, new_events: int) -> None:
+        """The bottom line of a watch on a terminal: sources, events per second, alerts."""
+        assert self.console is not None
+        c = self.console
+        now = time.monotonic()
+        self._rate.append((now, new_events))
+        while self._rate and now - self._rate[0][0] > 10:
+            self._rate.popleft()
+        span = max(1.0, now - self._rate[0][0]) if len(self._rate) > 1 else 1.0
+        rate = sum(count for _, count in self._rate) / span
+        threshold = LEVELS.index(self.min_level)
+        shown = [alert for alert in self.alerts if alert.rule.severity >= threshold]
+        top = max((alert.rule.severity for alert in shown), default=None)
+        worst = (
+            f" ({sum(1 for a in shown if a.rule.severity == top)} {LEVELS[top]})"
+            if top is not None
+            else ""
+        )
+        self._beat = not self._beat
+        dot = c.style(c.glyphs.dot, "92" if self._beat else "32")
+        text = (
+            f"watching {len(self.sources)} source{'s' if len(self.sources) != 1 else ''}  "
+            f"{self.event_count:,} events  {rate:,.1f}/s  "
+            f"{len(shown)} alert{'s' if len(shown) != 1 else ''}{worst}  Ctrl-C to stop"
+        )
+        c.live(f"{dot} {c.dim(c.fit(text, c.width - 3))}")
 
     def update_report(self) -> None:
         """Rewrite the report: within a second of a new alert, every ``refresh`` s otherwise."""
@@ -292,6 +374,7 @@ class Watcher:
             generated_at=self.clock(),
             min_level=self.min_level,
             attack=self.attack,
+            atlas=self.atlas,
         )
         report.event_count = self.event_count
         report.first_event, report.last_event = self.first_event, self.last_event
@@ -305,9 +388,28 @@ class Watcher:
         self._last_write = time.monotonic()
         self._events_changed = self._alerts_changed = False
 
+    def format_toast(self, alert: Alert) -> str:
+        """An alert as a colored terminal line: severity badge, time, rule, techniques."""
+        assert self.console is not None
+        return toast(
+            self.console,
+            when=timestamp(alert.last_seen),
+            level=alert.rule.level,
+            title=alert.rule.title,
+            techniques=" ".join(self._technique_ids(alert)),
+            what=describe(alert),
+        )
+
+    def _technique_ids(self, alert: Alert) -> list[str]:
+        return [
+            technique.id
+            for framework in (self.attack, self.atlas)
+            for technique in framework.map_tags(alert.rule.tags).techniques
+        ]
+
     def format_alert(self, alert: Alert) -> str:
-        """One terminal line: time, level, rule, ATT&CK techniques, what happened."""
-        techniques = ", ".join(t.id for t in self.attack.map_tags(alert.rule.tags).techniques)
+        """One terminal line: time, level, rule, ATT&CK and ATLAS techniques, what happened."""
+        techniques = ", ".join(self._technique_ids(alert))
         level = f"{alert.rule.level.upper():<13}"
         if self._color:
             level = f"\033[{ANSI_COLORS[alert.rule.level]}m{level}\033[0m"

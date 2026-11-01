@@ -1,0 +1,29 @@
+title: System Prompt Leaked In LLM Response
+id: b12310b8-2809-4d60-8d6d-1f1789c31eff
+status: experimental
+description: A model response reproduces, word for word, a large part of the system prompt of its session - runs of at least 60 characters adding up to 200 characters, or to half of a shorter prompt, case and spacing aside. Quoting one sentence the prompt tells the model to say does not count. The application's instructions, and anything embedded in them, reached the user; check the prompt that asked for them.
+references:
+    - https://atlas.mitre.org/techniques/AML.T0085.003
+    - https://atlas.mitre.org/techniques/AML.T0136
+    - https://genai.owasp.org/llmrisk/llm072025-system-prompt-leakage/
+author: Bouliw
+date: 2026-10-29
+tags:
+    - atlas.collection
+    - atlas.exfiltration
+    - atlas.aml.t0085.003
+    - atlas.aml.t0136
+    - owasp.llm02
+    - owasp.llm07
+logsource:
+    product: ai
+    service: agentlog
+detection:
+    selection:
+        type: response
+        system_prompt_echo: 'true'
+    condition: selection
+falsepositives:
+    - Applications whose system prompt is public on purpose
+    - Developers asking their own application for its prompt while debugging
+level: high

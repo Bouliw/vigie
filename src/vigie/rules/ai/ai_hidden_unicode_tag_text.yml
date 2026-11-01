@@ -1,0 +1,31 @@
+title: Invisible Unicode Tag Text In LLM Input
+id: 2c1226b5-f15c-4283-87bc-4cfade019cc6
+status: experimental
+description: A prompt, a retrieved document or a tool result contains text written in Unicode tag characters (U+E0020 to U+E007E). They mirror printable ASCII but are invisible on screen, while language models read them, so they carry instructions the user never sees ("ASCII smuggling"). Their only legitimate use, the flags of England, Scotland and Wales, is left out by the parser. The decoded text is shown in the alert.
+references:
+    - https://atlas.mitre.org/techniques/AML.T0068
+    - https://atlas.mitre.org/techniques/AML.T0051
+    - https://embracethered.com/blog/posts/2024/hiding-and-finding-text-with-unicode-tags/
+author: Bouliw
+date: 2026-10-29
+tags:
+    - atlas.defense-evasion
+    - atlas.execution
+    - atlas.aml.t0068
+    - atlas.aml.t0051
+    - owasp.llm01
+    - owasp.asi01
+logsource:
+    product: ai
+    service: agentlog
+detection:
+    selection:
+        type:
+            - prompt
+            - retrieval
+            - tool_result
+        hidden_text|exists: true
+    condition: selection
+falsepositives:
+    - Text copied from a page that demonstrates the technique
+level: high

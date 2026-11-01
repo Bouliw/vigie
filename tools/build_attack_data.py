@@ -1,8 +1,9 @@
 """Build Vigie's MITRE ATT&CK extract from the official STIX bundle.
 
 The full Enterprise ATT&CK bundle is about 54 MB. Vigie only needs, for each
-technique, its name, tactics and URL, so this script keeps just that (about
-120 KB) in ``src/vigie/attack/data/enterprise_attack.json``.
+tactic and technique, its name, tactics, URL and a one or two sentence summary
+of its description (shown in the HTML report), so this script keeps just that
+(about 300 KB) in ``src/vigie/attack/data/enterprise_attack.json``.
 
 Usage::
 
@@ -17,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import urllib.request
 from pathlib import Path
@@ -29,6 +31,7 @@ COPYRIGHT = (
     "© {year} The MITRE Corporation. This work is reproduced and distributed "
     "with the permission of The MITRE Corporation."
 )
+SUMMARY_LENGTH = 320  # characters: a sentence or two, enough to say what a technique is
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -88,6 +91,7 @@ def extract(bundle: dict[str, Any], source: str) -> dict[str, Any]:
                 "shortname": tactic["x_mitre_shortname"],
                 "name": tactic["name"],
                 "url": attack_url(tactic),
+                **with_summary(tactic),
             }
         )
 
@@ -104,6 +108,7 @@ def extract(bundle: dict[str, Any], source: str) -> dict[str, Any]:
                 if phase["kill_chain_name"] == "mitre-attack"
             ],
             "url": attack_url(obj),
+            **with_summary(obj),
         }
 
     # Older rules still use revoked ids (e.g. T1086 -> T1059.001).
@@ -124,6 +129,41 @@ def extract(bundle: dict[str, Any], source: str) -> dict[str, Any]:
         "techniques": dict(sorted(techniques.items())),
         "revoked": dict(sorted(revoked.items())),
     }
+
+
+def with_summary(obj: dict[str, Any]) -> dict[str, str]:
+    """``{"summary": ...}`` for an object with a description, ``{}`` otherwise."""
+    text = summarize(obj.get("description", ""))
+    return {"summary": text} if text else {}
+
+
+def summarize(description: str) -> str:
+    """The first sentences of a description, as plain text, up to SUMMARY_LENGTH characters.
+
+    ATT&CK descriptions are Markdown with citations: links keep their text,
+    ``(Citation: ...)`` markers and HTML tags are dropped.
+    """
+    paragraph = description.strip().split("\n\n")[0]
+    paragraph = re.sub(r"\(Citation:[^)]*\)", "", paragraph)
+    paragraph = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", paragraph)
+    paragraph = re.sub(r"<[^>]+>", "", paragraph)
+    paragraph = " ".join(paragraph.split())
+    sentences = re.split(r"(?<=[.!?])\s+(?=[A-Z(])", paragraph)
+    # "e.g." or "i.e." end no sentence.
+    merged: list[str] = []
+    for sentence in sentences:
+        if merged and re.search(r"\b(?:e\.g|i\.e|vs|Inc|Ltd)\.$", merged[-1]):
+            merged[-1] += " " + sentence
+        else:
+            merged.append(sentence)
+    text = ""
+    for sentence in merged:
+        if text and len(text) + 1 + len(sentence) > SUMMARY_LENGTH:
+            break
+        text = f"{text} {sentence}".strip()
+    if len(text) > SUMMARY_LENGTH:
+        text = text[: SUMMARY_LENGTH - 1].rsplit(" ", 1)[0] + "…"
+    return text
 
 
 def is_active(obj: dict[str, Any]) -> bool:

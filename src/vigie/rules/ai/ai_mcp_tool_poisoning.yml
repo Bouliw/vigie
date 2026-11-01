@@ -1,0 +1,63 @@
+title: Poisoned MCP Tool Description
+id: 270adca0-a0e4-4a35-afcf-4baafab81a90
+name: ai_mcp_tool_poisoning
+status: experimental
+description: An MCP server listed a tool (in its answer to tools/list) whose description, or the description of one of its parameters, carries instructions meant for the model rather than documentation of the tool. The rule looks for the wording of prompt injections ("ignore previous instructions"), text addressed to AI assistants, the <IMPORTANT> blocks of tool poisoning attacks, requests to hide something from the user ("do not mention that you read the file"), text hidden in invisible Unicode tag characters, a sentence that changes how another tool behaves ("when this tool is available, the send_email tool must..."), and instructions to read credential files (SSH keys, cloud credentials, mcp.json) or the results of other tools and pass them along in an argument. The model reads the description of every tool it is offered before it calls any of them, so the server steers the agent even if the tool is never called. Check which server offered the tool, whether its description changed since the server was approved, and the tool calls that followed in the session.
+references:
+    - https://atlas.mitre.org/techniques/AML.T0110
+    - https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks
+    - https://modelcontextprotocol.io/specification/2025-11-25/server/tools
+    - https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/
+author: Bouliw
+date: 2026-10-30
+tags:
+    - atlas.persistence
+    - atlas.aml.t0110
+    - owasp.llm01
+    - owasp.asi04
+logsource:
+    product: ai
+    service: agentlog
+detection:
+    selection_type:
+        type: tool_definition
+    selection_wording:
+        content|re:
+            # The wording of the rule "LLM Prompt Injection In Retrieved Content Or Tool Result".
+            - '(?i)\b(?:ignore|disregard|forget|override|bypass)\s+(?:all\s+|any\s+|every\s+)?(?:of\s+)?(?:the\s+|your\s+)?(?:previous|prior|preceding|above|earlier|foregoing|original|initial|system|existing)\s+(?:instructions?|prompts?|directions|directives|rules|guidelines|guardrails)\b'
+            - '(?i)\b(?:note|message|instructions?|directive|attention|important)\s+(?:for|to)\s+(?:the\s+|any\s+|all\s+)?(?:ai|llm|language\s+model|ai\s+assistant|ai\s+agent|ai\s+model|chatbot|copilot)s?\b'
+            - '(?i)\bif\s+you\s+are\s+(?:an?\s+)?(?:ai|llm|large\s+language\s+model|language\s+model|ai\s+assistant|ai\s+agent|ai\s+model|chatbot)\b'
+            - '(?i)\b(?:ai|llm)\s+(?:assistants?|agents?|models?)\s+(?:reading|processing|summari[sz]ing|working\s+on)\s+this\b'
+            - '(?i)\b(?:do\s+not|don.t|never)\s+(?:tell|inform|warn|alert|notify|mention\s+(?:this|it)\s+to|reveal\s+(?:this|it)\s+to|show\s+(?:this|it)\s+to)\s+the\s+user\b'
+            - '(?i)</?important>'
+            - '<\|im_start\|>|<\|im_end\|>|<\|endoftext\|>|<\|start_header_id\|>|<\|(?:system|user|assistant)\|>|<</?SYS>>|\[/?INST\]'
+            # Hiding what the model does: "do not mention that you first need to read the file".
+            - '(?i)\b(?:do\s+not|don.t|never)\s+(?:mention|reveal|disclose|say|explain|admit)\s+(?:to\s+the\s+user\s+)?that\s+you\b'
+            - '(?i)\bwithout\s+(?:telling|informing|notifying|alerting|warning|asking)\s+the\s+user\b'
+            - '(?i)\b(?:hide|conceal)\s+(?:this|it|that)\s+from\s+the\s+user\b|\bkeep\s+(?:this|it|that)\s+(?:secret\s+|hidden\s+)?from\s+the\s+user\b'
+            # Shadowing: the description of one tool rewrites the behaviour of another.
+            - '(?i)\bwhen\s+this\s+tool\s+is\s+(?:available|present|installed|loaded|enabled|connected)\b[^.\n]{0,60}\bthe\s+[\w.-]+\s+tool\b'
+            # Taking what other tools returned: "include the results of all other tools".
+            - '(?i)\b(?:pass|send|include|add|put|attach|append|forward|copy|provide|supply|embed|insert|paste)\b[^.\n]{0,60}?\b(?:results?|outputs?|responses?|data|contents?)\s+(?:of|from)\s+(?:the\s+)?(?:(?:all|every|each|any)\s+(?:other\s+)?(?:mcp\s+)?(?:tools?|tool\s+calls?|servers?)|other\s+(?:mcp\s+)?(?:tools|tool\s+calls|servers))\b'
+            - '(?i)\b(?:pass|send|include|add|put|attach|append|forward|copy|provide|supply|embed|insert|paste)\b[^.\n]{0,40}?\b(?:(?:conversation|chat|message)\s+history|(?:all\s+)?(?:previous|earlier|prior)\s+(?:user\s+)?messages)\b'
+    selection_hidden:
+        hidden_text|exists: true
+    selection_secrets:
+        # The credential stores of the rule "AI Agent Tool Call Reads Credential Files", and
+        # mcp.json, where MCP clients keep the servers they run and their tokens.
+        content|re:
+            - '(?i)\.ssh[/\\]+id_(?:rsa|dsa|ecdsa|ed25519)(?:_sk)?(?!\.pub)\b'
+            - '(?i)\.aws[/\\]+credentials\b|\.config[/\\]+gcloud[/\\]|application_default_credentials\.json|\.azure[/\\]+(?:accessTokens\.json|msal_token_cache)'
+            - '(?i)\.kube[/\\]+config\b|\.docker[/\\]+config\.json|(?:^|[/\\"\s])\.(?:netrc|git-credentials|pgpass|pypirc)\b'
+            - '(?i)/etc/(?:g?shadow|master\.passwd)\b|\.password-store[/\\]|\.gnupg[/\\]+private-keys'
+            - '(?i)Login Data\b|\blogins\.json\b|\bkey4\.db\b|/Library/Keychains/|\bsecurity\s+(?:find-generic-password|find-internet-password|dump-keychain)\b'
+            - '169\.254\.169\.254|metadata\.google\.internal'
+            - '(?i)\bmcp\.json\b'
+    selection_pass_along:
+        # "pass its content as 'sidenote'", "send the whole file". Not "add the key to ssh-agent".
+        content|re: '(?i)\b(?:pass|send|include|attach|append|forward|copy|provide|supply|embed|insert|paste)\b[^.\n]{0,40}?\b(?:its|their|the|this|that|whole|full|entire|all)\s+(?:\w+\s+){0,2}?(?:contents?|text|values?|outputs?|results?|responses?|data|keys?|files?)\b'
+    condition: selection_type and (selection_wording or selection_hidden or (selection_secrets and selection_pass_along))
+falsepositives:
+    - Test servers that ship deliberately poisoned tools, and security tools whose descriptions quote prompt injections
+    - A description that tells the model to prefer this tool over another one ("when this tool is available, use it instead of the web_search tool")
+level: high

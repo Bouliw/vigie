@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en" class="js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="vigie-token" content="{{ token }}">
+<title>Vigie</title>
+<link rel="icon" href="{{ favicon }}">
+<script>
+try { var vigieTheme = localStorage.getItem("vigie-theme"); if (vigieTheme === "light" || vigieTheme === "dark") { document.documentElement.setAttribute("data-theme", vigieTheme); } } catch (e) {}
+</script>
+<style>
+{% include "_report.css.j2" %}
+{% include "_app.css.j2" %}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mark" viewBox="0 0 32 32"><path d="M16 2.2 4.4 6.6v8.6c0 7.2 4.9 12.6 11.6 14.6 6.7-2 11.6-7.4 11.6-14.6V6.6z" fill="var(--ink)"/><path d="M9.2 17.6a6.8 6.8 0 0 1 13.6 0" fill="none" stroke="var(--paper)" stroke-width="2.2" stroke-linecap="round"/><circle cx="16" cy="17.4" r="2.5" fill="var(--beacon)"/><path d="M8.4 21.4h15.2" stroke="var(--paper)" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 16V4m0 0-5 5m5-5 5 5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18 9 12l6-6"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></symbol>
+  <symbol id="i-ok" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L4.5 18.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3"/><path d="M7 15h10"/></symbol>
+</svg>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#/"><svg aria-hidden="true"><use href="#mark"/></svg>Vigie</a>
+    <nav class="tabs seg" aria-label="Sections">
+      <a href="#/" data-tab="analyze" aria-current="page">Analyze</a>
+      <a href="#/watch" data-tab="watch">Watch</a>
+    </nav>
+    <button type="button" class="btn btn-quiet btn-icon" id="theme" aria-label="Switch theme"></button>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="view" id="view-home" aria-labelledby="home-title">
+  <div class="wrap narrow">
+    <div class="intro">
+      <h1 id="home-title">What happened in these logs?</h1>
+      <p class="lede">Vigie reads Windows, Linux, macOS and AI agent logs, runs {{ rules }} detection rules on them and explains what it finds, mapped to MITRE ATT&amp;CK and ATLAS. Nothing leaves this computer.</p>
+    </div>
+
+    <div class="drop" id="drop" tabindex="-1">
+      <div class="drop-inner">
+        <span class="drop-mark" aria-hidden="true"><svg><use href="#mark"/></svg><span class="ring"></span></span>
+        <h2>Drop log files or a folder here</h2>
+        <p class="muted">.evtx, auth.log, Windows JSON exports, macOS unified log exports, AI agent logs</p>
+        <div class="drop-actions">
+          <label class="btn btn-primary"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg>Choose files<input type="file" id="pick-files" multiple hidden></label>
+          <label class="btn"><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg>Choose a folder<input type="file" id="pick-folder" webkitdirectory multiple hidden></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="alt">
+      <form class="pathform" id="path-form" autocomplete="off">
+        <label for="path">Or type a path on this computer</label>
+        <div class="row">
+          <input id="path" class="field" type="text" spellcheck="false" placeholder="{{ 'C:\\Logs\\server01' if platform == 'win32' else '/var/log/auth.log or ~/Downloads/logs' }}">
+          <button class="btn" type="submit">Analyze</button>
+        </div>
+      </form>
+      <div class="sample">
+        <span class="muted">No logs at hand?</span>
+        <button type="button" class="btn" id="sample"><svg class="icon" aria-hidden="true"><use href="#i-flask"/></svg>Try with sample logs</button>
+      </div>
+    </div>
+    <p class="form-error" id="home-error" role="alert" hidden></p>
+
+    <section class="recent" id="recent" aria-labelledby="recent-title" hidden>
+      <h2 id="recent-title">Recent analyses</h2>
+      <ul class="recent-list" id="recent-list"></ul>
+    </section>
+  </div>
+</section>
+
+<section class="view" id="view-progress" aria-labelledby="progress-title" hidden>
+  <div class="wrap narrow">
+    <div class="panel progress">
+      <p class="eyebrow muted" id="progress-kind">Analyzing</p>
+      <h1 id="progress-title" class="progress-title">Sample logs</h1>
+      <p class="progress-path mono muted" id="progress-path" hidden></p>
+      <div class="counters">
+        <div><span class="n" id="c-files">0</span><span class="l" id="c-files-l">files read</span></div>
+        <div><span class="n" id="c-events">0</span><span class="l">events</span></div>
+        <div><span class="n" id="c-rules">{{ rules }}</span><span class="l">rules</span></div>
+        <div><span class="n" id="c-alerts">0</span><span class="l">alerts</span></div>
+      </div>
+      <div class="bar" role="progressbar" aria-labelledby="progress-title" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="bar"><span></span></div>
+      <ol class="steps" id="steps">
+        <li data-step="upload" hidden><span class="dot"></span><span>Send the files to Vigie <span class="muted" id="s-upload"></span></span></li>
+        <li data-step="read"><span class="dot"></span><span>Read the logs <span class="muted mono" id="s-read"></span></span></li>
+        <li data-step="match"><span class="dot"></span><span>Run the detection rules <span class="muted" id="s-match"></span></span></li>
+        <li data-step="report"><span class="dot"></span><span>Write the report</span></li>
+      </ol>
+      <div class="failed" id="failed" role="alert" hidden>
+        <p id="failed-text"></p>
+        <a class="btn" href="#/">Start again</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="view view-results" id="view-results" aria-labelledby="results-title" hidden>
+  <div class="resultbar">
+    <div class="wrap">
+      <a class="btn btn-quiet" href="#/"><svg class="icon" aria-hidden="true"><use href="#i-back"/></svg>New analysis</a>
+      <div class="result-what">
+        <h1 id="results-title">Report</h1>
+        <p class="muted" id="results-meta"></p>
+      </div>
+      <div class="result-counts" id="results-counts"></div>
+      <div class="result-actions">
+        <button type="button" class="btn" id="open-browser"><svg class="icon" aria-hidden="true"><use href="#i-ext"/></svg>Open in browser</button>
+        <button type="button" class="btn" id="reveal"><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg>{{ "Show in Finder" if platform == "darwin" else "Show in folder" }}</button>
+      </div>
+    </div>
+  </div>
+  <iframe id="report-frame" title="Vigie report" src="about:blank"></iframe>
+</section>
+
+<section class="view" id="view-watch" aria-labelledby="watch-title" hidden>
+  <div class="wrap narrow">
+    <div class="intro">
+      <h1 id="watch-title">Watch logs as they are written</h1>
+      <p class="lede">Vigie follows new lines of auth.log files, macOS unified log exports and AI agent logs, and raises alerts as they happen. The live report reloads itself.</p>
+    </div>
+    <form class="pathform panel" id="watch-form" autocomplete="off">
+      <label for="watch-path">File or folder to follow</label>
+      <div class="row">
+        <input id="watch-path" class="field" type="text" spellcheck="false" placeholder="{{ 'C:\\Logs\\agent.jsonl' if platform == 'win32' else '/var/log/auth.log' }}">
+        <button class="btn btn-primary" type="submit"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Start watching</button>
+      </div>
+      <p class="form-error" id="watch-error" role="alert" hidden></p>
+    </form>
+
+    <div class="watching" id="watching" hidden>
+      <div class="statusbar panel" id="statusbar">
+        <span class="pulse" aria-hidden="true"></span>
+        <div class="status-what">
+          <strong id="w-label">auth.log</strong>
+          <span class="muted" id="w-state">Watching</span>
+        </div>
+        <dl class="status-nums">
+          <div><dt>Events</dt><dd id="w-events">0</dd></div>
+          <div><dt>Per second</dt><dd id="w-rate">0</dd></div>
+          <div><dt>Alerts</dt><dd id="w-alerts">0</dd></div>
+          <div><dt>Time</dt><dd id="w-time">0:00</dd></div>
+        </dl>
+        <div class="status-actions">
+          <button type="button" class="btn" id="w-pause" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-pause"/></svg><span>Pause</span></button>
+          <button type="button" class="btn" id="w-stop"><svg class="icon" aria-hidden="true"><use href="#i-stop"/></svg>Stop</button>
+          <a class="btn btn-quiet" id="w-report" target="_blank" rel="noopener" href="#"><svg class="icon" aria-hidden="true"><use href="#i-ext"/></svg>Live report</a>
+        </div>
+      </div>
+      <p class="feed-empty muted" id="feed-empty">No alert yet. New ones appear here as soon as a rule matches.</p>
+      <ol class="feed" id="feed" aria-live="polite" aria-label="Alerts"></ol>
+    </div>
+  </div>
+</section>
+
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span></span></div>
+<script>
+{% include "_app.js.j2" %}
+</script>
+</body>
+</html>

@@ -28,6 +28,19 @@ class TestBundledData:
     def test_loaded_once(self):
         assert default_attack_data() is default_attack_data()
 
+    def test_summaries(self, attack):
+        assert attack.summary("TA0006") == (
+            "The adversary is trying to steal account names and passwords."
+        )
+        assert attack.summary("t1003.001").startswith(
+            "Adversaries may attempt to access credential material stored in the process memory"
+        )
+        assert attack.summary("T9999") == ""
+        # Every technique has one, as plain text of at most a few sentences.
+        for technique_id in attack._techniques:
+            text = attack.summary(technique_id)
+            assert text and len(text) <= 320 and "(Citation" not in text and "](" not in text
+
 
 class TestLookups:
     def test_sub_technique(self, attack):
@@ -223,3 +236,39 @@ def test_build_script_extracts_what_vigie_needs(tmp_path):
 
     attack = AttackData.load(output)
     assert attack.technique("T0002").display_name == "Parent: Child"
+    assert attack.summary("T0001") == ""
+
+
+def test_build_script_keeps_a_plain_text_summary(tmp_path):
+    script = load_build_script()
+    bundle = json.loads(json.dumps(TINY_BUNDLE))
+    for obj in bundle["objects"]:
+        if obj["id"] == "ap--1":
+            obj["description"] = (
+                "Adversaries may use [Execution](https://attack.mitre.org/tactics/TA0002) "
+                "tricks, e.g. <code>cmd.exe</code> pipes.(Citation: Some Report) "
+                "Second sentence.\n\nSecond paragraph, left out."
+            )
+        if obj["id"] == "tactic--1":
+            obj["description"] = "The adversary is trying to break things."
+    source = tmp_path / "bundle.json"
+    source.write_text(json.dumps(bundle))
+    output = tmp_path / "attack.json"
+    assert script.main(["--input", str(source), "--output", str(output)]) == 0
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data["techniques"]["T0001"]["summary"] == (
+        "Adversaries may use Execution tricks, e.g. cmd.exe pipes. Second sentence."
+    )
+    assert "summary" not in data["techniques"]["T0001.001"]
+    attack = AttackData.load(output)
+    assert attack.summary("TA0040") == "The adversary is trying to break things."
+    assert [t.shortname for t in attack.tactics] == ["execution", "impact"]
+
+
+def test_summaries_are_cut_between_sentences():
+    script = load_build_script()
+    sentence = "Adversaries may do something rather long and detailed here. "
+    text = script.summarize(sentence * 10)
+    assert text.endswith(".") and len(text) <= script.SUMMARY_LENGTH
+    assert script.summarize("word " * 100).endswith("…")
+    assert script.summarize("") == ""

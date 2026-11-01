@@ -178,7 +178,7 @@ def test_live_and_final_report(tmp_path, auth_log):
     assert '<meta http-equiv="refresh" content="7">' in html
     assert "<strong>Live</strong>" in html
     assert "SSH Brute Force" in html
-    assert '10</div><div class="label">events analyzed' in html
+    assert '<span class="n" data-count="10">10</span> <span class="l">events analyzed' in html
     watcher.write_report(live=False)
     html = watcher.report_path.read_text(encoding="utf-8")
     assert "http-equiv" not in html
@@ -251,7 +251,129 @@ def test_watch_command(tmp_path, monkeypatch, capsys, auth_log):
     out = tmp_path / "out"
     assert main(["watch", str(auth_log), "-o", str(out), "--notify-level", "off"]) == 0
     printed = capsys.readouterr().out
-    assert f"Watching {auth_log} with 36 rules. Stop with Ctrl-C." in printed
+    assert f"Watching {auth_log} with 53 rules. Stop with Ctrl-C." in printed
     assert "Alerts at level low and above are printed." in printed
     assert f"Stopped. Read 0 events, alerts: none. Report: {out / 'report.html'}" in printed
     assert (out / "report.html").is_file()
+
+
+def test_alert_line_lists_attack_and_atlas_techniques(tmp_path, auth_log):
+    rule = tmp_path / "rules" / "atlas.yml"
+    rule.parent.mkdir()
+    rule.write_text(
+        "title: Failed Password Seen As A Tool Call\n"
+        "status: test\n"
+        "tags: [attack.t1110, atlas.aml.t0053]\n"
+        "logsource: {product: linux, service: sshd}\n"
+        "detection: {selection: {action: ssh_failed_password}, condition: selection}\n"
+        "level: low\n",
+        encoding="utf-8",
+    )
+    watcher = Watcher(
+        [FileSource(auth_log, "authlog")],
+        load_rules(rule),
+        tmp_path / "out" / "report.html",
+        out=io.StringIO(),
+        notifier=lambda title, message: None,
+        clock=lambda: NOW,
+    )
+    append(auth_log, LINE.format(1, 1))
+    (alert,) = watcher.step()
+    assert "Failed Password Seen As A Tool Call  [T1110, AML.T0053]  " in watcher.format_alert(
+        alert
+    )
+
+
+# --- AI agent logs -------------------------------------------------------------------
+
+
+def test_file_source_follows_agent_logs_with_their_state(tmp_path):
+    path = tmp_path / "agent.jsonl"
+    path.write_text("", encoding="utf-8")
+    source = FileSource(path, "agentlog")
+    lines = (FIXTURES / "agentlog" / "agent_system_prompt.jsonl").read_text(encoding="utf-8")
+    system, prompt, response = lines.splitlines(keepends=True)
+    append(path, system + prompt)
+    assert [event.get("type") for event in source.poll(NOW)] == ["system", "prompt"]
+    append(path, response)
+    (event,) = source.poll(NOW)
+    # The system prompt read in an earlier poll is still known: the leak is recognized.
+    assert event.get("system_prompt_echo") == "true"
+    assert event.origin == "agent.jsonl:3"
+
+
+def test_watcher_raises_the_alerts_of_analyze_on_agent_logs(tmp_path):
+    fixture = FIXTURES / "agentlog" / "agent_indirect_injection.jsonl"
+    path = tmp_path / "agent.jsonl"
+    path.write_text("", encoding="utf-8")
+    watcher, _ = make_watcher(tmp_path, [FileSource(path, "agentlog")])
+    append(path, fixture.read_text(encoding="utf-8"))
+    fired = watcher.step()
+
+    def key(alert):
+        return alert.rule.id, tuple(event.get("type") for event in alert.events)
+
+    batch = Engine(load_rules(RULES_DIR)).evaluate(collect(fixture).events)
+    assert sorted(map(key, fired)) == sorted(map(key, batch.alerts))
+    printed = watcher.out.getvalue()
+    assert "AI Agent Sensitive Tool Call After Prompt Injection  [AML.T0051.001, AML.T0053]" in (
+        printed
+    )
+
+
+def test_watch_command_accepts_agent_logs(tmp_path, monkeypatch, capsys):
+    path = tmp_path / "agent.jsonl"
+    shutil.copy(FIXTURES / "agentlog" / "agent_benign.jsonl", path)
+
+    sleeps = []
+
+    def sleep(_seconds):
+        sleeps.append(_seconds)
+        if len(sleeps) == 1:  # the agent writes new lines, read at the next step
+            append(path, (FIXTURES / "agentlog" / "agent_jailbreak.jsonl").read_text("utf-8"))
+        else:
+            raise KeyboardInterrupt
+
+    monkeypatch.setattr(watch.time, "sleep", sleep)
+    out = tmp_path / "out"
+    assert main(["watch", str(path), "-o", str(out), "--notify-level", "off"]) == 0
+    printed = capsys.readouterr().out
+    assert f"Watching {path} with 53 rules." in printed
+    assert printed.count("MEDIUM        LLM Jailbreak Attempt  [AML.T0054]") == 2
+    assert "Stopped. Read 5 events, alerts: 2 medium." in printed
+    assert "LLM Jailbreak Attempt" in (out / "report.html").read_text(encoding="utf-8")
+
+
+class TTY(io.StringIO):
+    encoding = "utf-8"
+
+    def isatty(self):
+        return True
+
+
+def test_terminal_shows_alert_toasts_above_a_status_line(tmp_path, auth_log):
+    from vigie.term import Console
+
+    console = Console(TTY(), TTY(), environ={}, platform="linux")
+    watcher, _ = make_watcher(tmp_path, [FileSource(auth_log, "authlog")], console=console)
+    append(auth_log, "".join(LINE.format(10 + i, i) for i in range(10)))
+    watcher.step()
+    printed = console.out.getvalue()
+    assert " MEDIUM " in printed and "SSH Brute Force" in printed and "T1110.001" in printed
+    # The status line is redrawn at the bottom: sources, events, rate, alerts.
+    status = printed.rsplit("\r\033[2K", 1)[-1]
+    assert "watching 1 source" in status and "10 events" in status
+    assert "1 alert (1 medium)" in status
+
+
+def test_plain_console_prints_plain_lines(tmp_path, auth_log):
+    from vigie.term import Console
+
+    console = Console(TTY(), TTY(), plain=True)
+    watcher, _ = make_watcher(tmp_path, [FileSource(auth_log, "authlog")], console=console)
+    watcher.out = console.out
+    append(auth_log, "".join(LINE.format(10 + i, i) for i in range(10)))
+    watcher.step()
+    printed = console.out.getvalue()
+    assert "\033" not in printed
+    assert "MEDIUM        SSH Brute Force  [T1110.001]" in printed

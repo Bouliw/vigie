@@ -1,0 +1,33 @@
+title: LLM Prompt Injection In User Prompt
+id: eb189044-dda2-4a65-83bd-66afcec2a440
+status: experimental
+description: A user prompt tries to override the instructions the application gave the model, with the wording of known prompt injections ("ignore all previous instructions", "disregard your system prompt", "new system prompt") or with the special tokens that separate roles in chat templates (<|im_start|>, [INST], <<SYS>>), which no one types in a normal conversation. The user is testing or attacking the application; check what the model answered next in the same session.
+references:
+    - https://atlas.mitre.org/techniques/AML.T0051.000
+    - https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+author: Bouliw
+date: 2026-10-29
+tags:
+    - atlas.execution
+    - atlas.aml.t0051.000
+    - owasp.llm01
+    - owasp.asi01
+logsource:
+    product: ai
+    service: agentlog
+detection:
+    selection:
+        type: prompt
+        content|re:
+            # "Ignore all previous instructions", "disregard the above rules", "forget your
+            # system prompt". Not "ignore my previous message", a user correcting a typo.
+            - '(?i)\b(?:ignore|disregard|forget|override|bypass)\s+(?:all\s+|any\s+|every\s+)?(?:of\s+)?(?:the\s+|your\s+)?(?:previous|prior|preceding|above|earlier|foregoing|original|initial|system|existing)\s+(?:instructions?|prompts?|directions|directives|rules|guidelines|guardrails)\b'
+            - '(?i)\bnew\s+(?:system\s+prompt|system\s+instructions|instructions\s+from\s+(?:the\s+)?(?:system|developers?|administrator|admin))\b'
+            # Role separators of chat templates (ChatML, Llama 2 and 3).
+            - '<\|im_start\|>|<\|im_end\|>|<\|endoftext\|>|<\|start_header_id\|>|<\|(?:system|user|assistant)\|>|<</?SYS>>|\[/?INST\]'
+    condition: selection
+falsepositives:
+    - Developers or security testers trying injections against their own application
+    - A user asking about prompt injection and quoting a typical payload
+    - A user cancelling instructions they gave earlier ("ignore the previous instructions, I meant...")
+level: medium

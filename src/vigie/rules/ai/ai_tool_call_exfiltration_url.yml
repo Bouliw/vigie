@@ -1,0 +1,35 @@
+title: Possible Exfiltration Through An AI Agent Tool Call
+id: 9b474b0d-97e2-47af-966d-79091c02ad84
+status: experimental
+description: An AI agent called a tool with a web address that points to a request capture, tunnel or paste service (webhook.site, requestbin, pipedream, ngrok, Cloudflare quick tunnels, interactsh and Burp Collaborator domains, pastebin, transfer.sh...), whose only use is to receive data from somewhere else; or whose query string holds a long value of encoded data (100 characters or more); or whose arguments hold a credential in a recognizable format next to a web address. Prompt injections make agents send what they collected this way. Check what the call carried.
+references:
+    - https://atlas.mitre.org/techniques/AML.T0086
+    - https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks
+author: Bouliw
+date: 2026-10-29
+tags:
+    - atlas.exfiltration
+    - atlas.aml.t0086
+    - owasp.llm02
+    - owasp.asi02
+logsource:
+    product: ai
+    service: agentlog
+detection:
+    selection_type:
+        type: tool_call
+    selection_collection_host:
+        url_host|re: '(?i)(?:^|\.)(?:webhook\.site|requestbin\.(?:com|net)|pipedream\.net|ngrok\.io|ngrok-free\.app|ngrok\.app|ngrok\.dev|trycloudflare\.com|loca\.lt|serveo\.net|oast\.(?:fun|live|me|online|pro|site)|interact\.sh|interactsh\.com|oastify\.com|burpcollaborator\.net|beeceptor\.com|requestcatcher\.com|hookbin\.com|pastebin\.com|paste\.ee|transfer\.sh|0x0\.st|file\.io|bashupload\.com)$'
+    selection_long_query:
+        url|re: '[?&](?![Xx]-[Aa]mz-|[Ss]ignature=|[Ss]ig=)[^=&#]+=[A-Za-z0-9+/=_%.~-]{100,}'
+    selection_url:
+        url|exists: true
+    selection_secret:
+        arguments|re:
+            - '\b(?:AKIA|ASIA)(?!IOSFODNN7EXAMPLE)[A-Z0-9]{16}\b'
+            - '\bgh[pousr]_[A-Za-z0-9]{36}\b|\bgithub_pat_[A-Za-z0-9_]{80,}'
+            - '-----BEGIN (?:RSA |DSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----'
+    condition: selection_type and (selection_collection_host or selection_long_query or (selection_url and selection_secret))
+falsepositives:
+    - Developers testing webhooks with a capture service through their agent
+level: high

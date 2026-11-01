@@ -1,0 +1,614 @@
+{% raw %}
+// Vigie report: filters, search, explanations, copy buttons and the live reload of
+// `vigie watch`. The page is complete without this script; it only adds controls.
+(function () {
+  "use strict";
+  var doc = document;
+  var root = doc.documentElement;
+  var $ = function (sel, scope) { return (scope || doc).querySelector(sel); };
+  var $$ = function (sel, scope) { return Array.prototype.slice.call((scope || doc).querySelectorAll(sel)); };
+  var media = function (q) { return !!(window.matchMedia && window.matchMedia(q).matches); };
+  var reduced = media("(prefers-reduced-motion: reduce)");
+  var SPRING = "cubic-bezier(.34, 1.56, .64, 1)";
+  var EASE_OUT = "cubic-bezier(.22, 1, .36, 1)";
+  var fmt = function (n) { return Number(n).toLocaleString("en-US"); };
+
+  var data = { techniques: {}, tactics: {}, help: {} };
+  try { data = JSON.parse($("#vigie-data").textContent); } catch (e) { /* keep defaults */ }
+
+  // ---- State, kept for this tab across reloads (and across `vigie watch` rewrites) ----
+  var refresh = parseInt(doc.body.getAttribute("data-refresh") || "0", 10);
+  var KEY = "vigie:" + location.pathname;
+  var saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem(KEY) || "null"); } catch (e) { saved = null; }
+  var returning = !!(refresh && saved && saved.live);
+  var state = { levels: [], q: "", fw: "all", facet: null, open: {}, seen: {}, paused: false };
+  if (saved) {
+    ["levels", "q", "fw", "facet", "open", "seen", "paused"].forEach(function (k) {
+      if (saved[k] !== undefined && saved[k] !== null) { state[k] = saved[k]; }
+    });
+  }
+  function save(extra) {
+    var copy = {};
+    Object.keys(state).forEach(function (k) { copy[k] = state[k]; });
+    copy.live = !!refresh;
+    copy.y = window.scrollY;
+    if (extra) { Object.keys(extra).forEach(function (k) { copy[k] = extra[k]; }); }
+    try { sessionStorage.setItem(KEY, JSON.stringify(copy)); } catch (e) { /* private mode */ }
+  }
+
+  // ---- Theme ----
+  var themeBtn = $("#theme");
+  var MOON = '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.6 9.9A5.8 5.8 0 0 1 6.1 2.4a5.8 5.8 0 1 0 7.5 7.5z"/></svg>';
+  var SUN = '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>';
+  function theme() {
+    var t = root.getAttribute("data-theme");
+    return t || (media("(prefers-color-scheme: dark)") ? "dark" : "light");
+  }
+  function syncTheme() {
+    if (!themeBtn) { return; }
+    var dark = theme() === "dark";
+    themeBtn.innerHTML = dark ? SUN : MOON;
+    themeBtn.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
+  }
+  if (themeBtn) {
+    themeBtn.addEventListener("click", function () {
+      var next = theme() === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("vigie-theme", next); } catch (e) { /* storage blocked */ }
+      syncTheme();
+    });
+    syncTheme();
+  }
+
+  // ---- Toast ----
+  var toastEl = $("#toast");
+  var toastTimer = 0;
+  function toast(text) {
+    if (!toastEl) { return; }
+    toastEl.querySelector("span").textContent = text;
+    toastEl.classList.add("is-on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove("is-on"); }, 1600);
+  }
+
+  // ---- Cards ----
+  var list = $("#alert-list");
+  var cards = $$(".card");
+  var search = $("#q");
+  var countEl = $("#count");
+  var emptyEl = $("#empty");
+  var clearBtn = $("#clear");
+  var facetEl = $("#facet");
+  var expandBtn = $("#expand-all");
+  var toolbar = $("#toolbar");
+
+  function isOpen(card) { return card.classList.contains("is-open"); }
+  // Copy buttons for each evidence event are added when a card first opens.
+  var COPY_ICONS = '<svg class="icon cp" aria-hidden="true"><use href="#i-copy"/></svg>' +
+    '<svg class="icon ok" aria-hidden="true"><use href="#i-ok"/></svg>';
+  function enhance(card) {
+    if (card.getAttribute("data-ready")) { return; }
+    card.setAttribute("data-ready", "1");
+    $$(".ev-meta", card).forEach(function (meta) {
+      var btn = doc.createElement("button");
+      btn.type = "button";
+      btn.className = "copy";
+      btn.setAttribute("aria-label", "Copy this event");
+      btn.innerHTML = COPY_ICONS;
+      meta.appendChild(btn);
+    });
+  }
+  function setOpen(card, open) {
+    if (open) { enhance(card); }
+    card.classList.toggle("is-open", open);
+    var btn = $(".why", card);
+    if (btn) { btn.setAttribute("aria-expanded", String(open)); }
+    if (open) { state.open[card.id] = 1; } else { delete state.open[card.id]; }
+  }
+  function visible() { return cards.filter(function (c) { return !c.hidden; }); }
+  function syncExpandAll() {
+    if (!expandBtn) { return; }
+    var shown = visible();
+    var all = shown.length > 0 && shown.every(isOpen);
+    expandBtn.textContent = all ? "Collapse all" : "Expand all";
+    expandBtn.setAttribute("aria-pressed", String(all));
+  }
+  cards.forEach(function (card) {
+    if (state.open[card.id]) { setOpen(card, true); }
+    var btn = $(".why", card);
+    var head = $(".card-head", card);
+    btn.addEventListener("click", function (event) {
+      event.stopPropagation();
+      setOpen(card, !isOpen(card));
+      syncExpandAll();
+      save();
+    });
+    head.addEventListener("click", function (event) {
+      if (event.target.closest("a, button, input, .chips")) { return; }
+      if (String(window.getSelection ? window.getSelection() : "")) { return; }
+      setOpen(card, !isOpen(card));
+      syncExpandAll();
+      save();
+    });
+  });
+  if (expandBtn) {
+    expandBtn.addEventListener("click", function () {
+      var shown = visible();
+      var open = !(shown.length && shown.every(isOpen));
+      shown.forEach(function (card, i) {
+        if (reduced || i > 12 || !open) { setOpen(card, open); } else { setTimeout(function () { setOpen(card, open); }, i * 24); }
+      });
+      expandBtn.textContent = open ? "Collapse all" : "Expand all";
+      expandBtn.setAttribute("aria-pressed", String(open));
+      setTimeout(save, 400);
+    });
+  }
+
+  // ---- Filters ----
+  var textOf = new Map();
+  function haystack(card) {
+    var text = textOf.get(card);
+    if (text === undefined) {
+      text = [card.textContent, card.getAttribute("data-techniques"), card.getAttribute("data-rule"),
+        card.getAttribute("data-hosts")].join(" ").toLowerCase();
+      textOf.set(card, text);
+    }
+    return text;
+  }
+  function has(list, value) { return (" " + (list || "") + " ").indexOf(" " + value + " ") >= 0; }
+  function matches(card) {
+    if (state.levels.length && state.levels.indexOf(card.getAttribute("data-level")) < 0) { return false; }
+    if (state.fw !== "all" && !has(card.getAttribute("data-frameworks"), state.fw)) { return false; }
+    if (state.facet) {
+      var attr = { technique: "data-techniques", tactic: "data-tactics", rule: "data-rule" }[state.facet.type];
+      if (!attr || !has(card.getAttribute(attr), state.facet.id)) { return false; }
+    }
+    var terms = state.q.toLowerCase().split(/\s+/).filter(Boolean);
+    for (var i = 0; i < terms.length; i++) {
+      if (haystack(card).indexOf(terms[i]) < 0) { return false; }
+    }
+    return true;
+  }
+  function filtering() { return state.levels.length > 0 || state.q !== "" || state.fw !== "all" || !!state.facet; }
+
+  function rectsOf(items) {
+    var map = new Map();
+    items.forEach(function (c) { map.set(c, c.getBoundingClientRect()); });
+    return map;
+  }
+  function onScreen(rect) { return rect.bottom > -80 && rect.top < window.innerHeight + 80; }
+  // FLIP: cards that stay glide to their new place, cards that leave fade where they were.
+  function flip(before) {
+    var base = list.getBoundingClientRect();
+    cards.forEach(function (card) {
+      var old = before.get(card);
+      if (!card.hidden) {
+        var now = card.getBoundingClientRect();
+        if (old) {
+          var dy = old.top - now.top;
+          if (dy && (onScreen(old) || onScreen(now))) {
+            card.animate([{ transform: "translateY(" + dy + "px)" }, { transform: "none" }],
+              { duration: 460, easing: SPRING });
+          }
+        } else if (onScreen(now)) {
+          card.animate([{ opacity: 0, transform: "scale(.97)" }, { opacity: 1, transform: "none" }],
+            { duration: 320, easing: EASE_OUT });
+        }
+      } else if (old && onScreen(old)) {
+        var ghost = card.cloneNode(true);
+        ghost.hidden = false;
+        ghost.removeAttribute("id");
+        $$("[id]", ghost).forEach(function (el) { el.removeAttribute("id"); });
+        ghost.setAttribute("aria-hidden", "true");
+        ghost.style.cssText = "position:absolute;margin:0;pointer-events:none;z-index:0;left:" +
+          (old.left - base.left) + "px;top:" + (old.top - base.top) + "px;width:" + old.width + "px";
+        list.appendChild(ghost);
+        var fade = ghost.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.96)" }],
+          { duration: 220, easing: "ease-in" });
+        fade.onfinish = function () { ghost.remove(); };
+      }
+    });
+  }
+
+  function apply(animate) {
+    if (!cards.length) { return; }
+    var motion = animate && !reduced && cards.length <= 400 && typeof cards[0].animate === "function";
+    var before = motion ? rectsOf(visible()) : null;
+    var shown = 0;
+    cards.forEach(function (card) {
+      var ok = matches(card);
+      card.hidden = !ok;
+      if (ok) { shown++; }
+    });
+    countEl.textContent = "Showing " + shown + " of " + cards.length + " alerts";
+    emptyEl.hidden = shown > 0;
+    clearBtn.hidden = !filtering();
+    $$(".chip-sev").forEach(function (chip) {
+      chip.setAttribute("aria-pressed", String(state.levels.indexOf(chip.getAttribute("data-level")) >= 0));
+    });
+    $$(".seg button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-fw") === state.fw)); });
+    $$(".cell[data-tactic]").forEach(function (cell) {
+      cell.classList.toggle("is-active", !!state.facet && state.facet.type === "tactic" && state.facet.id === cell.getAttribute("data-tactic"));
+    });
+    if (state.facet) {
+      facetEl.hidden = false;
+      facetEl.firstElementChild.textContent = state.facet.label;
+    } else {
+      facetEl.hidden = true;
+    }
+    if (search && search.value !== state.q) { search.value = state.q; }
+    if (motion) { flip(before); }
+    syncExpandAll();
+    save();
+  }
+  function goToAlerts() {
+    var target = $("#alerts");
+    if (!target) { return; }
+    var top = target.getBoundingClientRect().top;
+    if (top < 0 || top > window.innerHeight * 0.6) {
+      target.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+    }
+  }
+  function setFacet(type, id, label) {
+    state.facet = { type: type, id: id, label: label };
+    apply(true);
+    goToAlerts();
+  }
+  function clearFilters() {
+    state.levels = []; state.q = ""; state.fw = "all"; state.facet = null;
+    apply(true);
+  }
+
+  $$(".chip-sev").forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      var level = chip.getAttribute("data-level");
+      var at = state.levels.indexOf(level);
+      if (at >= 0) { state.levels.splice(at, 1); } else { state.levels.push(level); }
+      apply(true);
+    });
+  });
+  $$(".seg button").forEach(function (b) {
+    b.addEventListener("click", function () { state.fw = b.getAttribute("data-fw"); apply(true); });
+  });
+  $$("a.tile[data-level]").forEach(function (tile) {
+    tile.addEventListener("click", function (event) {
+      var level = tile.getAttribute("data-level");
+      if (!cards.length || !$('.chip-sev[data-level="' + level + '"]:not(:disabled)')) { return; }
+      event.preventDefault();
+      state.levels = [level];
+      apply(true);
+      goToAlerts();
+    });
+  });
+  $$("button.rule-link").forEach(function (b) {
+    b.disabled = false;
+    b.addEventListener("click", function () { setFacet("rule", b.getAttribute("data-rule"), "Rule: " + b.textContent); });
+  });
+  if (clearBtn) { clearBtn.addEventListener("click", clearFilters); }
+  if ($("#empty-clear")) { $("#empty-clear").addEventListener("click", clearFilters); }
+  if (facetEl) { facetEl.querySelector("button").addEventListener("click", function () { state.facet = null; apply(true); }); }
+  var typing = 0;
+  if (search) {
+    search.addEventListener("input", function () {
+      clearTimeout(typing);
+      typing = setTimeout(function () { state.q = search.value.trim(); apply(true); }, 140);
+    });
+    search.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        if (search.value) { search.value = ""; state.q = ""; apply(true); } else { search.blur(); }
+        event.preventDefault();
+        event.stopPropagation();
+      } else if (event.key === "Enter") {
+        var first = visible()[0];
+        if (first) { $(".why", first).focus(); }
+      }
+    });
+  }
+  doc.addEventListener("keydown", function (event) {
+    var el = event.target;
+    var editing = el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+    if (event.key === "/" && !editing && !event.ctrlKey && !event.metaKey && !event.altKey && search) {
+      event.preventDefault();
+      search.focus();
+      search.select();
+    } else if (event.key === "Escape" && !editing) {
+      if (popOwner) { closePop(true); } else if (state.q) { state.q = ""; apply(true); }
+    }
+  });
+  if (toolbar && "IntersectionObserver" in window) {
+    var sentinel = doc.createElement("div");
+    toolbar.parentNode.insertBefore(sentinel, toolbar);
+    new IntersectionObserver(function (entries) {
+      toolbar.classList.toggle("is-stuck", !entries[0].isIntersecting);
+    }).observe(sentinel);
+  }
+
+  // ---- Explanations: technique chips, tactic cells and "?" buttons ----
+  var pop = $("#popover");
+  var popOwner = null;
+  var popPinned = false;
+  var hoverTimer = 0;
+  var hideTimer = 0;
+  function el(tag, cls, text) {
+    var node = doc.createElement(tag);
+    if (cls) { node.className = cls; }
+    if (text) { node.textContent = text; }
+    return node;
+  }
+  function idLine(item) {
+    var line = el("span", "p-id");
+    line.appendChild(el("code", "", item.id));
+    if (item.source) { line.appendChild(doc.createTextNode(" " + item.source)); }
+    return line;
+  }
+  function popBody(owner) {
+    var frag = doc.createDocumentFragment();
+    var actions = el("div", "p-actions");
+    var item;
+    var technique = owner.getAttribute("data-technique");
+    var tactic = owner.getAttribute("data-tactic");
+    var help = owner.getAttribute("data-help");
+    if (technique) {
+      item = data.techniques[technique] || { id: technique, name: technique, tactics: [] };
+      frag.appendChild(idLine(item));
+      frag.appendChild(el("strong", "p-title", item.name)).id = "popover-title";
+      if (item.tactics && item.tactics.length) { frag.appendChild(el("p", "p-sub", "Tactic: " + item.tactics.join(", "))); }
+      if (item.summary) { frag.appendChild(el("p", "", item.summary)); }
+      var n = cards.filter(function (c) { return has(c.getAttribute("data-techniques"), technique); }).length;
+      var filter = el("button", "btn", n === 1 ? "Show its alert" : "Show its " + n + " alerts");
+      filter.type = "button";
+      filter.addEventListener("click", function () { closePop(false); setFacet("technique", technique, item.id + " " + item.name); });
+      actions.appendChild(filter);
+      if (item.url) {
+        var more = el("a", "btn btn-quiet", "Read more");
+        more.href = item.url; more.target = "_blank"; more.rel = "noreferrer";
+        actions.appendChild(more);
+      }
+    } else if (tactic) {
+      item = data.tactics[tactic] || { id: tactic, name: tactic };
+      frag.appendChild(idLine(item));
+      frag.appendChild(el("strong", "p-title", item.name)).id = "popover-title";
+      frag.appendChild(el("p", "p-sub", item.count === 1 ? "1 alert maps to this tactic" : (item.count || 0) + " alerts map to this tactic"));
+      if (item.summary) { frag.appendChild(el("p", "", item.summary)); }
+      var show = el("button", "btn", "Show these alerts");
+      show.type = "button";
+      show.addEventListener("click", function () { closePop(false); setFacet("tactic", tactic, "Tactic: " + item.name); });
+      actions.appendChild(show);
+      if (item.url) {
+        var link = el("a", "btn btn-quiet", "Read more");
+        link.href = item.url; link.target = "_blank"; link.rel = "noreferrer";
+        actions.appendChild(link);
+      }
+    } else if (help) {
+      var label = (owner.getAttribute("aria-label") || "").replace(/^What is this\? /, "");
+      frag.appendChild(el("strong", "p-title", label.charAt(0).toUpperCase() + label.slice(1))).id = "popover-title";
+      frag.appendChild(el("p", "", data.help[help] || ""));
+    }
+    if (actions.childNodes.length) { frag.appendChild(actions); }
+    return frag;
+  }
+  function place(owner) {
+    var r = owner.getBoundingClientRect();
+    var w = pop.offsetWidth;
+    var h = pop.offsetHeight;
+    var margin = 12;
+    var left = Math.min(Math.max(margin, r.left + r.width / 2 - w / 2), window.innerWidth - w - margin);
+    var below = r.bottom + 8 + h < window.innerHeight || r.top < h + 16;
+    var top = below ? r.bottom + 8 : r.top - h - 8;
+    pop.style.left = (left + window.scrollX) + "px";
+    pop.style.top = (top + window.scrollY) + "px";
+    pop.style.setProperty("--ox", (r.left + r.width / 2 - left) + "px");
+    pop.style.setProperty("--oy", below ? "0" : "100%");
+  }
+  function openPop(owner, pinned) {
+    clearTimeout(hideTimer);
+    if (popOwner === owner) {
+      if (pinned && !popPinned) { popPinned = true; focusPop(); }
+      return;
+    }
+    closePop(false);
+    popOwner = owner;
+    popPinned = pinned;
+    pop.replaceChildren ? pop.replaceChildren(popBody(owner)) : (pop.innerHTML = "", pop.appendChild(popBody(owner)));
+    pop.hidden = false;
+    pop.style.animation = "none";
+    void pop.offsetWidth;
+    pop.style.animation = "";
+    place(owner);
+    owner.setAttribute("aria-expanded", "true");
+    if (pinned) { focusPop(); }
+  }
+  function focusPop() {
+    var first = $("button, a", pop);
+    if (first) { first.focus({ preventScroll: true }); } else { pop.setAttribute("tabindex", "-1"); pop.focus({ preventScroll: true }); }
+  }
+  function closePop(returnFocus) {
+    clearTimeout(hoverTimer);
+    if (!popOwner) { return; }
+    var owner = popOwner;
+    owner.setAttribute("aria-expanded", "false");
+    pop.hidden = true;
+    popOwner = null;
+    popPinned = false;
+    if (returnFocus) { owner.focus({ preventScroll: true }); }
+  }
+  var OWNER = "[data-technique], button.cell[data-tactic], button[data-help]";
+  doc.addEventListener("click", function (event) {
+    var owner = event.target.closest(OWNER);
+    if (owner) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (popOwner === owner && popPinned) { closePop(true); } else { openPop(owner, true); }
+      return;
+    }
+    if (popOwner && !pop.contains(event.target)) { closePop(false); }
+  });
+  if (media("(hover: hover) and (pointer: fine)")) {
+    doc.addEventListener("mouseover", function (event) {
+      var owner = event.target.closest(OWNER);
+      if (!owner || popPinned) { return; }
+      clearTimeout(hoverTimer);
+      clearTimeout(hideTimer);
+      hoverTimer = setTimeout(function () { openPop(owner, false); }, popOwner ? 60 : 320);
+    });
+    doc.addEventListener("mouseout", function (event) {
+      var owner = event.target.closest(OWNER);
+      if (!owner) { return; }
+      clearTimeout(hoverTimer);
+      if (popOwner === owner && !popPinned && !(event.relatedTarget && pop.contains(event.relatedTarget))) {
+        hideTimer = setTimeout(function () { closePop(false); }, 180);
+      }
+    });
+    pop.addEventListener("mouseenter", function () { clearTimeout(hideTimer); });
+    pop.addEventListener("mouseleave", function () { if (!popPinned) { hideTimer = setTimeout(function () { closePop(false); }, 180); } });
+  }
+  doc.addEventListener("focusin", function (event) {
+    var owner = event.target.closest && event.target.closest(OWNER);
+    if (owner && owner !== popOwner) {
+      var keyboard = false;
+      try { keyboard = owner.matches(":focus-visible"); } catch (e) { keyboard = false; }
+      if (keyboard) { openPop(owner, false); }
+    } else if (popOwner && !owner && !pop.contains(event.target)) {
+      closePop(false);
+    }
+  });
+  window.addEventListener("resize", function () { if (popOwner) { place(popOwner); } });
+
+  // ---- Copy ----
+  function eventText(ev) {
+    var parts = $$(".ev-meta > span", ev).map(function (span) { return span.textContent.trim(); });
+    return parts.join("  ") + "\n" + $(".ev-text", ev).textContent.trim();
+  }
+  function source(btn) {
+    if (btn.hasAttribute("data-copy")) {
+      return { text: btn.getAttribute("data-copy"), node: btn.previousElementSibling || btn.parentNode };
+    }
+    if (btn.hasAttribute("data-copy-table")) {
+      var events = btn.closest(".c-evid").querySelector(".events");
+      return { text: $$(".ev", events).map(eventText).join("\n\n"), node: events };
+    }
+    var ev = btn.closest(".ev");
+    return { text: eventText(ev), node: $(".ev-text", ev) };
+  }
+  function selectNode(node) {
+    try {
+      var range = doc.createRange();
+      range.selectNodeContents(node);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (e) { /* nothing to select */ }
+  }
+  function done(btn) {
+    btn.classList.add("is-done");
+    toast("Copied");
+    setTimeout(function () { btn.classList.remove("is-done"); }, 1500);
+  }
+  function fallbackCopy(item, btn) {
+    var area = doc.createElement("textarea");
+    area.value = item.text;
+    area.setAttribute("readonly", "");
+    area.style.cssText = "position:fixed;top:-1000px;left:0;opacity:0";
+    doc.body.appendChild(area);
+    area.select();
+    var ok = false;
+    try { ok = doc.execCommand("copy"); } catch (e) { ok = false; }
+    area.remove();
+    if (ok) { done(btn); } else { selectNode(item.node); toast("Selected: press Ctrl+C or ⌘C to copy"); }
+  }
+  doc.addEventListener("click", function (event) {
+    var btn = event.target.closest(".copy, [data-copy-table]");
+    if (!btn || btn.tagName !== "BUTTON") { return; }
+    event.stopPropagation();
+    var item = source(btn);
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(item.text).then(function () { done(btn); }, function () { fallbackCopy(item, btn); });
+    } else {
+      fallbackCopy(item, btn);
+    }
+  }, true);
+
+  // ---- Live reload (`vigie watch`) ----
+  var newCount = 0;
+  // Alerts that appeared since an earlier reload get a "New" badge for a minute, and the
+  // ones that just appeared a short highlight.
+  function markNew(card, fresh) {
+    card.classList.add("is-new");
+    if (!fresh) { card.style.animation = "none"; }
+    var badge = el("span", "new-badge", "New");
+    var title = $(".card-title", card);
+    title.parentNode.insertBefore(badge, title.nextSibling);
+  }
+  if (refresh) {
+    var now = Date.now();
+    var first = !saved || !saved.live;
+    cards.forEach(function (card) {
+      if (!(card.id in state.seen)) {
+        state.seen[card.id] = first ? 0 : now;
+        if (!first) { newCount++; markNew(card, true); }
+      } else if (state.seen[card.id] && now - state.seen[card.id] < 60000) {
+        markNew(card, false);
+      }
+    });
+    var keep = {};
+    cards.forEach(function (card) { keep[card.id] = state.seen[card.id]; });
+    state.seen = keep;
+    if ("scrollRestoration" in history) { history.scrollRestoration = "manual"; }
+    var banner = $("#live");
+    var pauseBtn = $("#pause");
+    var syncPause = function () {
+      pauseBtn.setAttribute("aria-pressed", String(state.paused));
+      pauseBtn.textContent = state.paused ? "Resume updates" : "Pause updates";
+      banner.classList.toggle("is-paused", state.paused);
+    };
+    if (pauseBtn) {
+      syncPause();
+      pauseBtn.addEventListener("click", function () { state.paused = !state.paused; syncPause(); save(); });
+    }
+    var lastInput = 0;
+    ["keydown", "pointerdown", "wheel", "touchstart"].forEach(function (type) {
+      doc.addEventListener(type, function () { lastInput = Date.now(); }, { passive: true });
+    });
+    var tick = function () {
+      var selecting = String(window.getSelection ? window.getSelection() : "") !== "";
+      if (state.paused || selecting || popPinned || Date.now() - lastInput < 2500) {
+        setTimeout(tick, 1000);
+        return;
+      }
+      save({ focus: doc.activeElement === search ? "q" : "" });
+      location.reload();
+    };
+    setTimeout(tick, refresh * 1000);
+  }
+  window.addEventListener("pagehide", function () { save(); });
+
+  // ---- First paint ----
+  apply(false);
+  if (returning) {
+    if (typeof saved.y === "number") { window.scrollTo(0, saved.y); }
+    if (saved.focus === "q" && search) { search.focus({ preventScroll: true }); }
+    if (newCount) { toast(newCount === 1 ? "1 new alert" : newCount + " new alerts"); }
+  } else if (!reduced) {
+    $$("[data-count]").forEach(function (node) {
+      var end = Number(node.getAttribute("data-count"));
+      if (!end) { return; }
+      var start = 0;
+      node.textContent = "0";
+      var step = function (t) {
+        if (!start) { start = t; }
+        var p = Math.min(1, (t - start) / 700);
+        node.textContent = fmt(Math.round(end * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) { requestAnimationFrame(step); }
+      };
+      requestAnimationFrame(step);
+    });
+    var entering = $$(".tile-wrap, .fact, .strip li").concat(visible().slice(0, 14));
+    entering.forEach(function (node, i) {
+      node.style.setProperty("--i", String(Math.min(i, 18)));
+      node.classList.add("enter");
+      node.addEventListener("animationend", function () { node.classList.remove("enter"); }, { once: true });
+    });
+  }
+})();
+{% endraw %}

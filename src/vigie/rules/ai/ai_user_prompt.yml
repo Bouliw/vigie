@@ -1,0 +1,23 @@
+title: LLM Prompt Received
+id: 58dc991d-93ea-434e-ae77-b62daf019a03
+name: ai_user_prompt
+status: experimental
+description: A user sent a prompt to the model. On its own this is normal use; it feeds the correlation that counts prompts per user to spot abnormal volumes.
+references:
+    - https://atlas.mitre.org/techniques/AML.T0034.000
+author: Bouliw
+date: 2026-10-29
+tags:
+    - atlas.impact
+    - atlas.aml.t0034.000
+    - owasp.llm10
+logsource:
+    product: ai
+    service: agentlog
+detection:
+    selection:
+        type: prompt
+    condition: selection
+falsepositives:
+    - Every prompt; this rule only feeds a correlation
+level: informational

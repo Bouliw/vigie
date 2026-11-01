@@ -1,0 +1,45 @@
+{# Design tokens shared by the HTML report and the local app (vigie ui). #}
+{% set dark_tokens %}
+  color-scheme: dark;
+  --paper: #0d1721; --surface: #132130; --raised: #182a3b; --sunken: #0f1b27;
+  --ink: #e4eaf0; --ink-2: #c3cfdb; --muted: #93a4b5; --line: #24374a; --line-strong: #34495f;
+  --accent: #8db8f2; --accent-soft: #1a2f47; --accent-on: #0d1721;
+  --heat-1: #172d44; --heat-2: #1f4670; --heat-3: #2f5f99; --heat-4: #79a6e4; --heat-3-ink: #ffffff; --heat-4-ink: #0d1721;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 20px -14px rgba(0, 0, 0, .7);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, .35), 0 16px 32px -18px rgba(0, 0, 0, .85);
+  --critical: #ff7a9c; --critical-soft: #3b1627; --critical-on: #1f0611;
+  --high: #ff9259; --high-soft: #3a2115; --high-on: #210c02;
+  --medium: #e8c04f; --medium-soft: #332a10; --medium-on: #1d1503;
+  --low: #9aacff; --low-soft: #1f2849; --low-on: #0b1030;
+  --informational: #a9b6c4; --informational-soft: #1f2b37; --informational-on: #0d1721;
+  --new: #5fd4a8; --new-soft: #143529;
+{% endset %}
+:root {
+  color-scheme: light;
+  --paper: #f1f4f7; --surface: #ffffff; --raised: #f7f9fb; --sunken: #e8edf2;
+  --ink: #13212e; --ink-2: #33475a; --muted: #5a6b7c; --line: #d9e0e7; --line-strong: #c2ccd6;
+  --accent: #1d4f91; --accent-soft: #e5edf8; --accent-on: #ffffff;
+  --heat-1: #dfe8f4; --heat-2: #b9cde8; --heat-3: #3d6aa8; --heat-4: #1d4f91; --heat-3-ink: #ffffff; --heat-4-ink: #ffffff;
+  --shadow: 0 1px 2px rgba(19, 33, 46, .06), 0 6px 18px -12px rgba(19, 33, 46, .22);
+  --shadow-lift: 0 2px 4px rgba(19, 33, 46, .06), 0 16px 32px -16px rgba(19, 33, 46, .32);
+  --critical: #9f1239; --critical-soft: #fbe8ee; --critical-on: #ffffff;
+  --high: #c2410c; --high-soft: #fdede4; --high-on: #ffffff;
+  --medium: #a15c00; --medium-soft: #fbf0dc; --medium-on: #ffffff;
+  --low: #3451d1; --low-soft: #e9edfc; --low-on: #ffffff;
+  --informational: #5b6b7b; --informational-soft: #edf0f3; --informational-on: #ffffff;
+  --new: #0d7a55; --new-soft: #dcf5ea;
+  --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", "Cascadia Code", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  --spring: cubic-bezier(.34, 1.56, .64, 1);
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+{{ dark_tokens }}
+  }
+}
+:root[data-theme="dark"] {
+{{ dark_tokens }}
+}

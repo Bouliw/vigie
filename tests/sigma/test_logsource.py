@@ -44,6 +44,12 @@ def test_macos_unified_log(make_event):
     assert not target.accepts(make_event("auth", program="sudo"))
 
 
+def test_ai_agent_log(make_event):
+    (target,) = resolve_logsource({"product": "ai", "service": "agentlog"})
+    assert target.accepts(make_event("agentlog", type="prompt"))
+    assert not target.accepts(make_event("unifiedlog", process="sudo"))
+
+
 def test_definition_is_ignored():
     logsource = {"product": "windows", "service": "sysmon", "definition": "Requires Sysmon"}
     assert resolve_logsource(logsource)[0].source == "sysmon"
@@ -58,6 +64,8 @@ def test_definition_is_ignored():
         {"product": "linux", "service": "auditd"},
         {"product": "macos", "category": "process_creation"},
         {"product": "macos", "service": "unifiedlog", "category": "file_event"},
+        {"product": "ai", "service": "chat"},
+        {"product": "ai", "service": "agentlog", "category": "process_creation"},
         {"category": "firewall"},
         {},
     ],

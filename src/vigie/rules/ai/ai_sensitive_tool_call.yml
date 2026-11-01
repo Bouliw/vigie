@@ -1,0 +1,42 @@
+title: AI Agent Sensitive Tool Call
+id: b483ddeb-f337-4f08-8869-bcc47f0bf6ad
+name: ai_sensitive_tool_call
+status: experimental
+description: An AI agent called a tool that acts outside the conversation, recognized by its name (shell or code execution, file write, edit or delete, HTTP request, web browsing, email or message sending, upload), by a web address among its arguments, or by arguments naming a credential store. Agents do this all the time, so the rule is informational context; it feeds the correlation that flags such a call right after a prompt injection.
+references:
+    - https://atlas.mitre.org/techniques/AML.T0053
+    - https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
+author: Bouliw
+date: 2026-10-29
+tags:
+    - atlas.execution
+    - atlas.aml.t0053
+    - owasp.llm06
+    - owasp.asi02
+logsource:
+    product: ai
+    service: agentlog
+detection:
+    selection_tool:
+        type: tool_call
+        tool|re:
+            # A word of the tool name: run_shell, execute_command, write_file, http_request,
+            # browser_navigate, send_email. Short words must end there ("cmd", not "cmdb").
+            - '(?i)(?:^|[^a-z0-9])(?:(?:cmd|eval|exec|run|sh|send|mail|post)(?:[^a-z0-9]|$)|shell|bash|zsh|powershell|pwsh|terminal|execute|command|subprocess|python|code_interpreter|write|edit|create_file|delete|remove|move|rename|upload|download|http|fetch|request|curl|wget|browse|navigate|open_url|email|webhook)'
+    selection_network:
+        type: tool_call
+        url|exists: true
+    selection_credentials:
+        # The credential stores of the rule "AI Agent Tool Call Reads Credential Files".
+        type: tool_call
+        arguments|re:
+            - '(?i)\.ssh[/\\]+id_(?:rsa|dsa|ecdsa|ed25519)(?:_sk)?(?!\.pub)\b'
+            - '(?i)\.aws[/\\]+credentials\b|\.config[/\\]+gcloud[/\\]|application_default_credentials\.json|\.azure[/\\]+(?:accessTokens\.json|msal_token_cache)'
+            - '(?i)\.kube[/\\]+config\b|\.docker[/\\]+config\.json|(?:^|[/\\"\s])\.(?:netrc|git-credentials|pgpass|pypirc)\b'
+            - '(?i)/etc/(?:g?shadow|master\.passwd)\b|\.password-store[/\\]|\.gnupg[/\\]+private-keys'
+            - '(?i)Login Data\b|\blogins\.json\b|\bkey4\.db\b|/Library/Keychains/|\bsecurity\s+(?:find-generic-password|find-internet-password|dump-keychain)\b'
+            - '169\.254\.169\.254|metadata\.google\.internal'
+    condition: 1 of selection_*
+falsepositives:
+    - Every legitimate use of an agent's tools; this rule raises no alert of its own above the informational level
+level: informational

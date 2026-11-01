@@ -8,6 +8,7 @@ under their license, or synthetic files written for Vigie.
 |---|---|---|
 | `authlog/` | Synthetic, written for Vigie | MIT (project license) |
 | `unifiedlog/` | Synthetic, written for Vigie | MIT (project license) |
+| `agentlog/` | Synthetic, written for Vigie | MIT (project license) |
 | `evtx/` | EVTX-ATTACK-SAMPLES, unmodified | GPL-3.0, see [`evtx/README.md`](evtx/README.md) |
 | `winjson/` | OTRF Security-Datasets, excerpt | MIT, see below |
 
@@ -64,6 +65,42 @@ with fictitious values only:
 - made-up process IDs, trace IDs and code hashes.
 
 They are covered by the project's MIT license.
+
+## `agentlog/`: synthetic
+
+Activity logs of AI agents and LLM applications, one JSON object per line, in
+the three shapes Vigie reads: its own schema (documented in the main README),
+OpenAI Chat Completions calls as an API gateway logs them
+(`agent_openai.jsonl`), and Model Context Protocol JSON-RPC messages
+(`agent_mcp.jsonl`, `agent_mcp_poisoned_tool.jsonl`).
+
+| File | Content |
+|---|---|
+| `agent_benign.jsonl` | A routine day: a support assistant (order lookup, a user correcting their previous message, a card number the user gives and the assistant does not repeat), a coding agent reading `.env`, writing a file and running the tests, a retrieved returns policy, a question on how to write a system prompt. Negative case for most AI rules. |
+| `agent_prompt_injection_direct.jsonl` | A user prompt telling the model to ignore its previous instructions, then one made of ChatML role tokens. |
+| `agent_indirect_injection.jsonl` | A retrieved email carrying an `<IMPORTANT>` note to the AI and instructions hidden in Unicode tag characters, followed in the same session by a `send_email` tool call to the address the note names. |
+| `agent_jailbreak.jsonl` | Two jailbreak prompts ("Do Anything Now", Developer Mode without ethical guidelines), both refused. |
+| `agent_system_prompt.jsonl` | A request to repeat the system prompt verbatim, and a response that does. |
+| `agent_data_leak.jsonl` | Responses that disclose an AWS access key id and a GitHub token, a customer's card number and IBAN, and an image whose address carries encoded data. |
+| `agent_tool_abuse.jsonl` | A coding agent piping a downloaded script into a shell, reading an SSH private key and posting to webhook.site. |
+| `agent_volume.jsonl` | 50 prompts from one user in under 5 minutes. |
+| `agent_openai.jsonl` | One Chat Completions call (system, user, assistant), benign. |
+| `agent_mcp.jsonl` | An MCP server's `tools/list` answer with two plainly described tools (one tells the model to call the other first, one says it refuses paths such as `~/.ssh/id_rsa`), then a `tools/call` reading `/etc/hostname`, and its result. |
+| `agent_mcp_poisoned_tool.jsonl` | An MCP session whose `tools/list` answer offers a poisoned `add` tool (an `<IMPORTANT>` block asking the model to read `mcp.json` and an SSH key, pass them as an argument and not mention it), a benign currency converter and a `send_report` tool whose parameter description hides instructions in Unicode tag characters; then the `add` call that passes a configuration file along, and its result. |
+
+These files are **synthetic**: written by hand for Vigie, not captured from any
+application. They use only:
+
+- fictitious users, sessions, applications and models (`alice`, `bob`,
+  `mallory`, `devbot`, `s-100`, `model-x`...);
+- reserved example domains (RFC 2606: `example.com`, `evil.example`...), the
+  IPv4 documentation ranges (RFC 5737) and `webhook.site`, named as text only;
+- credentials that only have the format of real ones (a fake AWS key id and
+  GitHub token, an SSH key path with no key, a made-up token in a configuration
+  file), and card numbers and IBANs made up to pass their checksums.
+
+Nothing in them can run: the commands, addresses and instructions are inert
+text the rules are tested on. They are covered by the project's MIT license.
 
 ## `winjson/`: OTRF Security-Datasets (excerpts)
 

@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from vigie.sigma.loader import load_rules, parse_rule
@@ -206,7 +208,7 @@ def test_bad_rules_are_reported_not_raised(write_rules):
     )
     ruleset = load_rules(folder)
     assert sorted(rule.meta.title for rule in ruleset.detections) == ["First", "LSASS Access"]
-    errors = sorted(error.replace(str(folder) + "/", "") for error in ruleset.errors)
+    errors = sorted(error.replace(str(folder) + os.sep, "") for error in ruleset.errors)
     assert errors[0].startswith("broken.yml: cannot read rule file")
     assert errors[1:] == [
         "multi.yml (document 2) [Second]: level must be one of "

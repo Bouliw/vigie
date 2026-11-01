@@ -1,3 +1,3 @@
-"""Vigie: blue team log analyzer driven by Sigma rules and MITRE ATT&CK."""
+"""Vigie: blue team log analyzer driven by Sigma rules, MITRE ATT&CK and MITRE ATLAS."""
 
-__version__ = "0.2.0"
+__version__ = "0.4.2"

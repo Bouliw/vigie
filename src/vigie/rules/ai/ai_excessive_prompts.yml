@@ -1,0 +1,25 @@
+title: Abnormal LLM Request Volume From One User
+id: 937a055d-aba7-43b2-9129-fc526cc84aa4
+status: experimental
+description: At least 50 prompts from the same user (the actor field) within 5 minutes, one every 6 seconds on average. Nobody types and reads that fast in a chat; it is a script using the user's account or API key, to run up costs on a pay-per-use model, degrade the service for others, or try many prompt variants (jailbreaks, extraction) until one works.
+references:
+    - https://atlas.mitre.org/techniques/AML.T0034.000
+    - https://genai.owasp.org/llmrisk/llm102025-unbounded-consumption/
+author: Bouliw
+date: 2026-10-29
+tags:
+    - atlas.impact
+    - atlas.aml.t0034.000
+    - owasp.llm10
+correlation:
+    type: event_count
+    rules:
+        - ai_user_prompt
+    group-by:
+        - actor
+    timespan: 5m
+    condition:
+        gte: 50
+falsepositives:
+    - Service accounts of batch jobs, evaluation runs or load tests sending prompts under one actor
+level: medium
