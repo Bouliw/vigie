@@ -1,0 +1,12 @@
+# Default gitleaks rules, minus the synthetic data: decoy tokens in the demo logs and test fixtures,
+# event IDs in the example reports
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Synthetic data"
+paths = [
+  '''^docs/example-report''',
+  '''^src/vigie/demo/''',
+  '''^tests/(fixtures|report)/''',
+]
