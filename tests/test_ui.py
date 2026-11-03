@@ -211,15 +211,34 @@ def test_uploads_stay_in_their_folder(app, name):
     assert not list(app.temp_root.glob("escape.log"))
 
 
-@pytest.mark.parametrize("path", ["{upload}/C:x.log", "{bogus}/a.log"])
-def test_a_refused_upload_gets_its_answer(app, path):
+@pytest.mark.parametrize(
+    ("first", "path", "status"),
+    [
+        (None, "{upload}/C:x.log", 400),
+        ("{upload}/a", "{upload}/a/b.log", 400),
+        ("{upload}/a/b.log", "{upload}/a", 400),
+        (None, "{upload}/" + "x" * 300, 400),
+        (None, "zzz/a.log", 404),
+        (None, "{unknown}/a.log", 404),
+    ],
+)
+def test_a_refused_upload_gets_its_answer(app, first, path, status):
     # Refused after the size check, the body is read away all the same so the error is not
     # lost in a reset connection
     _, body = request(app, "POST", "/api/uploads", {})
-    url = "/api/uploads/" + path.format(upload=json.loads(body)["id"], bogus="0" * 24)
+    ids = {"upload": json.loads(body)["id"], "unknown": "0" * 24}
+    if first:
+        assert request(app, "PUT", "/api/uploads/" + first.format(**ids), b"x")[0].status == 201
     for _ in range(3):
-        response, _ = request(app, "PUT", url, b"x" * (4 * 1024 * 1024))
-        assert response.status in (400, 404)
+        response, _ = request(app, "PUT", "/api/uploads/" + path.format(**ids), b"x" * 4 * 2**20)
+        assert response.status == status
+
+
+def test_an_upload_past_the_file_count_gets_its_answer(app, monkeypatch):
+    monkeypatch.setattr(ui, "MAX_UPLOAD_FILES", 0)
+    _, body = request(app, "POST", "/api/uploads", {})
+    url = f"/api/uploads/{json.loads(body)['id']}/a.log"
+    assert request(app, "PUT", url, b"x" * 4 * 2**20)[0].status == 413
 
 
 def test_reports_are_only_those_the_app_wrote(app, tmp_path):

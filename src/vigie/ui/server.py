@@ -660,11 +660,15 @@ class Handler(BaseHTTPRequestHandler):
             if not TOKEN_ID.match(upload_id):
                 raise HTTPError(HTTPStatus.NOT_FOUND, "unknown upload")
             target = self.app.uploads.add_file(upload_id, relative)
+            handle = target.open("wb")
         except HTTPError:
             self._discard(length)
             raise
+        except OSError as exc:  # "a" then "a/b.log" or the other way round, a name too long
+            self._discard(length)
+            raise HTTPError(HTTPStatus.BAD_REQUEST, "cannot store this file name") from exc
         remaining = length
-        with target.open("wb") as handle:
+        with handle:
             while remaining:
                 chunk = self.rfile.read(min(remaining, 1 << 20))
                 if not chunk:
