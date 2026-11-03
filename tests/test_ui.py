@@ -211,6 +211,17 @@ def test_uploads_stay_in_their_folder(app, name):
     assert not list(app.temp_root.glob("escape.log"))
 
 
+@pytest.mark.parametrize("path", ["{upload}/C:x.log", "{bogus}/a.log"])
+def test_a_refused_upload_gets_its_answer(app, path):
+    # Refused after the size check, the body is read away all the same so the error is not
+    # lost in a reset connection
+    _, body = request(app, "POST", "/api/uploads", {})
+    url = "/api/uploads/" + path.format(upload=json.loads(body)["id"], bogus="0" * 24)
+    for _ in range(3):
+        response, _ = request(app, "PUT", url, b"x" * (4 * 1024 * 1024))
+        assert response.status in (400, 404)
+
+
 def test_reports_are_only_those_the_app_wrote(app, tmp_path):
     for path in (
         "/reports/../../etc/passwd",

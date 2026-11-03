@@ -625,17 +625,21 @@ class Handler(BaseHTTPRequestHandler):
         if length < 0:
             raise HTTPError(HTTPStatus.BAD_REQUEST, "bad Content-Length")
         if length > limit:
-            self.close_connection = True
-            # Closing on an unread body resets the connection (on Windows, or once the body
-            # outgrows the socket buffers) and the client never sees the 413: read it away first
-            if length <= MAX_DRAIN:
-                while length > 0:
-                    chunk = self.rfile.read(min(length, 1024 * 1024))
-                    if not chunk:
-                        break
-                    length -= len(chunk)
+            self._discard(length)
             raise HTTPError(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "request body too large")
         return length
+
+    def _discard(self, length: int) -> None:
+        """Reads away the body of a refused request. Closing on an unread body resets the
+        connection (on Windows, or once the body outgrows the socket buffers) and the client
+        never sees the error."""
+        self.close_connection = True
+        if length <= MAX_DRAIN:
+            while length > 0:
+                chunk = self.rfile.read(min(length, 1024 * 1024))
+                if not chunk:
+                    break
+                length -= len(chunk)
 
     def _read_json(self) -> dict[str, Any]:
         length = self._length(MAX_JSON)
@@ -651,10 +655,14 @@ class Handler(BaseHTTPRequestHandler):
     # Actions ------------------------------------------------------------------------
 
     def _receive_file(self, upload_id: str, relative: str) -> None:
-        if not TOKEN_ID.match(upload_id):
-            raise HTTPError(HTTPStatus.NOT_FOUND, "unknown upload")
         length = self._length(MAX_UPLOAD)
-        target = self.app.uploads.add_file(upload_id, relative)
+        try:
+            if not TOKEN_ID.match(upload_id):
+                raise HTTPError(HTTPStatus.NOT_FOUND, "unknown upload")
+            target = self.app.uploads.add_file(upload_id, relative)
+        except HTTPError:
+            self._discard(length)
+            raise
         remaining = length
         with target.open("wb") as handle:
             while remaining:
