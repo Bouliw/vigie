@@ -7,6 +7,7 @@
   var $ = function (sel, scope) { return (scope || doc).querySelector(sel); };
   var reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   var TOKEN = $('meta[name="vigie-token"]').getAttribute("content");
+  var MAX_UPLOAD = Number($('meta[name="vigie-max-upload"]').getAttribute("content"));
   var fmt = function (n) { return Number(n || 0).toLocaleString("en-US"); };
   var LEVELS = ["critical", "high", "medium", "low", "informational"];
 
@@ -343,6 +344,13 @@
       return !item.path.split("/").some(function (part) { return part.charAt(0) === "."; });
     });
     if (!files.length) { homeError("Nothing to analyze: pick log files or a folder that holds some."); return; }
+    // Checked here: the server refuses a bigger file before reading it, and the browser only sees the connection drop
+    var big = files.filter(function (item) { return item.file.size > MAX_UPLOAD; })[0];
+    if (big) {
+      var limit = MAX_UPLOAD >= 1073741824 ? +(MAX_UPLOAD / 1073741824).toFixed(1) + " GB" : Math.ceil(MAX_UPLOAD / 1048576) + " MB";
+      homeError(big.path + " is too large: Vigie takes files up to " + limit + " each.");
+      return;
+    }
     homeError("");
     var top = files[0].path.split("/")[0];
     var label = files.length === 1 ? files[0].path : (files.every(function (f) { return f.path.split("/")[0] === top; }) && files[0].path.indexOf("/") > 0 ? top + " (" + files.length + " files)" : files.length + " files");

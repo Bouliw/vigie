@@ -420,6 +420,7 @@ class App:
         icon = (ICONS_DIR / "vigie.svg").read_text(encoding="utf-8")
         return self.templates.get_template("app.html.j2").render(
             token=self.token,
+            max_upload=MAX_UPLOAD,
             version=__version__,
             rules=rule_count(self.ruleset()),
             platform=sys.platform,

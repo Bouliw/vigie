@@ -159,6 +159,24 @@ def test_json_bodies_have_a_size_limit(app, size):
         assert response.status == 413
 
 
+def test_a_body_too_big_to_read_away_is_refused_without_waiting_for_it(app):
+    connection = http.client.HTTPConnection("127.0.0.1", app.port, timeout=10)
+    connection.putrequest("POST", "/api/heartbeat", skip_host=True)
+    connection.putheader("Host", f"127.0.0.1:{app.port}")
+    connection.putheader("X-Vigie-Token", TOKEN)
+    connection.putheader("Content-Length", str(ui.MAX_DRAIN + 1))
+    connection.endheaders()  # and no body: reading it away would wait until the timeout
+    assert connection.getresponse().status == 413
+    connection.close()
+
+
+def test_the_page_knows_the_upload_limit(app, monkeypatch):
+    # The page refuses a bigger file itself: past MAX_DRAIN the 413 is lost in a dropped connection
+    monkeypatch.setattr(ui, "MAX_UPLOAD", 12345)
+    _, body = request(app, "GET", "/")
+    assert b'<meta name="vigie-max-upload" content="12345">' in body
+
+
 def test_uploads_have_a_size_limit(app, monkeypatch):
     monkeypatch.setattr(ui, "MAX_UPLOAD", 10)
     _, body = request(app, "POST", "/api/uploads", {})
