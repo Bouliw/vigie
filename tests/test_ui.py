@@ -150,9 +150,13 @@ def test_pages_are_protected(app):
 # --- What it accepts -----------------------------------------------------------------
 
 
-def test_json_bodies_have_a_size_limit(app):
-    response, _ = request(app, "POST", "/api/heartbeat", b"{" + b" " * (ui.MAX_JSON + 1) + b"}")
-    assert response.status == 413
+@pytest.mark.parametrize("size", [ui.MAX_JSON + 1, 4 * 1024 * 1024])
+def test_json_bodies_have_a_size_limit(app, size):
+    # The 413 must reach a client that is still sending: closing on an unread body resets the
+    # connection (on Windows, or anywhere once the body outgrows the socket buffers)
+    for _ in range(3):
+        response, _ = request(app, "POST", "/api/heartbeat", b"{" + b" " * size + b"}")
+        assert response.status == 413
 
 
 def test_uploads_have_a_size_limit(app, monkeypatch):

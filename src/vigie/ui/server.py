@@ -65,6 +65,7 @@ PREFERRED_PORT = 47731  # the same port each launch keeps the theme the user pic
 MAX_JSON = 64 * 1024
 MAX_UPLOAD = 1024**3  # per file
 MAX_UPLOAD_FILES = 5000
+MAX_DRAIN = 16 * 1024 * 1024  # a refused body up to this size is read away so the 413 gets through
 IDLE_TIMEOUT = 300.0  # seconds without any request before the server stops
 RECENT_LIMIT = 20
 COOKIE = "vigie_token"
@@ -624,6 +625,14 @@ class Handler(BaseHTTPRequestHandler):
             raise HTTPError(HTTPStatus.BAD_REQUEST, "bad Content-Length")
         if length > limit:
             self.close_connection = True
+            # Closing on an unread body resets the connection (on Windows, or once the body
+            # outgrows the socket buffers) and the client never sees the 413: read it away first
+            if length <= MAX_DRAIN:
+                while length > 0:
+                    chunk = self.rfile.read(min(length, 1024 * 1024))
+                    if not chunk:
+                        break
+                    length -= len(chunk)
             raise HTTPError(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "request body too large")
         return length
 
