@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import sys
 import tempfile
 import time
@@ -29,13 +30,20 @@ from vigie.term import TEXT, AnalysisProgress, Console, Spinner, TopAlert, show_
 from vigie.timeutils import UTC
 from vigie.watch import (
     FOLLOWED_FORMATS,
+    JOURNALCTL,
     LOG_COMMAND,
+    WEVTUTIL,
+    WINDOWS_CHANNELS,
     FileSource,
+    JournaldSource,
     Source,
     UnifiedLogSource,
     Watcher,
     WatchError,
-    notify,
+    WindowsEventSource,
+    desktop_notifier,
+    journal_access_hint,
+    windows_sources,
 )
 
 RENDERERS = {"html": render_html, "md": render_markdown, "json": render_json}
@@ -54,6 +62,7 @@ examples:
   vigie demo                          try Vigie on sample logs, opens the report
   vigie analyze ./logs --open         analyze a folder of logs and open the report
   vigie watch /var/log/auth.log       follow a log as it is written
+  vigie watch --journald              follow the systemd journal of this Linux machine
   vigie rules                         list the detection rules
   vigie shortcut --remove             remove the desktop icon of the app
 """
@@ -186,15 +195,36 @@ def _parser() -> argparse.ArgumentParser:
         "watch",
         help="follow logs as they are written and raise alerts as they happen",
         description="Follow log files (auth.log, unified log exports, AI agent logs) like "
-        "tail -F and, with --macos, the unified log of this Mac. Every new event goes through "
-        "the detection rules: alerts are printed, the most severe raise a macOS notification, "
-        "and an HTML report reloads itself as they come in. Stop with Ctrl-C.",
+        "tail -F, and the live logs of this machine: the unified log of a Mac (--macos), the "
+        "systemd journal of a Linux machine (--journald) or the Windows event log (--windows). "
+        "Every new event goes through the detection rules: alerts are printed, the most severe "
+        "raise a desktop notification, and an HTML report reloads itself as they come in. "
+        "Stop with Ctrl-C.",
     )
     watch.add_argument("files", type=Path, nargs="*", metavar="FILE", help="log file to follow")
     watch.add_argument(
         "--macos",
         action="store_true",
         help="follow the unified log of this Mac with `log stream` (no administrator rights)",
+    )
+    watch.add_argument(
+        "--journald",
+        action="store_true",
+        help="follow the systemd journal of this Linux machine with `journalctl` (sshd, sudo, "
+        "su, useradd...): for systems without auth.log; needs root or the systemd-journal group",
+    )
+    watch.add_argument(
+        "--windows",
+        action="store_true",
+        help="follow the event log of this Windows machine (Security, System and Sysmon if "
+        "installed); needs a terminal run as administrator",
+    )
+    watch.add_argument(
+        "--channel",
+        action="append",
+        metavar="NAME",
+        help="with --windows, a channel to follow instead of the default ones (repeatable), "
+        "for example Microsoft-Windows-PowerShell/Operational",
     )
     watch.add_argument(
         "--predicate",
@@ -214,7 +244,8 @@ def _parser() -> argparse.ArgumentParser:
         "--notify-level",
         choices=[*LEVELS, "off"],
         default="high",
-        help="lowest severity that raises a macOS notification, or off (default: high)",
+        help="lowest severity that raises a desktop notification (macOS, Windows, Linux with "
+        "notify-send), or off (default: high)",
     )
     watch.add_argument(
         "--refresh",
@@ -545,13 +576,25 @@ def _browse(console: Console, path: Path) -> None:
 def _watch(args: argparse.Namespace) -> int:
     console = Console(plain=args.plain)
     tz = _timezone(args.tz)
-    if not args.files and not args.macos:
+    if not args.files and not (args.macos or args.journald or args.windows):
         raise UsageError(
-            "nothing to watch: give log files to follow, or --macos",
+            "nothing to watch: give log files to follow, or --macos, --journald or --windows",
             "for example: vigie watch /var/log/auth.log",
         )
     if args.macos and (sys.platform != "darwin" or not Path(LOG_COMMAND).exists()):
         raise UsageError("--macos reads the unified log of the Mac Vigie runs on: it needs macOS")
+    if args.journald and not (sys.platform.startswith("linux") and shutil.which(JOURNALCTL)):
+        raise UsageError(
+            "--journald reads the systemd journal of the Linux machine Vigie runs on: "
+            "it needs Linux with journalctl",
+            "on a system with an auth.log, follow it instead: vigie watch /var/log/auth.log",
+        )
+    if args.windows and (sys.platform != "win32" or not shutil.which(WEVTUTIL)):
+        raise UsageError(
+            "--windows reads the event log of the Windows machine Vigie runs on: it needs Windows"
+        )
+    if args.channel and not args.windows:
+        raise UsageError("--channel chooses the Windows channels to follow: add --windows")
     if args.refresh < 1:
         raise UsageError(f"--refresh expects a positive number of seconds, got {args.refresh}")
     _check_output(args.output)
@@ -559,11 +602,29 @@ def _watch(args: argparse.Namespace) -> int:
     ruleset = _load_ruleset(args.rules, console)
 
     sources: list[Source] = [FileSource(path, fmt, tz=tz) for path, fmt in formats.items()]
+    notes: list[str] = []
+    if args.windows:
+        try:
+            channels, notes = windows_sources(args.channel or WINDOWS_CHANNELS)
+        except WatchError as exc:
+            raise UsageError(str(exc)) from exc
+        if not channels:
+            raise UsageError("no Windows channel to follow: " + "; ".join(notes))
+        sources += channels
     if args.macos:
         sources.append(UnifiedLogSource(args.predicate))
-    notify_level = (
-        None if args.notify_level == "off" or sys.platform != "darwin" else args.notify_level
-    )
+    if args.journald:
+        hint = journal_access_hint()
+        if hint:
+            notes.append(hint)
+        sources.append(JournaldSource())
+    notifier = desktop_notifier()
+    if notifier is None and args.notify_level != "off" and sys.platform.startswith("linux"):
+        notes.append(
+            "no desktop notifications: notify-send is missing "
+            "(install libnotify-bin on Debian and Ubuntu, libnotify elsewhere)"
+        )
+    notify_level = None if args.notify_level == "off" or notifier is None else args.notify_level
     report_path = args.output / "report.html"
     watcher = Watcher(
         sources,
@@ -572,10 +633,20 @@ def _watch(args: argparse.Namespace) -> int:
         min_level=args.min_level,
         notify_level=notify_level,
         refresh=args.refresh,
-        notifier=notify,
+        notifier=notifier or (lambda title, message: None),
         console=console,
     )
-    names = [str(path) for path in args.files] + (["the macOS unified log"] if args.macos else [])
+    names = [str(path) for path in args.files]
+    if args.windows:
+        names += [
+            f"the Windows {source.channel} log"
+            for source in sources
+            if isinstance(source, WindowsEventSource)
+        ]
+    if args.macos:
+        names.append("the macOS unified log")
+    if args.journald:
+        names.append("the systemd journal")
     rule_count = len(ruleset.detections) + len(ruleset.correlations)
     lines = [
         f"Watching {', '.join(names)} with {rule_count} rules. Stop with Ctrl-C.",
@@ -590,6 +661,8 @@ def _watch(args: argparse.Namespace) -> int:
     else:
         for line in lines:
             print(line, flush=True)
+    for note in notes:
+        console.print(f"note: {note}", err=True)
     try:
         watcher.run()
     finally:

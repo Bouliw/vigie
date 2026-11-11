@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vigie"
-version = "0.4.2"
+version = "0.5.0"
 description = "Blue team log analyzer: read Windows EVTX, Linux auth.log, the macOS unified log and AI agent logs, apply Sigma rules, map alerts to MITRE ATT&CK, ATLAS and the OWASP Top 10 for LLM and agentic applications, and report, after the fact or live."
 readme = "README.md"
 license = { text = "MIT; rules adapted from SigmaHQ: DRL-1.1; ATT&CK data: MITRE ATT&CK Terms of Use; ATLAS data: Apache-2.0; OWASP Top 10 names: CC-BY-SA-4.0" }

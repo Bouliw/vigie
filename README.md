@@ -149,9 +149,11 @@ known limits written down).
   Model Context Protocol (MCP) traffic. See
   [AI agents and LLM applications](#ai-agents-and-llm-applications).
 - **Watches** logs as they are written: auth.log files and agent logs followed
-  like `tail -F`, through rotation, and the unified log of the Mac it runs on. Alerts are
-  printed as they happen, the most severe raise a macOS notification, and an
-  HTML report reloads itself in the browser.
+  like `tail -F`, through rotation, and the live logs of the machine it runs on:
+  the unified log of a Mac, the systemd journal of a Linux machine without
+  auth.log, the event log of a Windows machine. Alerts are printed as they
+  happen, the most severe raise a desktop notification (macOS, Windows, Linux),
+  and an HTML report reloads itself in the browser.
 - **Detects** with 53 Sigma rules evaluated by its own engine, including Sigma
   v2 correlation rules: brute force, password spraying, "successful login right
   after a brute force", launch agents and daemons (and those posing as Apple's),
@@ -259,6 +261,8 @@ too.
 ```bash
 vigie watch --macos              # the unified log of this Mac
 vigie watch /var/log/auth.log    # a Linux server
+vigie watch --journald           # a Linux server without auth.log (Fedora, Arch, RHEL 9...)
+vigie watch --windows            # this Windows machine, from a terminal run as administrator
 vigie watch agent.jsonl          # the activity log of an AI agent
 ```
 
@@ -276,16 +280,25 @@ terminal, each alert is a colored line above a status line (sources followed,
 events per second, alerts so far). The report is rewritten within a second of
 a new alert; the page reloads itself, keeps your filters, scroll position and
 the alerts you opened, and marks the new ones. Ctrl-C writes the final
-report. Notifications go through `osascript`, with the alert text passed
-as data, never as AppleScript code.
+report.
+
+Alerts at `--notify-level` and above also raise a desktop notification:
+through `osascript` on macOS, a toast of Windows PowerShell on Windows 10 and
+11, and `notify-send` on Linux (GNOME, KDE, Xfce...; install `libnotify-bin`
+on Debian and Ubuntu if it is missing). The alert text always reaches them as
+data, never as code: AppleScript arguments, environment variables escaped for
+the toast XML, plain text for `notify-send`.
 
 | Option | Meaning |
 |---|---|
 | `FILE ...` | auth.log files, unified log exports or AI agent logs to follow from their current end (rotation and truncation are followed) |
 | `--macos` | Follow the unified log of this Mac too, with `log stream` |
+| `--journald` | Follow the systemd journal of this Linux machine too, with `journalctl` |
+| `--windows` | Follow the event log of this Windows machine too: Security, System and Sysmon (when installed) |
+| `--channel NAME` | With `--windows`, a channel to follow instead of those (repeatable), such as `Microsoft-Windows-PowerShell/Operational` |
 | `-o, --output DIR` | Folder of the live `report.html` (default `./vigie-report`) |
 | `--min-level LEVEL` | Lowest severity printed and shown in the report (default `low`) |
-| `--notify-level LEVEL` | Lowest severity that raises a macOS notification, or `off` (default `high`); one rule notifies at most once a minute |
+| `--notify-level LEVEL` | Lowest severity that raises a desktop notification, or `off` (default `high`); one rule notifies at most once a minute |
 | `--refresh SECONDS` | How often the report reloads in the browser (default 5) |
 | `--predicate TEXT` | Which unified log entries `log stream` reads (default: those the shipped rules use) |
 | `--rules PATH`, `--tz ZONE`, `--plain` | As for `vigie analyze` |
@@ -315,6 +328,46 @@ vigie analyze mac.ndjson
 
 On the macOS 27 machine Vigie was tested on, `log show` returned no entries
 unless run with `sudo`, while `log stream` worked without it.
+
+### Linux without auth.log
+
+Fedora, Arch, RHEL 9 and Debian 12 or later without rsyslog keep their logs
+in the systemd journal only: there is no auth.log to follow.
+`vigie watch --journald` reads the journal with `journalctl --follow`, new
+entries only, and only those of the programs the Linux rules use (`sshd`,
+`sshd-session`, `sshd-auth`, `sudo`, `su`, `useradd`, `userdel`, `passwd`,
+`login`). Each entry is turned back into the line rsyslog would have written,
+so the events, fields and rules are exactly those of an auth.log.
+
+```bash
+sudo vigie watch --journald
+```
+
+The journal shows the entries of `sshd` and `sudo` only to root and to the
+`systemd-journal` and `adm` groups: run Vigie with `sudo`, or add yourself to
+one of them (`sudo usermod -aG systemd-journal $USER`, then log in again).
+Vigie says so when it starts without that access.
+
+### Windows
+
+`vigie watch --windows` follows the Windows event log with `wevtutil`, the
+command Windows ships to read it. Every second it asks each channel for its
+newest records and keeps those it has not seen; after a burst, it reads all
+of them. The events are those of `vigie analyze` on the same `.evtx` file,
+with the same fields, so the same rules fire. Record numbers start over at 1
+when a log is cleared: Vigie notices it, and the first record of a cleared
+Security log (event 1102, the clearing itself) is not missed.
+
+By default it follows `Security`, `System` and
+`Microsoft-Windows-Sysmon/Operational`, the channels the shipped Windows rules
+read; a channel that does not exist on the machine (Sysmon when it is not
+installed) is left out with a note. Reading the Security log needs a terminal
+opened with **Run as administrator**.
+
+```powershell
+vigie watch --windows
+vigie watch --windows --channel Security --channel Microsoft-Windows-PowerShell/Operational
+```
 
 ## AI agents and LLM applications
 

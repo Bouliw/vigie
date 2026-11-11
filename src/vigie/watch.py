@@ -1,23 +1,29 @@
 """``vigie watch``: follow logs as they are written and raise alerts as they happen.
 
 Sources are log files followed like ``tail -F`` (auth.log, unified log
-exports in ndjson, AI agent logs in JSON Lines) and the live macOS unified
-log, read from ``log stream``.
+exports in ndjson, AI agent logs in JSON Lines) and the live logs of the
+machine Vigie runs on: the macOS unified log (``log stream``), the systemd
+journal on Linux (``journalctl --follow``) and the Windows event log
+(``wevtutil``).
 Each new event goes through the rules of ``vigie analyze``, evaluated one
 event at a time (:class:`vigie.sigma.engine.Stream`). Every alert is printed;
-the most severe ones also raise a macOS notification; and an HTML report,
+the most severe ones also raise a desktop notification; and an HTML report,
 rewritten as alerts come in, reloads itself in the browser.
 """
 
 from __future__ import annotations
 
+import base64
+import contextlib
 import os
 import queue
+import shutil
 import subprocess
 import sys
 import tempfile
 import threading
 import time
+import xml.etree.ElementTree as ET
 from collections import deque
 from collections.abc import Callable, Sequence
 from datetime import datetime, tzinfo
@@ -29,7 +35,7 @@ from vigie.atlas import AtlasData, default_atlas_data
 from vigie.attack import AttackData, default_attack_data
 from vigie.collect import Collection, FileReport
 from vigie.models import LEVELS, Alert, Event
-from vigie.parsers import agentlog, authlog, unifiedlog
+from vigie.parsers import agentlog, authlog, journald, unifiedlog, winxml
 from vigie.report.builder import build_report, summarize
 from vigie.report.render import render_html, timestamp
 from vigie.sigma.engine import Evaluation, Stream, sort_alerts
@@ -39,6 +45,13 @@ from vigie.timeutils import UTC
 
 LOG_COMMAND = "/usr/bin/log"
 OSASCRIPT = "/usr/bin/osascript"
+JOURNALCTL = "journalctl"
+JOURNAL_GROUPS = frozenset({"systemd-journal", "adm", "wheel"})
+NOTIFY_SEND = "notify-send"
+WEVTUTIL = "wevtutil"
+# The channels the shipped Windows rules read (Sysmon only where it is installed).
+WINDOWS_CHANNELS = ("Security", "System", "Microsoft-Windows-Sysmon/Operational")
+WINDOWS_PAGE = 32  # records asked for at each poll of a Windows channel
 FOLLOWED_FORMATS = ("authlog", "unifiedlog", "agentlog")
 NOTIFY_COOLDOWN = 60.0  # seconds between two notifications of the same rule
 ANSI_COLORS = {"critical": "1;31", "high": "31", "medium": "33", "low": "34", "informational": "2"}
@@ -155,25 +168,16 @@ class FileSource:
         return [event] if event else []
 
 
-class UnifiedLogSource:
-    """The live macOS unified log, read from ``log stream --style ndjson``.
+class CommandSource:
+    """Events read from the output of a command that keeps running (``log stream``,
+    ``journalctl --follow``), one line at a time, by a thread that never blocks the watch."""
 
-    ``log stream`` needs no administrator rights for the entries Vigie reads.
-    """
+    name = "command"  # how errors name the command
 
-    def __init__(self, predicate: str = unifiedlog.PREDICATE, command: Sequence[str] = ()) -> None:
-        self.command = list(command) or [
-            LOG_COMMAND,
-            "stream",
-            "--style",
-            "ndjson",
-            "--level",
-            "info",  # Background Task Management and XProtect write at the info level
-            "--predicate",
-            predicate,
-        ]
-        self.report = FileReport("macOS unified log (log stream)", "unifiedlog", 0)
-        # stderr goes to a file: a pipe nobody reads could fill up and block log stream.
+    def __init__(self, command: Sequence[str], report: FileReport) -> None:
+        self.command = list(command)
+        self.report = report
+        # stderr goes to a file: a pipe nobody reads could fill up and block the command.
         self._stderr = tempfile.TemporaryFile()  # noqa: SIM115 (closed by close())
         self._process = subprocess.Popen(
             self.command,
@@ -202,16 +206,16 @@ class UnifiedLogSource:
                 self._stderr.seek(0)
                 error = self._stderr.read().decode("utf-8", errors="replace").strip()
                 raise WatchError(
-                    f"log stream stopped (exit code {self._process.returncode})"
+                    f"{self.name} stopped (exit code {self._process.returncode})"
                     + (f": {error}" if error else "")
                 )
             self._count += 1
-            origin = f"log stream:{self._count}"
-            event = unifiedlog.parse_line(line, origin=origin, warnings=self.report.warnings)
-            if event is not None:
-                events.append(event)
+            events += self.parse(line, self._count, now)
         self.report.events += len(events)
         return events
+
+    def parse(self, line: str, lineno: int, now: datetime) -> list[Event]:
+        raise NotImplementedError
 
     def close(self) -> None:
         if self._process.poll() is None:
@@ -229,11 +233,266 @@ class UnifiedLogSource:
         self._lines.put(None)  # end of the stream
 
 
+class UnifiedLogSource(CommandSource):
+    """The live macOS unified log, read from ``log stream --style ndjson``.
+
+    ``log stream`` needs no administrator rights for the entries Vigie reads.
+    """
+
+    name = "log stream"
+
+    def __init__(self, predicate: str = unifiedlog.PREDICATE, command: Sequence[str] = ()) -> None:
+        super().__init__(
+            command
+            or [
+                LOG_COMMAND,
+                "stream",
+                "--style",
+                "ndjson",
+                "--level",
+                "info",  # Background Task Management and XProtect write at the info level
+                "--predicate",
+                predicate,
+            ],
+            FileReport("macOS unified log (log stream)", "unifiedlog", 0),
+        )
+
+    def parse(self, line: str, lineno: int, now: datetime) -> list[Event]:
+        origin = f"log stream:{lineno}"
+        event = unifiedlog.parse_line(line, origin=origin, warnings=self.report.warnings)
+        return [event] if event else []
+
+
+class JournaldSource(CommandSource):
+    """The live systemd journal of this Linux machine, read from ``journalctl --follow``.
+
+    Only the entries of authentication programs are read (``sshd``, ``sudo``,
+    ``su``, ``useradd``...), and only new ones. Entries of other users and of
+    system services need root, or membership of the ``systemd-journal`` or
+    ``adm`` group: see :func:`journal_access_hint`.
+    """
+
+    name = "journalctl"
+
+    def __init__(self, command: Sequence[str] = ()) -> None:
+        super().__init__(
+            command
+            or [
+                JOURNALCTL,
+                "--follow",
+                "--lines=0",
+                "--output=json",
+                "--no-pager",
+                # Several values of one field are OR-ed by journalctl.
+                *(f"SYSLOG_IDENTIFIER={name}" for name in journald.IDENTIFIERS),
+            ],
+            FileReport("systemd journal (journalctl)", "journald", 0),
+        )
+
+    def parse(self, line: str, lineno: int, now: datetime) -> list[Event]:
+        return journald.parse_line(line, lineno=lineno, now=now, warnings=self.report.warnings)
+
+
+def journal_access_hint() -> str | None:
+    """Why ``journalctl`` would hide the entries Vigie needs, or ``None`` if it will show them."""
+    if not hasattr(os, "geteuid") or os.geteuid() == 0:
+        return None
+    import grp
+
+    names = set()
+    for gid in os.getgroups():
+        try:
+            names.add(grp.getgrgid(gid).gr_name)
+        except KeyError:
+            continue
+    if names & JOURNAL_GROUPS:
+        return None
+    return (
+        "journalctl shows the entries of sshd and sudo only to root and to the systemd-journal "
+        "and adm groups: run vigie with sudo, or add yourself to one of them "
+        "(sudo usermod -aG systemd-journal $USER, then log in again)"
+    )
+
+
+Runner = Callable[[Sequence[str]], "subprocess.CompletedProcess[bytes]"]
+
+
+def _run(command: Sequence[str]) -> subprocess.CompletedProcess[bytes]:
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # no console flashing on Windows
+    return subprocess.run(
+        list(command), capture_output=True, timeout=30, check=False, creationflags=flags
+    )
+
+
+def decode_output(data: bytes) -> str:
+    """The text ``wevtutil`` printed: UTF-16 with ``/uni:true``, else UTF-8 or the code page."""
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")) or b"\x00" in data[:64]:
+        return data.decode("utf-16", errors="replace").lstrip("﻿")
+    try:
+        return data.decode("utf-8").lstrip("﻿")
+    except UnicodeDecodeError:
+        return data.decode("mbcs" if os.name == "nt" else "latin-1", errors="replace")
+
+
+class WindowsChannelError(WatchError):
+    """A channel of the Windows event log cannot be read."""
+
+
+class WindowsEventSource:
+    """One channel of the live Windows event log (Security, System, Sysmon...).
+
+    Every poll asks ``wevtutil`` for the newest records of the channel and keeps
+    those not seen yet; it asks for all of them when more than a page arrived
+    since the last poll. Record numbers start over at 1 when a log is cleared:
+    the first record of a cleared Security log, event 1102, is read all the same.
+    Reading the Security log needs an administrator.
+    """
+
+    def __init__(self, channel: str, *, runner: Runner = _run) -> None:
+        self.channel = channel
+        self.runner = runner
+        self.report = FileReport(f"Windows event log: {channel}", "evtx", 0)
+        newest = self._query(["/c:1", "/rd:true"])
+        self._last = winxml.record_id(newest[0]) if newest else 0
+
+    def poll(self, now: datetime) -> list[Event]:
+        page = self._query([f"/c:{WINDOWS_PAGE}", "/rd:true"])  # newest first
+        if not page:
+            return []
+        newest = winxml.record_id(page[0])
+        if newest < self._last:  # the log was cleared: numbering started over
+            self._last = 0
+        fresh = [element for element in page if winxml.record_id(element) > self._last]
+        if len(fresh) == len(page) == WINDOWS_PAGE:  # maybe more than a page: read them all
+            query = f"/q:*[System[EventRecordID>{self._last}]]"
+            fresh = self._query([query, "/rd:false"])
+        else:
+            fresh.reverse()  # oldest first
+        self._last = max(newest, self._last)
+        events: list[Event] = []
+        for element in fresh:
+            try:
+                events.append(winxml.build_event(element, self.channel))
+            except ValueError as exc:
+                self.report.warnings.append(f"{self.channel}: malformed event ({exc})")
+        self.report.events += len(events)
+        return events
+
+    def close(self) -> None:
+        pass
+
+    def _query(self, options: list[str]) -> list[ET.Element]:
+        command = [WEVTUTIL, "qe", self.channel, *options, "/f:xml", "/e:Events", "/uni:true"]
+        try:
+            result = self.runner(command)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise WindowsChannelError(f"cannot run wevtutil: {exc}") from exc
+        if result.returncode != 0:
+            error = decode_output(result.stderr or result.stdout).strip()
+            if result.returncode == 5 or "denied" in error.lower():
+                raise WindowsChannelError(
+                    f"reading the {self.channel} log needs an administrator: open the terminal "
+                    "with Run as administrator"
+                )
+            raise WindowsChannelError(f"cannot read the {self.channel} log: {error}")
+        try:
+            return list(winxml.iter_events(decode_output(result.stdout)))
+        except ET.ParseError as exc:
+            self.report.warnings.append(f"{self.channel}: unreadable wevtutil output ({exc})")
+            return []
+
+
+def windows_sources(
+    channels: Sequence[str] = WINDOWS_CHANNELS, *, runner: Runner = _run
+) -> tuple[list[WindowsEventSource], list[str]]:
+    """A source per channel that exists here, and a note for each channel left out."""
+    sources: list[WindowsEventSource] = []
+    notes: list[str] = []
+    for channel in channels:
+        try:
+            sources.append(WindowsEventSource(channel, runner=runner))
+        except WindowsChannelError as exc:
+            if "administrator" in str(exc):
+                raise
+            notes.append(f"{channel} left out: {exc}")
+    return sources, notes
+
+
 def notify(title: str, message: str) -> None:
     """Show a macOS notification. The texts reach AppleScript as arguments, never as code."""
     script = ["on run argv", "display notification (item 2 of argv) with title (item 1 of argv)"]
     command = [OSASCRIPT, *(arg for line in [*script, "end run"] for arg in ("-e", line))]
     subprocess.run([*command, title, message], check=False, capture_output=True, timeout=10)
+
+
+# Windows PowerShell 5.1 (not PowerShell 7) can reach the toast API of Windows 10 and 11.
+# The texts arrive in environment variables and are escaped for XML: never run as code.
+WINDOWS_TOAST_SCRIPT = """
+$ErrorActionPreference = 'Stop'
+$null = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+$null = [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime]
+$title = [Security.SecurityElement]::Escape($env:VIGIE_NOTIFY_TITLE)
+$text = [Security.SecurityElement]::Escape($env:VIGIE_NOTIFY_MESSAGE)
+$xml = New-Object Windows.Data.Xml.Dom.XmlDocument
+$xml.LoadXml("<toast><visual><binding template='ToastGeneric'><text>$title</text><text>$text</text></binding></visual></toast>")
+$app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe'
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($app).Show([Windows.UI.Notifications.ToastNotification]::new($xml))
+"""  # noqa: E501
+
+
+def windows_powershell() -> str:
+    root = os.environ.get("SYSTEMROOT", r"C:\Windows")  # case-insensitive on Windows
+    return os.path.join(root, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+
+
+def notify_windows(title: str, message: str) -> None:
+    """Show a Windows toast notification, without waiting for PowerShell to start."""
+    command = [
+        windows_powershell(),
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        # Base64 of UTF-16: the script reaches PowerShell intact, whatever the quoting rules.
+        "-EncodedCommand",
+        base64.b64encode(WINDOWS_TOAST_SCRIPT.encode("utf-16-le")).decode("ascii"),
+    ]
+    env = {**os.environ, "VIGIE_NOTIFY_TITLE": title, "VIGIE_NOTIFY_MESSAGE": message}
+    _in_background(command, env=env)
+
+
+def notify_linux(title: str, message: str) -> None:
+    """Show a desktop notification with ``notify-send`` (GNOME, KDE, Xfce...)."""
+    # Notification servers read a little HTML in the body: the message is shown as text.
+    body = message.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    _in_background([NOTIFY_SEND, "--app-name=Vigie", "--", title, body])
+
+
+def _in_background(command: list[str], env: dict[str, str] | None = None) -> None:
+    """Run a notification command in a thread: a slow one never holds up the watch."""
+
+    def run() -> None:
+        # A notification that cannot be shown is not worth stopping the watch for.
+        with contextlib.suppress(OSError, subprocess.TimeoutExpired):
+            subprocess.run(
+                command,
+                env=env,
+                check=False,
+                capture_output=True,
+                timeout=30,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+
+    threading.Thread(target=run, daemon=True).start()
+
+
+def desktop_notifier(platform: str = sys.platform) -> Callable[[str, str], None] | None:
+    """The way to raise a notification on this system, or ``None`` if there is none."""
+    if platform == "darwin":
+        return notify if Path(OSASCRIPT).exists() else None
+    if platform == "win32":
+        return notify_windows if Path(windows_powershell()).exists() else None
+    return notify_linux if shutil.which(NOTIFY_SEND) else None
 
 
 class Watcher:
