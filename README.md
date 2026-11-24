@@ -492,6 +492,53 @@ groups, the LLM list and the agentic list: each entry the alerts map to, with
 its number of alerts and the rules behind them, and each alert has an OWASP
 line, with links to genai.owasp.org.
 
+### ATLAS context and questions about an alert
+
+Each alert mapped to MITRE ATLAS links to the **ATLAS context** section of the
+report: for every technique seen, its description, tactics, maturity (Feasible,
+Demonstrated or Realized), the mitigations with what each one does, the related
+techniques and up to three recent case studies, with a link to the ATLAS page of
+each id. It is read from the ATLAS release shipped with Vigie (2026.10), without
+any network access. The same from a terminal:
+
+```bash
+vigie atlas explain AML.T0051.001          # a technique
+vigie atlas explain "Sensitive Tool Call"  # an alert of the sample logs, or of --logs PATH
+```
+
+A language model can also answer a free question about one alert ("Why is this
+serious?", "What should I check next?", "How do I fix it?"): `--ask` on the
+command, or the "Ask about this alert" box of a report opened in the app
+(`vigie ui`). The model is given the ATLAS entries of the alert's techniques and
+the events of that alert, nothing else, and no tool.
+
+```bash
+vigie atlas explain "Sensitive Tool Call" --ask "How do I fix it?"
+```
+
+| Provider | What answers | Settings |
+| --- | --- | --- |
+| `mitre` | the [MITRE ATLAS Knowledge Base Agent](https://github.com/mitre-atlas/atlas-knowledge-base-agent), through the run API of a Langflow server on this machine | `VIGIE_MITRE_AGENT_URL` (default `http://127.0.0.1:7860`), `VIGIE_MITRE_AGENT_FLOW`, `VIGIE_MITRE_AGENT_KEY` |
+| `local` | a server that speaks the OpenAI chat API (LM Studio, llama.cpp, Ollama) | `VIGIE_LLM_URL` (default `http://127.0.0.1:1234/v1`), `VIGIE_LLM_MODEL`, `VIGIE_LLM_KEY` |
+| `anthropic` | Claude, through the Anthropic API | `pip install "vigie[agent]"`, the credentials of the Anthropic SDK, `VIGIE_ANTHROPIC_MODEL` |
+
+`--provider auto` (the default, or `VIGIE_AGENT_PROVIDER`) tries `mitre` then
+`local`, on this machine only: log content goes to a cloud API only when that
+provider is named.
+
+Every ATLAS id of an answer (`AML.T…`, `AML.M…`, `AML.CS…`, `AML.TA…`) is checked
+against the shipped ATLAS data. A known id is listed as verified with its name
+and link; an unknown one is marked `[unverified: not in MITRE ATLAS 2026.10]`,
+never shown as a fact. The check covers the ids, not the reasoning: an answer
+is generated text to verify before acting on it. Log events are written by
+whoever is being investigated, so they reach the model as quoted data and the
+answer is displayed as plain text.
+
+This part is experimental: the `mitre` and `anthropic` providers are written
+from the documented APIs and tested against a stand-in server only, and the
+MITRE agent ships its own ATLAS release (2026.7), older than the one bundled
+here. Reports of `vigie watch` have no question box.
+
 ### Rule mapping
 
 | Rule | Level | Records | MITRE ATLAS | OWASP Top 10 |

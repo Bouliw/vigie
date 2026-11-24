@@ -459,3 +459,49 @@ def test_recent_keeps_the_latest(tmp_path, monkeypatch):
     assert not (tmp_path / "20261029-100000-abcdef").exists()
     (tmp_path / "recent.json").write_text("not json", encoding="utf-8")
     assert recent.load() == []
+
+
+def test_a_question_about_an_alert_is_answered_from_what_the_app_kept(app, monkeypatch):
+    _, body = request(app, "POST", "/api/analyses", {"source": "sample"})
+    entry = events(app, f"/api/analyses/{json.loads(body)['id']}/events", until={"done"})[-1][1]
+    facts = json.loads((app.reports_dir / entry["id"] / "agent.json").read_text())
+    anchor, alert = next(iter(facts.items()))
+    assert alert["techniques"] and alert["events"]
+    asked = []
+
+    def fake(question, **kwargs):
+        asked.append((question, kwargs))
+        text, citations = ui.agent.verify("Apply AML.M0024, not AML.T9999.", kwargs["atlas"])
+        return ui.agent.Answer(text, "local", "stub-model", citations)
+
+    monkeypatch.setattr(ui.agent, "ask", fake)
+    url = f"/api/reports/{entry['id']}/ask"
+    sent = {"alert": anchor, "question": "How do I fix it?", "provider": "anthropic"}
+    response, body = request(app, "POST", url, sent)
+    reply = json.loads(body)
+    assert response.status == 200 and reply["model"] == "stub-model"
+    assert "AML.T9999 [unverified" in reply["text"]
+    assert [(c["id"], c["known"]) for c in reply["citations"]] == [
+        ("AML.M0024", True),
+        ("AML.T9999", False),
+    ]
+    kwargs = asked[0][1]
+    assert kwargs["alert"].events == tuple(alert["events"])
+    assert [c.technique.id for c in kwargs["contexts"]] == alert["techniques"]
+    assert "provider" not in kwargs  # the page does not choose where the events go
+
+    for bad, status in (
+        ({"alert": anchor, "question": ""}, 400),
+        ({"alert": anchor, "question": "x" * 1001}, 400),
+        ({"alert": "a-000000000000", "question": "why?"}, 404),
+        ({"alert": ["x"], "question": "why?"}, 404),
+    ):
+        assert request(app, "POST", url, bad)[0].status == status, bad
+    assert request(app, "POST", url, sent, token=None, cookie=TOKEN)[0].status == 403
+
+    def failing(question, **kwargs):
+        raise ui.agent.AgentError("no local model answers")
+
+    monkeypatch.setattr(ui.agent, "ask", failing)
+    response, body = request(app, "POST", url, sent)
+    assert response.status == 502 and json.loads(body)["error"] == "no local model answers"

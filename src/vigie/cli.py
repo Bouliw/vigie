@@ -16,7 +16,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from vigie import __version__
 from vigie.analysis import analyze
-from vigie.atlas import default_atlas_data
+from vigie.atlas import agent, default_atlas_data
+from vigie.atlas.context import render_text, technique_context
 from vigie.attack import default_attack_data
 from vigie.collect import detect_format
 from vigie.demo import DEMO_LOGS, DEMO_YEAR
@@ -64,6 +65,8 @@ examples:
   vigie watch /var/log/auth.log       follow a log as it is written
   vigie watch --journald              follow the systemd journal of this Linux machine
   vigie rules                         list the detection rules
+  vigie atlas explain AML.T0051       what MITRE ATLAS says about a technique
+  vigie atlas explain 1 --ask "How do I fix it?"   ask a local model about an alert
   vigie shortcut --remove             remove the desktop icon of the app
 """
 
@@ -291,6 +294,45 @@ def _parser() -> argparse.ArgumentParser:
     )
     _rules_argument(rules)
     rules.set_defaults(handler=_list_rules)
+
+    atlas = commands.add_parser(
+        "atlas", help="what MITRE ATLAS says about a technique or about an alert"
+    )
+    explain = atlas.add_subparsers(
+        dest="atlas_command", metavar="explain", required=True
+    ).add_parser(
+        "explain",
+        help="the ATLAS context of a technique or of an alert, and a question about it",
+        description="Print what the MITRE ATLAS data shipped with Vigie says about a technique "
+        "(description, tactics, maturity, mitigations, related techniques, case studies), "
+        "without any network access. With --ask, a language model answers a question from "
+        "that context and the events of the alert; every ATLAS id it cites is checked "
+        "against the shipped data and an unknown one is marked as unverified.",
+        epilog="Providers: mitre is the MITRE ATLAS agent on a local Langflow server "
+        "(VIGIE_MITRE_AGENT_URL, _FLOW, _KEY); local is an OpenAI-compatible server such as "
+        "LM Studio (VIGIE_LLM_URL, _MODEL, _KEY); anthropic is the Anthropic API "
+        "(pip install 'vigie[agent]', VIGIE_ANTHROPIC_MODEL). auto tries mitre then local, "
+        "on this machine only: log content goes to a cloud API only when you name it.",
+    )
+    explain.add_argument(
+        "target",
+        metavar="ALERT|AML.Txxxx",
+        help="an ATLAS technique id, or an alert of the analyzed logs: its number, or part "
+        "of the title or id of its rule",
+    )
+    explain.add_argument(
+        "--logs",
+        type=Path,
+        help="folder of logs or file the alert comes from (default: the sample logs)",
+    )
+    explain.add_argument("--ask", metavar="QUESTION", help="question for the language model")
+    explain.add_argument(
+        "--provider",
+        choices=agent.PROVIDERS,
+        default="auto",
+        help="who answers --ask (default: auto, or VIGIE_AGENT_PROVIDER)",
+    )
+    explain.set_defaults(handler=_explain)
     return parser
 
 
@@ -329,6 +371,80 @@ def _plain_argument(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="plain text output, without colors or animation (as when piped; NO_COLOR too)",
     )
+
+
+def _explain(args: argparse.Namespace) -> int:
+    atlas = default_atlas_data()
+    facts = None
+    if agent.ATLAS_ID.fullmatch(args.target):
+        techniques = [args.target.upper()]
+        if technique_context(atlas, techniques[0]) is None:
+            raise UsageError(
+                f"{techniques[0]} is not a technique of MITRE ATLAS {atlas.version}",
+                "technique ids look like AML.T0051 or AML.T0051.001",
+            )
+    else:
+        console = Console(plain=True)
+        report, _ = _run(
+            console,
+            args.logs or DEMO_LOGS,
+            _load_ruleset(None, console),
+            year=None if args.logs else DEMO_YEAR,
+            tz=UTC,
+            min_level="low",
+            full_timeline=False,
+            timeline_limit=DEFAULT_TIMELINE_LIMIT,
+        )
+        wanted = args.target.lower()
+        numbered = list(enumerate(report.alerts, 1))
+        found = [
+            (n, a)
+            for n, a in numbered
+            if wanted == str(n)
+            or (not wanted.isdigit() and (wanted in a.rule.title.lower() or wanted == a.rule.id))
+        ]
+        if not found:
+            listing = "; ".join(f"{n}: {a.rule.title}" for n, a in numbered if a.atlas.techniques)
+            raise UsageError(
+                f"no alert matches {args.target!r}",
+                f"alerts with an ATLAS technique: {listing or 'none'}",
+            )
+        number, alert = found[0]
+        techniques = [t.id for t in alert.atlas.techniques]
+        if not techniques:
+            raise UsageError(f"alert {number} ({alert.rule.title}) maps to no ATLAS technique")
+        facts = agent.AlertFacts(
+            title=alert.rule.title,
+            level=alert.rule.level,
+            description=alert.rule.description,
+            events=tuple(event.summary for event in alert.evidence),
+        )
+        print(f"Alert {number}: [{alert.rule.level}] {alert.rule.title}")
+        for line in facts.events:
+            print(f"  {line}")
+        print()
+    contexts = [c for t in techniques if (c := technique_context(atlas, t)) is not None]
+    print("\n\n".join(render_text(c, atlas.version) for c in contexts))
+    if not args.ask:
+        return 0
+    try:
+        answer = agent.ask(
+            args.ask, atlas=atlas, contexts=contexts, alert=facts, provider=args.provider
+        )
+    except agent.AgentError as exc:
+        _error(str(exc), None)
+        return 1
+    print(f"\nQuestion: {args.ask}\n\n{answer.text}\n")
+    for citation in answer.citations:
+        if citation.known:
+            print(f"  verified    {citation.id} {citation.name} [{citation.url}]")
+        else:
+            print(f"  UNVERIFIED  {citation.id} is not in MITRE ATLAS {atlas.version}")
+    print(
+        f"Generated by {answer.model} ({answer.provider} provider) from the ATLAS entries"
+        " and the events of the alert: verify it before acting on it."
+    )
+    return 0
 
 
 def _analyze(args: argparse.Namespace) -> int:

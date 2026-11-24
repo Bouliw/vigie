@@ -47,14 +47,15 @@ from jinja2 import ChoiceLoader, Environment, PackageLoader, StrictUndefined
 
 from vigie import __version__
 from vigie.analysis import analyze
-from vigie.atlas import default_atlas_data
+from vigie.atlas import agent, default_atlas_data
+from vigie.atlas.context import technique_context
 from vigie.attack import default_attack_data
 from vigie.collect import detect_format
 from vigie.demo import DEMO_LOGS, DEMO_YEAR
 from vigie.icons import ICONS_DIR
 from vigie.models import LEVELS
 from vigie.report.builder import build_report
-from vigie.report.render import render_html, timestamp
+from vigie.report.render import agent_facts, render_html, timestamp
 from vigie.rules import RULES_DIR
 from vigie.sigma.loader import RuleSet, load_rules
 from vigie.timeutils import UTC
@@ -142,6 +143,8 @@ class Analysis:
             folder.mkdir(parents=True, exist_ok=True)
             target = folder / "report.html"
             target.write_text(render_html(report), encoding="utf-8", errors="backslashreplace")
+            # What a question asked from the report is answered from (see _ask).
+            (folder / "agent.json").write_text(json.dumps(agent_facts(report)), encoding="utf-8")
             entry = {
                 "id": self.id,
                 "label": source["label"],
@@ -558,8 +561,11 @@ class Handler(BaseHTTPRequestHandler):
                 raise HTTPError(HTTPStatus.NOT_FOUND, "not found")
             self._send_file(self._report_file(parts[1]))
         elif method == "POST" and len(parts) == 4 and parts[:2] == ["api", "reports"]:
-            self._read_json()
+            body = self._read_json()
             report = self._report_file(parts[2])
+            if parts[3] == "ask":
+                self._send_json(self._ask(report.with_name("agent.json"), body))
+                return
             if parts[3] == "open":
                 app.opener(report.resolve().as_uri())
             elif parts[3] == "reveal":
@@ -750,6 +756,48 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json({"ok": True})
         else:
             raise HTTPError(HTTPStatus.NOT_FOUND, "not found")
+
+    def _ask(self, facts_file: Path, body: dict[str, Any]) -> dict[str, Any]:
+        """Answer a question about one alert of a report, with a language model.
+
+        The request names the alert and carries the question, nothing else: the events
+        come from the file written next to the report, the provider and its address from
+        the environment of the app.
+        """
+        question, anchor = body.get("question"), body.get("alert")
+        if not isinstance(question, str) or not question.strip():
+            raise HTTPError(HTTPStatus.BAD_REQUEST, "ask a question")
+        if len(question) > agent.MAX_QUESTION:
+            raise HTTPError(HTTPStatus.BAD_REQUEST, "this question is too long")
+        try:
+            facts = json.loads(facts_file.read_text(encoding="utf-8"))[anchor]
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            raise HTTPError(
+                HTTPStatus.NOT_FOUND, "this alert maps to no MITRE ATLAS technique"
+            ) from exc
+        atlas = default_atlas_data()
+        try:
+            answer = agent.ask(
+                question,
+                atlas=atlas,
+                contexts=[
+                    context
+                    for key in facts["techniques"]
+                    if (context := technique_context(atlas, key)) is not None
+                ],
+                alert=agent.AlertFacts(
+                    facts["title"], facts["level"], facts["description"], tuple(facts["events"])
+                ),
+            )
+        except agent.AgentError as exc:
+            raise HTTPError(HTTPStatus.BAD_GATEWAY, str(exc)[:500]) from exc
+        return {
+            "text": answer.text,
+            "provider": answer.provider,
+            "model": answer.model,
+            "atlas_version": atlas.version,
+            "citations": [vars(citation) for citation in answer.citations],
+        }
 
     def _report_file(self, report_id: str) -> Path:
         if not REPORT_ID.match(report_id) or self.app.recent.get(report_id) is None:
