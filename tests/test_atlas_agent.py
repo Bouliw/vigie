@@ -1,7 +1,10 @@
 """The ATLAS context of a technique, and the agent mode that answers questions from it."""
 
 import json
+import sys
 import threading
+import time
+import types
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import ClassVar
 
@@ -10,6 +13,7 @@ import pytest
 from vigie.atlas import agent, default_atlas_data
 from vigie.atlas.context import lookup, render_text, technique_context
 from vigie.cli import main
+from vigie.rules import RULES_DIR
 
 ATLAS = default_atlas_data()
 
@@ -95,6 +99,7 @@ def test_events_are_quoted_data_that_cannot_close_their_block():
 
 class Stub(BaseHTTPRequestHandler):
     answer = "Apply AML.M0024. AML.T9999 too."
+    flows: ClassVar[list] = [{"id": "other", "name": "Demo"}, {"id": "f-1", "name": "ATLAS Agent"}]
     seen: ClassVar[list] = []
 
     def log_message(self, *args):
@@ -113,7 +118,7 @@ class Stub(BaseHTTPRequestHandler):
         elif self.path == "/v1/models":
             self._reply({"data": [{"id": "stub-model"}]})
         elif self.path == "/api/v1/flows/":
-            self._reply([{"id": "other", "name": "Demo"}, {"id": "f-1", "name": "ATLAS Agent"}])
+            self._reply(Stub.flows)
         else:
             self._reply({}, 404)
 
@@ -337,3 +342,126 @@ def test_a_sub_technique_says_what_it_takes_from_its_parent():
         assert context.case_study_count >= len(context.case_studies)
         seen.add((bool(context.mitigations_from), bool(context.case_studies_from)))
     assert (False, True) in seen or (True, False) in seen  # the two do differ in ATLAS
+
+
+# --- The Anthropic provider, against a stand-in for its package ---------------------------
+
+
+def fake_anthropic(monkeypatch, reply):
+    """Install a module that looks like ``anthropic``; ``reply`` answers or raises."""
+    module = types.ModuleType("anthropic")
+    for name in ("AnthropicError", "APIConnectionError", "APIStatusError", "AuthenticationError"):
+        setattr(module, name, type(name, (Exception,), {}))
+    sent = {}
+
+    def create(**kwargs):
+        sent.update(kwargs)
+        return reply()
+
+    messages = types.SimpleNamespace(create=create)
+    module.Anthropic = lambda: types.SimpleNamespace(beta=types.SimpleNamespace(messages=messages))
+    monkeypatch.setitem(sys.modules, "anthropic", module)
+    return module, sent
+
+
+def message(stop_reason, *blocks):
+    content = [types.SimpleNamespace(type=kind, text=text) for kind, text in blocks]
+    return types.SimpleNamespace(stop_reason=stop_reason, content=content, model="served-model")
+
+
+def test_anthropic_provider_asks_for_a_fallback_and_keeps_the_text_blocks(monkeypatch):
+    blocks = (("fallback", None), ("text", "Apply AML.M0024."), ("text", " Done."))
+    _, sent = fake_anthropic(monkeypatch, lambda: message("end_turn", *blocks))
+    answer = ask("anthropic", {"VIGIE_ANTHROPIC_MODEL": "asked-model"})
+    assert (answer.provider, answer.model) == ("anthropic", "served-model")
+    assert answer.text == "Apply AML.M0024. Done." and answer.unverified == ()
+    assert sent["model"] == "asked-model" and sent["system"] == agent.SYSTEM
+    assert sent["fallbacks"] == "default"
+    assert sent["betas"] == ["server-side-fallback-2026-07-01"]
+    assert "event one" in sent["messages"][0]["content"]
+
+
+def test_anthropic_provider_reports_a_refusal_a_missing_or_an_old_package(monkeypatch):
+    fake_anthropic(monkeypatch, lambda: message("refusal"))
+    with pytest.raises(agent.AgentError, match="declined"):
+        ask("anthropic", {})
+
+    def old_sdk():
+        raise TypeError("create() got an unexpected keyword argument 'fallbacks'")
+
+    fake_anthropic(monkeypatch, old_sdk)
+    with pytest.raises(agent.AgentError, match="too old"):
+        ask("anthropic", {})
+
+    module, _ = fake_anthropic(monkeypatch, lambda: None)
+
+    def no_key():
+        raise module.AnthropicError("no api key")
+
+    fake_anthropic(monkeypatch, no_key)[0].AnthropicError = module.AnthropicError
+    with pytest.raises(agent.AgentError, match="not set up"):
+        ask("anthropic", {})
+    monkeypatch.setitem(sys.modules, "anthropic", None)  # as when it is not installed
+    with pytest.raises(agent.AgentError, match="pip install 'vigie\\[agent\\]'"):
+        ask("anthropic", {})
+
+
+# --- Deadline, fallbacks of auto, and the corners of vigie atlas explain -------------------
+
+
+def test_an_exchange_that_drags_on_is_given_up(monkeypatch):
+    def slow(system, user):
+        time.sleep(5)
+        return "late", "slow-model"
+
+    monkeypatch.setattr(agent, "DEADLINE", 0.2)
+    monkeypatch.setattr(agent, "resolve", lambda provider, env: ("local", slow))
+    started = time.monotonic()
+    with pytest.raises(agent.AgentError, match="no answer within"):
+        ask("local", {})
+    assert time.monotonic() - started < 2
+
+
+def test_auto_falls_back_to_a_local_model_when_the_port_holds_no_atlas_agent(stub, monkeypatch):
+    monkeypatch.setattr(Stub, "flows", [{"id": "other", "name": "Demo"}])
+    both = {"VIGIE_MITRE_AGENT_URL": stub, "VIGIE_LLM_URL": f"{stub}/v1"}
+    assert ask("auto", both).provider == "local"
+    # Another program on the port (no Langflow API at all) is skipped the same way.
+    assert ask("auto", both | {"VIGIE_MITRE_AGENT_URL": f"{stub}/v1"}).provider == "local"
+    # A flow given by id is trusted as soon as the server answers.
+    assert ask("auto", both | {"VIGIE_MITRE_AGENT_FLOW": "f-9"}).provider == "mitre"
+    assert Stub.seen[-1][0] == "/api/v1/run/f-9?stream=false"
+
+
+def test_explain_reports_a_failed_question_with_exit_code_1(monkeypatch, capsys):
+    monkeypatch.setenv("VIGIE_LLM_URL", f"{closed_port()}/v1")
+    asked = ["atlas", "explain", "AML.T0051", "--ask", "Why?", "--provider", "local"]
+    assert main(asked) == 1
+    captured = capsys.readouterr()
+    assert "could not get an answer from http://127.0.0.1:" in captured.err
+    assert captured.out.startswith("AML.T0051 ")  # the offline context is still printed
+
+
+def test_explain_finds_an_alert_by_part_of_its_rule_id_and_says_when_several_match(capsys):
+    rule_file = RULES_DIR / "ai" / "ai_prompt_injection_indirect.yml"
+    rule_id = next(
+        line.split(":", 1)[1].strip()
+        for line in rule_file.read_text(encoding="utf-8").splitlines()
+        if line.startswith("id:")
+    )
+    assert main(["atlas", "explain", rule_id[:13].upper()]) == 0
+    captured = capsys.readouterr()
+    assert "Prompt Injection In Retrieved Content" in captured.out.splitlines()[0]
+    assert "match" not in captured.err
+    assert main(["atlas", "explain", "PROMPT"]) == 0
+    captured = capsys.readouterr()
+    assert "alerts match 'PROMPT'" in captured.err and "showing alert" in captured.err
+    assert captured.out.startswith("Alert ")
+
+
+def test_explain_uses_the_rules_it_is_given(capsys):
+    rule_file = RULES_DIR / "ai" / "ai_prompt_injection_indirect.yml"
+    assert main(["atlas", "explain", "1", "--rules", str(rule_file)]) == 0
+    first = capsys.readouterr().out.splitlines()[0]
+    assert first.startswith("Alert 1: ") and "Prompt Injection In Retrieved Content" in first
+    assert main(["atlas", "explain", "2", "--rules", str(rule_file)]) == 2

@@ -29,6 +29,7 @@ import ipaddress
 import json
 import os
 import re
+import threading
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
@@ -54,6 +55,7 @@ MAX_EVENTS = 10
 MAX_EVENT_LENGTH = 600
 TIMEOUT = 180.0  # a local model can take a while to load and answer
 PROBE_TIMEOUT = 2.0
+DEADLINE = 240.0  # a whole exchange, however many requests and retries it takes
 
 MITRE_URL = "http://127.0.0.1:7860"
 MITRE_FLOW_NAME = "atlas agent"
@@ -197,13 +199,42 @@ def ask(
         raise AgentError("this alert maps to no MITRE ATLAS technique: nothing to ground on")
     env = os.environ if env is None else env
     name, call = resolve(provider, env)
-    text, model = call(SYSTEM, build_prompt(question, alert, contexts, atlas.version))
+    text, model = _within(
+        DEADLINE, call, SYSTEM, build_prompt(question, alert, contexts, atlas.version)
+    )
     # Reasoning of the model is not part of the answer, even cut off before its end.
     text = clean(re.sub(r"<think>.*?(?:</think>|$)", "", text, flags=re.DOTALL)).strip()
     if not text:
         raise AgentError(f"the {name} provider returned an empty answer")
     marked, citations = verify(text[:MAX_ANSWER], atlas)
     return Answer(text=marked, provider=name, model=clean(model)[:200], citations=citations)
+
+
+def _within(seconds: float, call: Call, system: str, user: str) -> tuple[str, str]:
+    """The result of ``call``, or an error once ``seconds`` have passed.
+
+    Timeouts of the requests bound each read, not the exchange: a server that sends a
+    byte now and then would hold the caller for as long as it likes. The exchange given
+    up goes on in a daemon thread until its own timeouts end it.
+    """
+    outcome: list[tuple[tuple[str, str] | None, Exception | None]] = []
+
+    def run() -> None:
+        try:
+            outcome.append((call(system, user), None))
+        except Exception as exc:  # handed back to the caller below
+            outcome.append((None, exc))
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    thread.join(seconds)
+    if not outcome:
+        raise AgentError(f"no answer within {seconds:.0f} seconds")
+    result, error = outcome[0]
+    if error is not None:
+        raise error
+    assert result is not None
+    return result
 
 
 # --- Providers ------------------------------------------------------------------------
@@ -227,7 +258,7 @@ def resolve(provider: str, env: Mapping[str, str]) -> tuple[str, Call]:
                 raise AgentError(
                     f"{variable} is not on this machine: name the provider to send it the events"
                 )
-        if _answers(f"{_mitre_url(env)}/api/v1/flows/", _mitre_headers(env)):
+        if _mitre_ready(env):
             provider = "mitre"
         elif _answers(f"{_local_url(env)}/models", _local_headers(env)):
             provider = "local"
@@ -247,6 +278,19 @@ def _mitre_url(env: Mapping[str, str]) -> str:
 
 def _local_url(env: Mapping[str, str]) -> str:
     return env.get("VIGIE_LLM_URL", LOCAL_URL).rstrip("/")
+
+
+def _mitre_ready(env: Mapping[str, str]) -> bool:
+    """Whether a Langflow server with the ATLAS agent answers: port 7860 is also the
+    default of other programs, and a Langflow server may hold other flows only."""
+    base, headers = _mitre_url(env), _mitre_headers(env)
+    if env.get("VIGIE_MITRE_AGENT_FLOW"):
+        return _answers(f"{base}/api/v1/flows/", headers)
+    try:
+        _find_flow(base, headers, PROBE_TIMEOUT)
+    except AgentError:
+        return False
+    return True
 
 
 def _mitre_headers(env: Mapping[str, str]) -> dict[str, str]:
@@ -284,8 +328,8 @@ def _mitre(env: Mapping[str, str]) -> Call:
     return call
 
 
-def _find_flow(base: str, headers: dict[str, str]) -> str:
-    flows = _http_json(f"{base}/api/v1/flows/", None, headers)
+def _find_flow(base: str, headers: dict[str, str], timeout: float = TIMEOUT) -> str:
+    flows = _http_json(f"{base}/api/v1/flows/", None, headers, timeout)
     for flow in flows if isinstance(flows, list) else []:
         if (
             isinstance(flow, dict)
@@ -399,7 +443,9 @@ def _answers(url: str, headers: dict[str, str] | None = None) -> bool:
         return False
 
 
-def _http_json(url: str, body: dict[str, Any] | None, headers: dict[str, str]) -> Any:
+def _http_json(
+    url: str, body: dict[str, Any] | None, headers: dict[str, str], timeout: float = TIMEOUT
+) -> Any:
     if not url.startswith(("http://", "https://")):
         raise AgentError("the address of the provider is not a web address")
     data = json.dumps(body).encode("utf-8") if body is not None else None
@@ -407,7 +453,7 @@ def _http_json(url: str, body: dict[str, Any] | None, headers: dict[str, str]) -
         url, data=data, headers={"Content-Type": "application/json", **headers}
     )
     try:
-        with _OPENER.open(request, timeout=TIMEOUT) as response:
+        with _OPENER.open(request, timeout=timeout) as response:
             raw = response.read(MAX_REPLY_BYTES + 1)
     except urllib.error.HTTPError as exc:
         raise AgentError(f"{_origin(url)} answered {exc.code} {exc.reason}") from exc

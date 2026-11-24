@@ -325,6 +325,7 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         help="folder of logs or file the alert comes from (default: the sample logs)",
     )
+    _rules_argument(explain)
     explain.add_argument("--ask", metavar="QUESTION", help="question for the language model")
     explain.add_argument(
         "--provider",
@@ -388,7 +389,7 @@ def _explain(args: argparse.Namespace) -> int:
         report, _ = _run(
             console,
             args.logs or DEMO_LOGS,
-            _load_ruleset(None, console),
+            _load_ruleset(args.rules, console),
             year=None if args.logs else DEMO_YEAR,
             tz=UTC,
             min_level="low",
@@ -412,7 +413,15 @@ def _explain(args: argparse.Namespace) -> int:
                 f"no alert matches {args.target!r}",
                 f"alerts with an ATLAS technique: {listing or 'none'}",
             )
-        number, alert = found[0]
+        # Several alerts can match a word: the first one ATLAS knows about is shown.
+        number, alert = next((f for f in found if f[1].atlas.techniques), found[0])
+        if len(found) > 1:
+            others = ", ".join(str(n) for n, _ in found if n != number)
+            print(
+                f"{len(found)} alerts match {args.target!r}: showing alert {number} "
+                f"(others: {others}); give a number to pick one",
+                file=sys.stderr,
+            )
         techniques = [t.id for t in alert.atlas.techniques]
         if not techniques:
             raise UsageError(f"alert {number} ({alert.rule.title}) maps to no ATLAS technique")

@@ -524,7 +524,11 @@ vigie atlas explain "Sensitive Tool Call" --ask "How do I fix it?"
 
 `--provider auto` (the default, or `VIGIE_AGENT_PROVIDER`) tries `mitre` then
 `local`, on this machine only: log content goes to a cloud API only when that
-provider is named.
+provider is named, and `auto` refuses an address that is not on this machine.
+A Langflow server without a flow named like "ATLAS Agent" is skipped. An
+exchange that takes more than four minutes is given up. The `anthropic`
+provider needs version 0.120 or later of the Anthropic SDK. `--rules` takes
+your own Sigma rules, as for `vigie analyze`.
 
 Every ATLAS id of an answer (`AML.T…`, `AML.M…`, `AML.CS…`, `AML.TA…`) is checked
 against the shipped ATLAS data. A known id is listed as verified with its name
