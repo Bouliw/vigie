@@ -71,6 +71,8 @@ IDLE_TIMEOUT = 300.0  # seconds without any request before the server stops
 RECENT_LIMIT = 20
 COOKIE = "vigie_token"
 REPORT_ID = re.compile(r"^\d{8}-\d{6}-[0-9a-f]{6}$")
+# Questions answered at once: a local model serves one or two, more would only queue.
+ASKING = threading.BoundedSemaphore(2)
 TOKEN_ID = re.compile(r"^[0-9a-f]{24}$")
 
 
@@ -769,6 +771,10 @@ class Handler(BaseHTTPRequestHandler):
             raise HTTPError(HTTPStatus.BAD_REQUEST, "ask a question")
         if len(question) > agent.MAX_QUESTION:
             raise HTTPError(HTTPStatus.BAD_REQUEST, "this question is too long")
+        if not facts_file.is_file():
+            raise HTTPError(
+                HTTPStatus.NOT_FOUND, "this report was made before questions: analyze again"
+            )
         try:
             facts = json.loads(facts_file.read_text(encoding="utf-8"))[anchor]
         except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -776,6 +782,10 @@ class Handler(BaseHTTPRequestHandler):
                 HTTPStatus.NOT_FOUND, "this alert maps to no MITRE ATLAS technique"
             ) from exc
         atlas = default_atlas_data()
+        if not ASKING.acquire(blocking=False):
+            raise HTTPError(
+                HTTPStatus.TOO_MANY_REQUESTS, "other questions are being answered: try again"
+            )
         try:
             answer = agent.ask(
                 question,
@@ -791,6 +801,10 @@ class Handler(BaseHTTPRequestHandler):
             )
         except agent.AgentError as exc:
             raise HTTPError(HTTPStatus.BAD_GATEWAY, str(exc)[:500]) from exc
+        except Exception as exc:  # a provider answering in an unforeseen way
+            raise HTTPError(HTTPStatus.BAD_GATEWAY, "the provider failed to answer") from exc
+        finally:
+            ASKING.release()
         return {
             "text": answer.text,
             "provider": answer.provider,

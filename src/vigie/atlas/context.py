@@ -37,7 +37,9 @@ class TechniqueContext:
     related: tuple[Reference, ...]
     case_studies: tuple[Reference, ...]  # at most CASE_STUDY_LIMIT, newest first
     case_study_count: int
-    inherited_from: str = ""  # parent id, when mitigations or case studies come from it
+    # Parent id, when the sub-technique has none of its own and shows those of its parent.
+    mitigations_from: str = ""
+    case_studies_from: str = ""
 
 
 def lookup(atlas: AtlasData, object_id: str) -> Reference | None:
@@ -62,12 +64,10 @@ def technique_context(atlas: AtlasData, technique_id: str) -> TechniqueContext |
     parent = atlas.entries.get(parent_id, {})
     mitigations = entry.get("mitigations") or {}
     studies = entry.get("case_studies") or []
-    inherited = bool(parent) and (
-        (not mitigations and bool(parent.get("mitigations")))
-        or (not studies and bool(parent.get("case_studies")))
-    )
+    mitigations_from = parent_id if not mitigations and parent.get("mitigations") else ""
+    case_studies_from = parent_id if not studies and parent.get("case_studies") else ""
     mitigations = mitigations or parent.get("mitigations") or {}
-    studies = studies or parent.get("case_studies") or []
+    studies = [k for k in studies or parent.get("case_studies") or [] if k in atlas.case_studies]
     return TechniqueContext(
         technique=technique,
         description=entry.get("description") or atlas.summary(technique.id),
@@ -91,10 +91,10 @@ def technique_context(atlas: AtlasData, technique_id: str) -> TechniqueContext |
                 _study_note(atlas.case_studies[key]),
             )
             for key in studies[:CASE_STUDY_LIMIT]
-            if key in atlas.case_studies
         ),
         case_study_count=len(studies),
-        inherited_from=parent_id if inherited else "",
+        mitigations_from=mitigations_from,
+        case_studies_from=case_studies_from,
     )
 
 
@@ -115,16 +115,15 @@ def render_text(context: TechniqueContext, atlas_version: str) -> str:
         "",
         context.description,
     ]
-    origin = (
-        f" (of the parent technique {context.inherited_from})" if context.inherited_from else ""
-    )
+
+    def origin(parent: str) -> str:
+        return f" (of the parent technique {parent})" if parent else ""
+
+    shown = f"({len(context.case_studies)} of {context.case_study_count})"
     sections = (
-        (f"Mitigations{origin}", context.mitigations),
+        (f"Mitigations{origin(context.mitigations_from)}", context.mitigations),
         ("Related techniques", context.related),
-        (
-            f"Case studies{origin} ({len(context.case_studies)} of {context.case_study_count})",
-            context.case_studies,
-        ),
+        (f"Case studies{origin(context.case_studies_from)} {shown}", context.case_studies),
     )
     for title, references in sections:
         if references:

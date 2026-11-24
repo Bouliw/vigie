@@ -401,7 +401,10 @@ def _explain(args: argparse.Namespace) -> int:
             (n, a)
             for n, a in numbered
             if wanted == str(n)
-            or (not wanted.isdigit() and (wanted in a.rule.title.lower() or wanted == a.rule.id))
+            or (
+                not wanted.isdigit()
+                and (wanted in a.rule.title.lower() or wanted in str(a.rule.id).lower())
+            )
         ]
         if not found:
             listing = "; ".join(f"{n}: {a.rule.title}" for n, a in numbered if a.atlas.techniques)
@@ -421,7 +424,7 @@ def _explain(args: argparse.Namespace) -> int:
         )
         print(f"Alert {number}: [{alert.rule.level}] {alert.rule.title}")
         for line in facts.events:
-            print(f"  {line}")
+            print(f"  {agent.clean(line)}")  # log content: no escape sequence to the terminal
         print()
     contexts = [c for t in techniques if (c := technique_context(atlas, t)) is not None]
     print("\n\n".join(render_text(c, atlas.version) for c in contexts))

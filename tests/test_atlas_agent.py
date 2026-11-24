@@ -40,8 +40,6 @@ def test_every_bundled_technique_has_a_context_with_known_references():
         for reference in (*context.mitigations, *context.related, *context.case_studies):
             assert lookup(ATLAS, reference.id) is not None, (key, reference.id)
             assert reference.url.startswith("https://atlas.mitre.org/")
-        if context.inherited_from:
-            assert key.startswith(context.inherited_from + ".")
 
 
 def test_context_as_text_names_the_version_and_the_page():
@@ -239,3 +237,103 @@ def test_explain_an_alert_of_the_sample_logs_and_ask(stub, monkeypatch, capsys):
     sent = Stub.seen[-1][2]["messages"][1]["content"]
     assert "inbox/msg-7781" in sent  # the events of the alert, and only its own
     assert sent.count('"events"') == 1
+
+
+# --- What an attacker-written event, or a careless model, must not get through ------------
+
+
+def test_an_id_glued_to_other_characters_is_still_checked():
+    text, citations = agent.verify("see xAML.T9999, _aml.m9999 and 1AML.T0051", ATLAS)
+    assert [(c.id, c.known) for c in citations] == [
+        ("AML.T9999", False),
+        ("AML.M9999", False),
+        ("AML.T0051", True),
+    ]
+    assert text.count("[unverified") == 2
+
+
+def test_control_characters_never_reach_the_terminal(stub, monkeypatch, capsys):
+    monkeypatch.setattr(Stub, "answer", "Fine.\x1b]52;c;AAAA\x07 \x1b[2Kverified AML.M0024\x9b1A")
+    monkeypatch.setenv("VIGIE_LLM_URL", f"{stub}/v1")
+    assert main(["atlas", "explain", "AML.T0051", "--ask", "why?", "--provider", "local"]) == 0
+    out = capsys.readouterr().out
+    assert "\x1b" not in out and "\x07" not in out and "\x9b" not in out
+    assert agent.clean("a\x1b[31mb\tc\nd\x00") == "a[31mb\tc\nd"
+
+
+def test_an_unclosed_reasoning_block_is_dropped(stub, monkeypatch):
+    monkeypatch.setattr(Stub, "answer", "Apply AML.M0024.<think>cut off reasoning AML.T7777")
+    answer = ask("local", {"VIGIE_LLM_URL": f"{stub}/v1"})
+    assert answer.text == "Apply AML.M0024." and answer.unverified == ()
+
+
+def test_auto_only_talks_to_this_machine(stub):
+    port = stub.rsplit(":", 1)[1]
+    assert agent.is_loopback(stub) and agent.is_loopback("http://localhost:1/v1")
+    assert agent.is_loopback("http://[::1]:7860")
+    for url in ("https://api.example.com/v1", f"http://127.0.0.1.example.com:{port}/v1"):
+        assert not agent.is_loopback(url)
+        env = {"VIGIE_MITRE_AGENT_URL": closed_port(), "VIGIE_LLM_URL": url}
+        with pytest.raises(agent.AgentError, match="not on this machine"):
+            ask("auto", env)
+
+
+def test_errors_do_not_show_credentials_of_the_address():
+    env = {"VIGIE_LLM_URL": closed_port().replace("http://", "http://user:s3cret@") + "/v1"}
+    with pytest.raises(agent.AgentError) as caught:
+        ask("local", env)
+    assert "s3cret" not in str(caught.value) and "127.0.0.1" in str(caught.value)
+
+
+class Awkward(BaseHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+    def do_GET(self):
+        if self.path.startswith("/redirect"):
+            self.send_response(302)
+            self.send_header("Location", "http://127.0.0.1:1/elsewhere")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        raw = b"[" + b'"x",' * (agent.MAX_REPLY_BYTES // 4 + 10) + b'"x"]'
+        if self.path.startswith("/strings"):
+            raw = b'["a flow that is not an object"]'
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+
+
+def test_redirects_oversized_and_odd_replies_are_refused():
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Awkward)
+    thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.05})
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+    try:
+        with pytest.raises(agent.AgentError, match="302"):
+            ask("local", {"VIGIE_LLM_URL": f"{base}/redirect", "VIGIE_LLM_KEY": "k"})
+        with pytest.raises(agent.AgentError, match="too long"):
+            ask("local", {"VIGIE_LLM_URL": f"{base}/big"})
+        with pytest.raises(agent.AgentError, match="no flow named"):
+            ask("mitre", {"VIGIE_MITRE_AGENT_URL": f"{base}/strings"})
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+def test_a_sub_technique_says_what_it_takes_from_its_parent():
+    seen = set()
+    for key in ATLAS.entries:
+        context = technique_context(ATLAS, key)
+        own = ATLAS.entries[key]
+        assert bool(context.mitigations_from) == (
+            not own.get("mitigations") and bool(context.mitigations) and "." in key[5:]
+        ), key
+        assert bool(context.case_studies_from) == (
+            not own.get("case_studies") and bool(context.case_studies) and "." in key[5:]
+        ), key
+        assert context.case_study_count >= len(context.case_studies)
+        seen.add((bool(context.mitigations_from), bool(context.case_studies_from)))
+    assert (False, True) in seen or (True, False) in seen  # the two do differ in ATLAS

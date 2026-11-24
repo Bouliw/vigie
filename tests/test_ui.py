@@ -505,3 +505,25 @@ def test_a_question_about_an_alert_is_answered_from_what_the_app_kept(app, monke
     monkeypatch.setattr(ui.agent, "ask", failing)
     response, body = request(app, "POST", url, sent)
     assert response.status == 502 and json.loads(body)["error"] == "no local model answers"
+
+
+def test_questions_are_few_at_a_time_and_failures_stay_quiet(app, monkeypatch):
+    _, body = request(app, "POST", "/api/analyses", {"source": "sample"})
+    entry = events(app, f"/api/analyses/{json.loads(body)['id']}/events", until={"done"})[-1][1]
+    facts_file = app.reports_dir / entry["id"] / "agent.json"
+    sent = {"alert": next(iter(json.loads(facts_file.read_text()))), "question": "why?"}
+    url = f"/api/reports/{entry['id']}/ask"
+
+    def broken(question, **kwargs):
+        raise RuntimeError("secret detail")
+
+    monkeypatch.setattr(ui.agent, "ask", broken)
+    response, body = request(app, "POST", url, sent)
+    assert response.status == 502 and "secret detail" not in body.decode()
+    monkeypatch.setattr(ui, "ASKING", threading.BoundedSemaphore(1))
+    assert ui.ASKING.acquire(blocking=False)
+    assert request(app, "POST", url, sent)[0].status == 429
+    ui.ASKING.release()
+    facts_file.unlink()
+    response, body = request(app, "POST", url, sent)
+    assert response.status == 404 and "analyze again" in json.loads(body)["error"]

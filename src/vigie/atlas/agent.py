@@ -24,6 +24,8 @@ id that is not in the extract is marked as unverified, never shown as a fact.
 
 from __future__ import annotations
 
+import http.client
+import ipaddress
 import json
 import os
 import re
@@ -32,13 +34,20 @@ import urllib.request
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlsplit
 
 from vigie.atlas.context import Reference, TechniqueContext, lookup, render_text
 from vigie.atlas.mapping import AtlasData
 
 PROVIDERS = ("auto", "mitre", "local", "anthropic")
-# Any number of digits: a malformed id is caught whole and reported as unknown.
-ATLAS_ID = re.compile(r"\bAML\.(?:TA|T|M|CS)\d+(?:\.\d+)?", re.IGNORECASE)
+# Any number of digits, and no word boundary in front: a malformed id, or one glued to
+# other characters, is caught whole and reported as unknown. The report page marks ids
+# from the citations only, so what is not matched here is never shown as verified.
+ATLAS_ID = re.compile(r"AML\.(?:TA|T|M|CS)\d+(?:\.\d+)?", re.IGNORECASE)
+# C0 and C1 control characters, but for tab and newline: an answer or an event must not
+# drive the terminal (escape sequences) when printed.
+CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
+MAX_REPLY_BYTES = 2 * 1024 * 1024
 MAX_QUESTION = 1000
 MAX_ANSWER = 12000
 MAX_EVENTS = 10
@@ -65,6 +74,22 @@ Rules:
 that appear in <atlas>. Do not invent ids, names, links or facts.
 - If the blocks do not hold the answer, say so.
 - Be concrete and brief: short paragraphs or a short list, plain text, no Markdown tables."""
+
+
+def clean(text: str) -> str:
+    """``text`` without control characters, safe to print on a terminal."""
+    return CONTROL.sub("", text)
+
+
+def is_loopback(url: str) -> bool:
+    """Whether ``url`` points at this machine."""
+    host = urlsplit(url).hostname or ""
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
 
 
 class AgentError(Exception):
@@ -173,11 +198,12 @@ def ask(
     env = os.environ if env is None else env
     name, call = resolve(provider, env)
     text, model = call(SYSTEM, build_prompt(question, alert, contexts, atlas.version))
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    # Reasoning of the model is not part of the answer, even cut off before its end.
+    text = clean(re.sub(r"<think>.*?(?:</think>|$)", "", text, flags=re.DOTALL)).strip()
     if not text:
         raise AgentError(f"the {name} provider returned an empty answer")
     marked, citations = verify(text[:MAX_ANSWER], atlas)
-    return Answer(text=marked, provider=name, model=model, citations=citations)
+    return Answer(text=marked, provider=name, model=clean(model)[:200], citations=citations)
 
 
 # --- Providers ------------------------------------------------------------------------
@@ -193,7 +219,15 @@ def resolve(provider: str, env: Mapping[str, str]) -> tuple[str, Call]:
     if provider not in PROVIDERS:
         raise AgentError(f"unknown provider {provider!r}, expected one of {', '.join(PROVIDERS)}")
     if provider == "auto":
-        if _answers(f"{_mitre_url(env)}/health"):
+        for variable, url in (
+            ("VIGIE_MITRE_AGENT_URL", _mitre_url(env)),
+            ("VIGIE_LLM_URL", _local_url(env)),
+        ):
+            if not is_loopback(url):
+                raise AgentError(
+                    f"{variable} is not on this machine: name the provider to send it the events"
+                )
+        if _answers(f"{_mitre_url(env)}/api/v1/flows/", _mitre_headers(env)):
             provider = "mitre"
         elif _answers(f"{_local_url(env)}/models", _local_headers(env)):
             provider = "local"
@@ -215,6 +249,11 @@ def _local_url(env: Mapping[str, str]) -> str:
     return env.get("VIGIE_LLM_URL", LOCAL_URL).rstrip("/")
 
 
+def _mitre_headers(env: Mapping[str, str]) -> dict[str, str]:
+    key = env.get("VIGIE_MITRE_AGENT_KEY")
+    return {"x-api-key": key} if key else {}
+
+
 def _local_headers(env: Mapping[str, str]) -> dict[str, str]:
     key = env.get("VIGIE_LLM_KEY")
     return {"Authorization": f"Bearer {key}"} if key else {}
@@ -228,8 +267,7 @@ def _mitre(env: Mapping[str, str]) -> Call:
     any other.
     """
     base = _mitre_url(env)
-    key = env.get("VIGIE_MITRE_AGENT_KEY")
-    headers = {"x-api-key": key} if key else {}
+    headers = _mitre_headers(env)
 
     def call(system: str, user: str) -> tuple[str, str]:
         flow = env.get("VIGIE_MITRE_AGENT_FLOW") or _find_flow(base, headers)
@@ -249,7 +287,11 @@ def _mitre(env: Mapping[str, str]) -> Call:
 def _find_flow(base: str, headers: dict[str, str]) -> str:
     flows = _http_json(f"{base}/api/v1/flows/", None, headers)
     for flow in flows if isinstance(flows, list) else []:
-        if MITRE_FLOW_NAME in str(flow.get("name", "")).lower():
+        if (
+            isinstance(flow, dict)
+            and flow.get("id")
+            and MITRE_FLOW_NAME in str(flow.get("name", "")).lower()
+        ):
             return str(flow["id"])
     raise AgentError(
         f"no flow named like 'ATLAS Agent' on {base}: set VIGIE_MITRE_AGENT_FLOW to its id"
@@ -328,6 +370,8 @@ def _anthropic(env: Mapping[str, str]) -> Call:
             raise AgentError(f"the Anthropic API answered {exc.status_code}") from exc
         except anthropic.AnthropicError as exc:  # no credentials at all
             raise AgentError(f"the Anthropic API is not set up: {exc}") from exc
+        except TypeError as exc:  # an older SDK that does not know a parameter
+            raise AgentError("the anthropic package is too old: upgrade it") from exc
         if response.stop_reason == "refusal":
             raise AgentError("the model declined to answer this question")
         text = "".join(block.text for block in response.content if block.type == "text")
@@ -336,30 +380,53 @@ def _anthropic(env: Mapping[str, str]) -> Call:
     return call
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """A redirect is an error: the key of a provider must not follow one to another host."""
+
+    def redirect_request(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def _answers(url: str, headers: dict[str, str] | None = None) -> bool:
     try:
         request = urllib.request.Request(url, headers=headers or {})
-        with urllib.request.urlopen(request, timeout=PROBE_TIMEOUT) as response:
+        with _OPENER.open(request, timeout=PROBE_TIMEOUT) as response:
             return response.status == 200
-    except (OSError, ValueError):
+    except (OSError, ValueError, http.client.HTTPException):
         return False
 
 
 def _http_json(url: str, body: dict[str, Any] | None, headers: dict[str, str]) -> Any:
     if not url.startswith(("http://", "https://")):
-        raise AgentError(f"not a web address: {url}")
+        raise AgentError("the address of the provider is not a web address")
     data = json.dumps(body).encode("utf-8") if body is not None else None
     request = urllib.request.Request(
         url, data=data, headers={"Content-Type": "application/json", **headers}
     )
     try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
-            return json.loads(response.read().decode("utf-8"))
+        with _OPENER.open(request, timeout=TIMEOUT) as response:
+            raw = response.read(MAX_REPLY_BYTES + 1)
     except urllib.error.HTTPError as exc:
         raise AgentError(f"{_origin(url)} answered {exc.code} {exc.reason}") from exc
-    except (OSError, ValueError) as exc:
-        raise AgentError(f"could not get an answer from {_origin(url)}: {exc}") from exc
+    except (OSError, ValueError, http.client.HTTPException) as exc:
+        reason = clean(str(getattr(exc, "reason", exc)))[:200]
+        raise AgentError(f"could not get an answer from {_origin(url)}: {reason}") from exc
+    if len(raw) > MAX_REPLY_BYTES:
+        raise AgentError(f"the answer of {_origin(url)} is too long")
+    try:
+        return json.loads(raw.decode("utf-8"))
+    except ValueError as exc:
+        raise AgentError(f"{_origin(url)} did not answer in JSON") from exc
 
 
 def _origin(url: str) -> str:
-    return "/".join(url.split("/")[:3])
+    """Scheme, host and port of ``url``: never its user name, password, path or query."""
+    parts = urlsplit(url)
+    try:
+        port = f":{parts.port}" if parts.port else ""
+    except ValueError:
+        port = ""
+    return f"{parts.scheme}://{parts.hostname or ''}{port}"

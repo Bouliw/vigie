@@ -61,14 +61,14 @@ What MITRE ATLAS {{ r.atlas_version | md }} says about each technique the alerts
 - **Maturity:** {{ c.maturity or "-" }}
 - **Description:** {{ c.description | md }}
 {% if c.mitigations %}
-- **Mitigations{% if c.inherited_from %} (of the parent technique {{ c.inherited_from }}){% endif %}:**
+- **Mitigations{% if c.mitigations_from %} (of the parent technique {{ c.mitigations_from }}){% endif %}:**
 {% for m in c.mitigations %}
   - [{{ m.id }}]({{ m.url }}) {{ m.name | md }}{% if m.note %}: {{ m.note | md }}{% endif %}
 
 {% endfor %}
 {% endif %}
 {% if c.case_studies %}
-- **Case studies{% if c.inherited_from %} (of the parent technique {{ c.inherited_from }}){% endif %} ({{ c.case_studies | length }} of {{ c.case_study_count }}, newest first):**
+- **Case studies{% if c.case_studies_from %} (of the parent technique {{ c.case_studies_from }}){% endif %} ({{ c.case_studies | length }} of {{ c.case_study_count }}, newest first):**
 {% for s in c.case_studies %}
   - [{{ s.id }}]({{ s.url }}) {{ s.name | md }}{% if s.note %}: {{ s.note | md }}{% endif %}
 

@@ -632,9 +632,12 @@
     out.appendChild(el("p", "ask-q", question));
     var body = el("p", "ask-a");
     // The answer is text from a model: it is shown as text, ids are only highlighted.
+    // Green only for ids the server found in the ATLAS data; anything else stays plain or red.
+    var known = {};
+    (reply.citations || []).forEach(function (c) { if (c.known === true) { known[c.id] = true; } });
     String(reply.text).split(ATLAS_REF).forEach(function (part, i) {
       if (i % 2 === 0) { body.appendChild(doc.createTextNode(part)); return; }
-      body.appendChild(el("span", part.indexOf("[unverified") === -1 ? "id-ok" : "id-bad", part));
+      body.appendChild(el("span", known[part] === true ? "id-ok" : "id-bad", part));
     });
     out.appendChild(body);
     if (reply.citations && reply.citations.length) {
