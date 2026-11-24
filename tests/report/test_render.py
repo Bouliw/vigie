@@ -316,3 +316,19 @@ def test_reports_without_ai_alerts_do_not_mention_owasp(auth_report, atlas_repor
     for report in (auth_report, atlas_report):
         for text in (render_markdown(report), render_html(report)):
             assert "OWASP" not in text
+
+
+def test_reports_show_the_atlas_context_of_each_technique(atlas_report):
+    assert "AML.T0051.000" in [c.technique.id for c in atlas_report.atlas_context]
+    text = render_markdown(atlas_report)
+    assert "## ATLAS context" in text and "### AML.T0051.000 LLM Prompt Injection: Direct" in text
+    assert "- **Maturity:** Realized" in text
+    assert "](https://atlas.mitre.org/mitigations/AML.M" in text
+    assert "](https://atlas.mitre.org/studies/AML.CS" in text
+    html = render_html(atlas_report)
+    assert 'id="atlas-context"' in html and 'id="ctx-AML-T0051-000"' in html
+    assert 'href="#ctx-AML-T0051-000">ATLAS context of AML.T0051.000</a>' in html
+    assert "data-ask hidden" in html  # the question box stays hidden outside the app
+    contexts = json.loads(render_json(atlas_report))["atlas_context"]
+    data = next(c for c in contexts if c["technique"]["id"] == "AML.T0051.000")
+    assert data["maturity"] == "Realized" and data["mitigations"][0]["id"].startswith("AML.M")
