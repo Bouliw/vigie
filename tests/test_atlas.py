@@ -134,8 +134,25 @@ TINY_ATLAS = {
         "AML.TA0000": {"id": "AML.TA0000", "name": "AI Model Access"},
     },
     "techniques": {
-        "AML.T0001": {"id": "AML.T0001", "name": "Parent"},
+        "AML.T0001": {"id": "AML.T0001", "name": "Parent", "maturity": "Realized"},
         "AML.T0001.000": {"id": "AML.T0001.000", "name": "Child"},
+    },
+    "mitigations": {
+        "AML.M0001": {"id": "AML.M0001", "name": "Filter", "description": "Filter it."}
+    },
+    "case-studies": {
+        "AML.CS0001": {
+            "id": "AML.CS0001",
+            "name": "Old",
+            "type": "exercise",
+            "start-date": "2020-01-02",
+        },
+        "AML.CS0002": {
+            "id": "AML.CS0002",
+            "name": "New",
+            "type": "incident",
+            "start-date": "2025-06-01",
+        },
     },
     "relationships": {
         "ATLAS-matrix": {
@@ -149,6 +166,9 @@ TINY_ATLAS = {
             "achieves": [{"target": "AML.TA0005"}],
             "specializes": [{"target": "AML.T0001"}],
         },
+        "AML.M0001": {"mitigates": [{"target": "AML.T0001", "description": "Blocks it."}]},
+        "AML.CS0001": {"employs": [{"target": "AML.T0001"}]},
+        "AML.CS0002": {"employs": [{"target": "AML.T0001"}, {"target": "AML.T0001.000"}]},
     },
 }
 
@@ -165,18 +185,22 @@ def test_build_script_extracts_what_vigie_needs(tmp_path):
     assert data["copyright"].startswith("MITRE ATLAS data: Copyright 2021-2099 MITRE")
     assert [t["shortname"] for t in data["tactics"]] == ["ai-model-access", "execution"]
     assert data["tactics"][0]["url"] == "https://atlas.mitre.org/tactics/AML.TA0000"
-    assert data["techniques"] == {
-        "AML.T0001": {
-            "name": "Parent",
-            "tactics": ["ai-model-access", "execution"],
-            "url": "https://atlas.mitre.org/techniques/AML.T0001",
-        },
-        "AML.T0001.000": {
-            "name": "Child",
-            "tactics": ["execution"],
-            "url": "https://atlas.mitre.org/techniques/AML.T0001.000",
-        },
-    }
+    parent, child = data["techniques"]["AML.T0001"], data["techniques"]["AML.T0001.000"]
+    assert parent["name"] == "Parent" and parent["tactics"] == ["ai-model-access", "execution"]
+    assert parent["url"] == "https://atlas.mitre.org/techniques/AML.T0001"
+    assert parent["maturity"] == "Realized"
+    assert parent["mitigations"] == {"AML.M0001": "Blocks it."}
+    assert parent["case_studies"] == ["AML.CS0002", "AML.CS0001"]  # newest first
+    assert parent["related"]["AML.T0001.000"] == "sub-technique"
+    assert child["tactics"] == ["execution"] and child["case_studies"] == ["AML.CS0002"]
+    assert child["related"]["AML.T0001"] == "parent technique"
+    assert data["mitigations"]["AML.M0001"]["name"] == "Filter"
+    assert (
+        data["mitigations"]["AML.M0001"]["url"] == "https://atlas.mitre.org/mitigations/AML.M0001"
+    )
+    study = data["case_studies"]["AML.CS0002"]
+    assert study["url"] == "https://atlas.mitre.org/studies/AML.CS0002"
+    assert (study["name"], study["date"]) == ("New", "2025")
 
     atlas = AtlasData.load(output)
     assert atlas.technique("AML.T0001.000").display_name == "Parent: Child"
