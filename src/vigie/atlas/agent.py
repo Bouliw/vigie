@@ -53,10 +53,12 @@ ATLAS_ID = re.compile(r"AML\.(?:TA|T|M|CS)\d+(?:\.\d+)?", re.IGNORECASE)
 # drive the terminal (escape sequences) when printed.
 CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
 MAX_REPLY_BYTES = 2 * 1024 * 1024
-# Reasoning a model leaves in its answer, closed or cut off: <think> blocks, and the
-# thought channel of Gemma models.
+# Reasoning a model leaves in front of its answer, closed or cut off: <think> blocks,
+# and the thought channel of Gemma models. Only in front: the same markers quoted
+# further down (an event can hold them) must not cut the answer.
 REASONING = re.compile(
-    r"<think>.*?(?:</think>|$)|<\|channel>thought.*?(?:<channel\|>|$)", re.DOTALL
+    r"\A(?:\s*(?:<think>.*?(?:</think>|\Z)|<\|channel>thought.*?(?:<channel\|>|\Z)))+",
+    re.DOTALL,
 )
 MAX_QUESTION = 1000
 MAX_ANSWER = 12000
@@ -357,9 +359,16 @@ def _mitre_mcp(env: Mapping[str, str]) -> Call:
     def call(system: str, user: str) -> tuple[str, str]:
         url = env.get("VIGIE_MITRE_MCP_URL")
         if not url:
-            project = _find_flow(base, headers, key="folder_id")
+            project = _find_flow(
+                base, headers, key="folder_id", flow=env.get("VIGIE_MITRE_AGENT_FLOW", "")
+            )
             url = f"{base}/api/v1/mcp/project/{project}/streamable"
-        session = _McpSession(url, headers)
+        # The Langflow key goes to the Langflow server only; another one has its own.
+        key = env.get("VIGIE_MITRE_MCP_KEY")
+        sent = headers if _origin(url) == _origin(base) else {}
+        if key:
+            sent = {"x-api-key": key}
+        session = _McpSession(url, sent)
         session.request(
             "initialize",
             {
@@ -393,14 +402,20 @@ def _mitre_mcp(env: Mapping[str, str]) -> Call:
             properties = list(tool["inputSchema"]["properties"])
         except (KeyError, TypeError):
             properties = []
-        argument = "input_value" if "input_value" in properties or not properties else properties[0]
+        if "session_id" not in properties:
+            # Without it the agent answers in a shared conversation and recalls the
+            # events of the alerts asked about before.
+            raise AgentError(
+                f"the tool {clean(str(tool.get('name')))[:80]} takes no session id: "
+                "Vigie cannot keep this question apart from the others"
+            )
+        others = [name for name in properties if name != "session_id"]
+        argument = "input_value" if "input_value" in others or not others else others[0]
         result = session.request(
             "tools/call",
             {
                 "name": tool["name"],
-                "arguments": {argument: f"{system}\n\n{user}", "session_id": _new_session()}
-                if "session_id" in properties
-                else {argument: f"{system}\n\n{user}"},
+                "arguments": {argument: f"{system}\n\n{user}", "session_id": _new_session()},
             },
         )
         content = result.get("content") if isinstance(result, dict) else None
@@ -451,7 +466,11 @@ class _McpSession:
         text = raw.decode("utf-8", "replace")
         # The answer comes as one JSON object, or as server-sent events holding one each.
         if reply.get_content_type() == "text/event-stream":
-            lines = [line[5:] for line in text.splitlines() if line.startswith("data:")]
+            # Split on line feeds only: other separators can sit inside the JSON strings.
+            lines = [
+                "\n".join(line[5:] for line in event.split("\n") if line.startswith("data:"))
+                for event in text.replace("\r\n", "\n").split("\n\n")
+            ]
         else:
             lines = [text]
         for line in lines:
@@ -471,19 +490,23 @@ class _McpSession:
 
 
 def _find_flow(
-    base: str, headers: dict[str, str], timeout: float = TIMEOUT, key: str = "id"
+    base: str, headers: dict[str, str], timeout: float = TIMEOUT, key: str = "id", flow: str = ""
 ) -> str:
+    """The id of the ATLAS agent flow, or with ``key`` another of its fields; ``flow``
+    names the flow by id instead of by name."""
     # Names and ids only: the whole flows weigh megabytes.
     flows = _http_json(f"{base}/api/v1/flows/?header_flows=true", None, headers, timeout)
-    for flow in flows if isinstance(flows, list) else []:
-        if (
-            isinstance(flow, dict)
-            and flow.get(key)
-            and MITRE_FLOW_NAME in str(flow.get("name", "")).lower()
+    for entry in flows if isinstance(flows, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        named = MITRE_FLOW_NAME in str(entry.get("name", "")).lower()
+        # The value goes into an address: nothing that could lead to another path.
+        if (entry.get("id") == flow if flow else named) and re.fullmatch(
+            r"[\w-]{1,64}", str(entry.get(key) or "")
         ):
-            return str(flow[key])
+            return str(entry[key])
     raise AgentError(
-        f"no flow named like 'ATLAS Agent' on {base}: set VIGIE_MITRE_AGENT_FLOW to its id"
+        f"no flow named like 'ATLAS Agent' on {_origin(base)}: set VIGIE_MITRE_AGENT_FLOW to its id"
     )
 
 
@@ -618,10 +641,13 @@ def _http(
         reason = clean(str(getattr(exc, "reason", exc)))[:200]
         raise AgentError(f"could not get an answer from {_origin(url)}: {reason}") from exc
     if reply.get("Content-Encoding", "").lower() == "gzip":  # Langflow compresses unasked
+        unpacker = zlib.decompressobj(31)
         try:
-            raw = zlib.decompressobj(31).decompress(raw, MAX_REPLY_BYTES + 1)
+            raw = unpacker.decompress(raw, MAX_REPLY_BYTES + 1)
         except zlib.error as exc:
             raise AgentError(f"{_origin(url)} sent a damaged answer") from exc
+        if not unpacker.eof and len(raw) <= MAX_REPLY_BYTES:  # cut off before its end
+            raise AgentError(f"{_origin(url)} sent a damaged answer")
     if len(raw) > MAX_REPLY_BYTES:
         raise AgentError(f"the answer of {_origin(url)} is too long")
     return raw, reply
