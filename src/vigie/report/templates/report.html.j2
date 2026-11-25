@@ -200,6 +200,10 @@ run with <code>--min-level {{ r.hidden_by_level | first }}</code> to include the
           {% if not (a.attack.tactics or not a.atlas.tactics) %}<h4>What the technique{{ "s" if a.atlas.techniques | length > 1 }} mean{{ "s" if a.atlas.techniques | length <= 1 }}</h4>{% endif %}
           <dl class="kv"><dt>ATLAS</dt><dd>{% for t in a.atlas.techniques %}{{ t.id }}{% if not loop.last %}, {% endif %}{% endfor %} <span class="muted">({{ a.atlas.tactics | map(attribute="name") | join(", ") }})</span></dd></dl>
           {% for t in a.atlas.techniques %}{{ technique_box(t) }}{% endfor %}
+          {% for t in a.atlas.techniques if t.id in view.context %}
+          {% set c = view.context[t.id] %}
+          <p class="ctx-line"><a href="#ctx-{{ t.id | replace('.', '-') }}">ATLAS context of {{ t.id }}</a>{% if c.maturity %} <span class="maturity m-{{ c.maturity | lower }}">{{ c.maturity }}</span>{% endif %} <span class="muted">{{ c.mitigations | length }} mitigation{{ "s" if c.mitigations | length != 1 }}, {{ c.case_study_count }} case stud{{ "ies" if c.case_study_count != 1 else "y" }}</span></p>
+          {% endfor %}
           {% endif %}
           {% if a.owasp.items %}
           <dl class="kv"><dt>OWASP</dt><dd>{% for i in a.owasp.items %}<a class="idref" href="{{ i.url }}">{{ i.id }}</a> {{ i.name }}{% if not loop.last %}<br>{% endif %}{% endfor %}</dd></dl>
@@ -217,6 +221,19 @@ run with <code>--min-level {{ r.hidden_by_level | first }}</code> to include the
           </ol>
           {% if a.event_count > a.evidence | length %}<p class="note">{{ a.event_count - a.evidence | length }} event(s) between the first {{ a.evidence | length - 1 }} and the last one are not shown.</p>{% endif %}
         </div>
+        {% if a.atlas.techniques %}
+        <div class="c-ask js-only" data-ask hidden>
+          <h4>Ask about this alert</h4>
+          <p class="note">A language model answers from the ATLAS entries and the events of this alert only. Every ATLAS id it cites is checked against the ATLAS data shipped with Vigie. The answer is generated: verify it before acting on it.</p>
+          <div class="ask-presets">
+            <button type="button" class="btn btn-quiet" data-question="Why is this serious?">Why is this serious?</button>
+            <button type="button" class="btn btn-quiet" data-question="What should I check next?">What should I check next?</button>
+            <button type="button" class="btn btn-quiet" data-question="How do I fix it?">How do I fix it?</button>
+          </div>
+          <div class="ask-form"><input type="text" maxlength="1000" placeholder="Ask a question about this alert" aria-label="Question about this alert" autocomplete="off"><button type="button" class="btn ask-send">Ask</button></div>
+          <div class="ask-out" aria-live="polite" hidden></div>
+        </div>
+        {% endif %}
         <div class="c-fp">
           {% if a.rule.falsepositives %}
           <h4>False positives to rule out</h4>
@@ -295,6 +312,32 @@ run with <code>--min-level {{ r.hidden_by_level | first }}</code> to include the
 <td><ul class="techlist">{% for t in tv.techniques %}<li{% if t.id not in glossary.seen %} id="t-{{ t.id | replace('.', '-') }}"{% set glossary.seen = glossary.seen + [t.id] %}{% endif %}><a href="{{ t.url }}">{{ t.id }}</a> {{ t.display_name }}{% if view.summary(t.id) %} <span class="desc">{{ view.summary(t.id) }}</span>{% endif %}</li>{% endfor %}</ul></td></tr>
 {% endfor %}
 </tbody></table></div>
+{% endif %}
+{% if r.atlas_context %}
+<div class="section-head" style="margin-top: 30px" id="atlas-context"><h2>ATLAS context</h2><p>What MITRE ATLAS {{ r.atlas_version }} says about each technique the alerts map to: description, maturity, mitigations, related techniques and case studies. Read from the ATLAS data shipped with Vigie, without any network access.</p></div>
+{% for c in r.atlas_context %}
+<article class="ctx" id="ctx-{{ c.technique.id | replace('.', '-') }}">
+  <header><a class="idref" href="{{ c.technique.url }}" rel="noreferrer">{{ c.technique.id }}</a> <h3>{{ c.technique.display_name }}</h3>{% if c.maturity %} <span class="maturity m-{{ c.maturity | lower }}">{{ c.maturity }}</span>{% endif %}</header>
+  <dl class="kv">
+    <dt>Tactic{{ "s" if c.tactics | length != 1 }}</dt><dd>{% for t in c.tactics %}<a href="{{ t.url }}" rel="noreferrer">{{ t.name }}</a> <span class="muted">{{ t.id }}</span>{% if not loop.last %}, {% endif %}{% else %}-{% endfor %}</dd>
+    <dt>Maturity</dt><dd>{{ c.maturity or "-" }}{% if c.maturity == "Realized" %} <span class="muted">(seen in real attacks)</span>{% elif c.maturity == "Demonstrated" %} <span class="muted">(shown in exercises or research on real systems)</span>{% elif c.maturity == "Feasible" %} <span class="muted">(shown to work in research)</span>{% endif %}</dd>
+    <dt>ATLAS page</dt><dd><a href="{{ c.technique.url }}" rel="noreferrer">{{ c.technique.url }}</a></dd>
+  </dl>
+  {% for paragraph in c.description.split("\n") %}<p>{{ paragraph }}</p>{% endfor %}
+  {% if c.mitigations %}
+  <h4>Mitigations{% if c.mitigations_from %} <span class="muted">of the parent technique {{ c.mitigations_from }}</span>{% endif %}</h4>
+  <ul class="ctx-list">{% for m in c.mitigations %}<li><a class="idref" href="{{ m.url }}" rel="noreferrer">{{ m.id }}</a> <strong>{{ m.name }}</strong>{% if m.note %} <span class="desc">{{ m.note }}</span>{% endif %}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if c.case_studies %}
+  <h4>Case studies{% if c.case_studies_from %} <span class="muted">of the parent technique {{ c.case_studies_from }}</span>{% endif %} <span class="muted">{{ c.case_studies | length }} of {{ c.case_study_count }}, newest first</span></h4>
+  <ul class="ctx-list">{% for s in c.case_studies %}<li><a class="idref" href="{{ s.url }}" rel="noreferrer">{{ s.id }}</a> <strong>{{ s.name }}</strong>{% if s.note %} <span class="desc">{{ s.note }}</span>{% endif %}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if c.related %}
+  <h4>Related techniques</h4>
+  <ul class="ctx-list">{% for t in c.related %}<li><a class="idref" href="{{ t.url }}" rel="noreferrer">{{ t.id }}</a> {{ t.name }} <span class="muted">({{ t.note }})</span></li>{% endfor %}</ul>
+  {% endif %}
+</article>
+{% endfor %}
 {% endif %}
 {% if r.owasp %}
 <div class="section-head" style="margin-top: 30px"><h2>OWASP Top 10</h2><p>Entries of the OWASP Top 10 lists of risks for AI applications the alerts map to, in published order, with the rules behind them.</p></div>

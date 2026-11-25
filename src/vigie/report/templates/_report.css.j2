@@ -216,10 +216,10 @@ h3 { font-size: 17px; margin: 22px 0 8px; }
 .js .card:not(.is-open) .card-body > .inner { visibility: hidden; transition: visibility 0s .42s; }
 .card-body .content { border-top: 1px solid var(--line); margin: 0 16px 0 20px; padding: 6px 0 20px;
   display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); gap: 4px 36px;
-  grid-template-areas: "desc tech" "evid evid" "fp rule";
+  grid-template-areas: "desc tech" "evid evid" "ask ask" "fp rule";
   transition: opacity .3s var(--ease-out), transform .45s var(--spring); }
 .js .card:not(.is-open) .card-body .content { opacity: 0; transform: translateY(-6px); }
-.c-desc { grid-area: desc; } .c-tech { grid-area: tech; } .c-evid { grid-area: evid; }
+.c-ask { grid-area: ask; } .c-desc { grid-area: desc; } .c-tech { grid-area: tech; } .c-evid { grid-area: evid; }
 .c-fp { grid-area: fp; } .c-rule { grid-area: rule; }
 .content h4 { font-size: 13.5px; font-weight: 650; color: var(--ink-2); margin: 16px 0 8px; letter-spacing: .005em; }
 .content p { margin: 0 0 8px; max-width: 75ch; }
@@ -322,7 +322,7 @@ footer p { margin: 0 0 6px; max-width: 110ch; }
 @keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.99); } to { opacity: 1; transform: none; } }
 
 @media (max-width: 860px) {
-  .card-body .content { grid-template-columns: minmax(0, 1fr); grid-template-areas: "desc" "tech" "evid" "fp" "rule"; }
+  .card-body .content { grid-template-columns: minmax(0, 1fr); grid-template-areas: "desc" "tech" "evid" "ask" "fp" "rule"; }
   .facts-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fact:nth-child(3) { border-left: 0; }
   .fact:nth-child(n+3) { border-top: 1px solid var(--line); }
@@ -368,3 +368,35 @@ footer p { margin: 0 0 6px; max-width: 110ch; }
   a { color: inherit; }
 }
 {% endraw %}
+
+{% if r is defined and r.atlas_context %}
+/* ATLAS context and the agent mode */
+.ctx-line { font-size: 13.5px; margin: 6px 0 0; }
+.maturity { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--sunken); color: var(--ink-2); vertical-align: 1px; }
+.maturity.m-realized { background: var(--high-soft); color: var(--high); }
+.maturity.m-demonstrated { background: var(--medium-soft); color: var(--medium); }
+.ctx { padding: 16px 18px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); margin-bottom: 12px; scroll-margin-top: 90px; }
+.ctx header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin-bottom: 8px; }
+.ctx h3 { margin: 0; font-size: 17px; }
+.ctx h4 { margin: 14px 0 4px; }
+.ctx p { color: var(--ink-2); margin: 6px 0; max-width: 90ch; }
+.ctx-list { margin: 0; padding-left: 20px; }
+.ctx-list li { margin: 5px 0; overflow-wrap: anywhere; }
+.ctx-list .desc { display: block; font-size: 14px; color: var(--ink-2); }
+.c-ask { padding: 12px 14px; border-radius: 10px; background: var(--accent-soft); border: 1px solid var(--line); }
+.c-ask h4 { margin-top: 0; }
+.ask-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.ask-presets .btn { background: var(--surface); border-color: var(--line-strong); }
+.ask-form { display: flex; gap: 8px; }
+.ask-form input { flex: 1 1 auto; min-width: 0; height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: inherit; }
+.ask-out { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
+.ask-q { font-weight: 650; margin: 0 0 6px; }
+.ask-a { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.ask-a .id-ok { font: 600 13px var(--mono); color: var(--new); background: var(--new-soft); padding: 0 4px; border-radius: 4px; }
+.ask-a .id-bad { font: 600 13px var(--mono); color: var(--critical); background: var(--critical-soft); padding: 0 4px; border-radius: 4px; }
+.ask-cites { margin: 10px 0 0; padding: 0; list-style: none; font-size: 14px; }
+.ask-cites li { margin: 3px 0; }
+.ask-cites .ok { color: var(--new); font-weight: 650; } .ask-cites .bad { color: var(--critical); font-weight: 650; }
+.ask-meta { font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+.ask-error { color: var(--critical); margin: 0; }
+{% endif %}

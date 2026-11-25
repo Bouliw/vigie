@@ -184,12 +184,13 @@ def html_view(report: Report) -> dict[str, Any]:
                 if mapping.techniques or mapping.tactics
             ),
         }
-        for anchor, alert in zip(_anchors(report.alerts), report.alerts, strict=True)
+        for anchor, alert in zip(alert_anchors(report.alerts), report.alerts, strict=True)
     ]
     return {
         "cards": cards,
         "strips": strips,
         "summary": lambda object_id: attack.summary(object_id) or atlas.summary(object_id),
+        "context": {context.technique.id: context for context in report.atlas_context},
         "data": {"techniques": techniques, "tactics": tactics, "help": help_texts},
         "both": bool(report.tactics) and bool(report.atlas_tactics),
     }
@@ -202,7 +203,7 @@ def _heat(count: int, peak: int) -> int:
     return max(1, min(4, round(4 * count / peak)))
 
 
-def _anchors(alerts: list[AlertView]) -> list[str]:
+def alert_anchors(alerts: list[AlertView]) -> list[str]:
     """An id per alert that stays the same when ``vigie watch`` rewrites the page."""
     anchors, seen = [], set()
     for alert in alerts:
@@ -221,6 +222,25 @@ def _anchors(alerts: list[AlertView]) -> list[str]:
         seen.add(unique)
         anchors.append(unique)
     return anchors
+
+
+def agent_facts(report: Report) -> dict[str, dict[str, Any]]:
+    """What the agent mode is told about each alert that maps to ATLAS, by alert anchor.
+
+    The app keeps it next to the report it serves, so a question asked from the page
+    names an alert and never carries the events itself.
+    """
+    return {
+        anchor: {
+            "title": alert.rule.title,
+            "level": alert.rule.level,
+            "description": alert.rule.description,
+            "techniques": [t.id for t in alert.atlas.techniques],
+            "events": [event.summary for event in alert.evidence],
+        }
+        for anchor, alert in zip(alert_anchors(report.alerts), report.alerts, strict=True)
+        if alert.atlas.techniques
+    }
 
 
 def safe_url(value: str) -> str | None:

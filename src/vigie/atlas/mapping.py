@@ -66,6 +66,10 @@ class AtlasData:
         self._summaries: dict[str, str] = {
             item["id"]: item["summary"] for item in data["tactics"] if item.get("summary")
         } | {key: entry["summary"] for key, entry in raw.items() if entry.get("summary")}
+        # What vigie.atlas.context builds the "ATLAS context" of a technique from.
+        self.entries: dict[str, dict[str, Any]] = raw
+        self.mitigations: dict[str, dict[str, Any]] = data.get("mitigations", {})
+        self.case_studies: dict[str, dict[str, Any]] = data.get("case_studies", {})
 
     @classmethod
     def load(cls, path: str | Path | None = None) -> AtlasData:

@@ -52,8 +52,14 @@ MITRE ATT&CK® and ATT&CK® are registered trademarks of The MITRE Corporation.
 `src/vigie/atlas/data/atlas.json` is a reduced copy of the MITRE ATLAS data,
 content release 2026.10, from
 [mitre-atlas/atlas-data](https://github.com/mitre-atlas/atlas-data)
-(`dist/v6/ATLAS-2026.10.yaml`). Only the ids, names, tactics and URLs of the
-tactics and techniques are kept.
+(`dist/v6/ATLAS-2026.10.yaml`). Kept: the ids, names, URLs and descriptions (as
+plain text) of the tactics and techniques, the maturity of each technique, the
+ids, names and summaries of the mitigations and case studies, and the
+relationships between them (which mitigation addresses which technique and
+how, which case study employs which technique). Modified by Vigie: the other
+fields are left out, Markdown is turned into plain text, summaries are
+shortened, and the "related techniques" lists are computed from the
+relationships.
 
 Copyright 2021-2026 MITRE. Licensed under the Apache License, Version 2.0,
 reproduced in [`src/vigie/atlas/data/LICENSE-ATLAS.txt`](src/vigie/atlas/data/LICENSE-ATLAS.txt).

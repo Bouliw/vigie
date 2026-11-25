@@ -2,10 +2,12 @@
 
 MITRE ATLAS is the ATT&CK-style knowledge base of attacks on AI systems. Its
 data is published as one YAML file per release (about 1 MB) in
-mitre-atlas/atlas-data. Vigie only needs, for each tactic and technique, its
-id, name, tactics, URL and a one or two sentence summary of its description
-(shown in the HTML report), so this script keeps just that (about 80 KB) in
-``src/vigie/atlas/data/atlas.json``.
+mitre-atlas/atlas-data. Vigie needs, for each tactic and technique, its id,
+name, tactics, URL and a one or two sentence summary of its description, and
+for the "ATLAS context" of an alert: the description as plain text, the
+maturity, the mitigations with what each one does against the technique, the
+related techniques and the case studies that employ it. This script keeps
+just that in ``src/vigie/atlas/data/atlas.json``.
 
 Usage::
 
@@ -25,6 +27,7 @@ import json
 import re
 import sys
 import urllib.request
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +42,7 @@ COPYRIGHT = (
     "MITRE ATLAS data: Copyright 2021-{year} MITRE, licensed under the Apache License, Version 2.0."
 )
 SUMMARY_LENGTH = 320  # characters: a sentence or two, enough to say what a technique is
+RELATED_BY_CASE = 3  # techniques most often employed in the same case studies
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -112,14 +116,59 @@ def extract(atlas: dict[str, Any], source: str) -> dict[str, Any]:
         for entry in order
     ]
 
+    # Who mitigates and who employs each technique, from the other end of the relationships.
+    mitigated: dict[str, dict[str, str]] = {}
+    employed: dict[str, list[str]] = {}
+    together: dict[str, Counter[str]] = {}
+    for origin, links in relationships.items():
+        for link in links.get("mitigates", []):
+            how = plain(str(link.get("description") or ""))
+            mitigated.setdefault(link["target"], {})[origin] = how
+        used = list(dict.fromkeys(link["target"] for link in links.get("employs", [])))
+        for technique_id in used:
+            employed.setdefault(technique_id, []).append(origin)
+            together.setdefault(technique_id, Counter()).update(
+                other for other in used if other != technique_id
+            )
+    parents = {
+        technique_id: links["specializes"][0]["target"]
+        for technique_id, links in relationships.items()
+        if links.get("specializes")
+    }
+    children: dict[str, list[str]] = {}
+    for child, parent in sorted(parents.items()):
+        children.setdefault(parent, []).append(child)
+    studies = atlas.get("case-studies", {})
+
     techniques = {}
     for technique_id, technique in atlas["techniques"].items():
         links = relationships.get(technique_id, {})
+        parent = parents.get(technique_id)
+        related = {parent: "parent technique"} if parent else {}
+        related |= {child: "sub-technique" for child in children.get(technique_id, [])}
+        related |= {
+            sibling: "same parent technique"
+            for sibling in children.get(parent or "", [])
+            if sibling != technique_id
+        }
+        ranked = sorted(together.get(technique_id, {}).items(), key=lambda kv: (-kv[1], kv[0]))
+        for other, count in [kv for kv in ranked if kv[0] not in related][:RELATED_BY_CASE]:
+            related[other] = f"employed together in {count} case stud{'y' if count == 1 else 'ies'}"
         techniques[technique_id] = {
             "name": technique["name"],
             "tactics": [shortnames[link["target"]] for link in links.get("achieves", [])],
             "url": f"{SITE}/techniques/{technique_id}",
             **with_summary(technique),
+            "description": plain(str(technique.get("description") or "")),
+            "maturity": str(technique.get("maturity") or ""),
+            "mitigations": dict(sorted(mitigated.get(technique_id, {}).items())),
+            "related": related,
+            # Newest first: the report shows the first ones.
+            "case_studies": sorted(
+                employed.get(technique_id, []),
+                key=lambda cs: (str(studies[cs].get("start-date") or ""), cs),
+                reverse=True,
+            ),
         }
 
     collection = atlas["collection"]
@@ -131,6 +180,24 @@ def extract(atlas: dict[str, Any], source: str) -> dict[str, Any]:
         "copyright": COPYRIGHT.format(year=modified[:4]),
         "tactics": tactics,
         "techniques": dict(sorted(techniques.items())),
+        "mitigations": {
+            mitigation_id: {
+                "name": mitigation["name"],
+                "url": f"{SITE}/mitigations/{mitigation_id}",
+                **with_summary(mitigation),
+            }
+            for mitigation_id, mitigation in sorted(atlas.get("mitigations", {}).items())
+        },
+        "case_studies": {
+            study_id: {
+                "name": study["name"],
+                "url": f"{SITE}/studies/{study_id}",
+                "type": str(study.get("type") or ""),
+                "date": str(study.get("start-date") or "")[:4],
+                **with_summary(study),
+            }
+            for study_id, study in sorted(studies.items())
+        },
     }
 
 
@@ -140,15 +207,22 @@ def with_summary(obj: dict[str, Any]) -> dict[str, str]:
     return {"summary": text} if text else {}
 
 
-def summarize(description: str) -> str:
-    """The first sentences of a description, as plain text, up to SUMMARY_LENGTH characters.
+def plain(description: str) -> str:
+    """A description as plain text, one line per paragraph.
 
-    ATLAS descriptions are Markdown: links keep their text, HTML tags are dropped.
+    ATLAS descriptions are Markdown: links keep their text, HTML tags and the
+    ``[[reference]]`` markers are dropped.
     """
-    paragraph = description.strip().split("\n\n")[0]
-    paragraph = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", paragraph)
-    paragraph = re.sub(r"<[^>]+>", "", paragraph)
-    paragraph = " ".join(paragraph.split())
+    text = re.sub(r"\s*\[\[[^\]]+\]\]", "", description.strip())
+    text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", text)
+    text = re.sub(r"<[^>]+>", "", text)
+    paragraphs = (" ".join(paragraph.split()) for paragraph in text.split("\n\n"))
+    return "\n".join(paragraph for paragraph in paragraphs if paragraph)
+
+
+def summarize(description: str) -> str:
+    """The first sentences of a description, as plain text, up to SUMMARY_LENGTH characters."""
+    paragraph = plain(description).split("\n")[0]
     sentences = re.split(r"(?<=[.!?])\s+(?=[A-Z(])", paragraph)
     # "e.g." or "i.e." end no sentence.
     merged: list[str] = []

@@ -4,7 +4,9 @@ The model holds only what the reader needs, already sorted and filtered:
 
 * a summary (events read, alerts per severity, time range);
 * the ATT&CK tactics and techniques seen, in matrix order, and likewise the
-  MITRE ATLAS ones for the rules about AI systems;
+  MITRE ATLAS ones for the rules about AI systems, with the ATLAS context of
+  each technique seen (description, maturity, mitigations, related techniques,
+  case studies);
 * the entries of the OWASP Top 10 lists for LLM and agentic applications the
   AI alerts map to, in published order, with the rules behind them;
 * the alerts, most severe first, each with its rule, ATT&CK, ATLAS and OWASP
@@ -24,6 +26,7 @@ from datetime import datetime
 from vigie import __version__
 from vigie.analysis import Analysis
 from vigie.atlas import AtlasData, default_atlas_data
+from vigie.atlas.context import TechniqueContext, technique_context
 from vigie.attack import AttackData, AttackMapping, Tactic, Technique, default_attack_data
 from vigie.collect import FileReport
 from vigie.models import LEVELS, Alert, Event, RuleMeta
@@ -129,6 +132,8 @@ class Report:
     hidden_by_level: dict[str, int] = field(default_factory=dict)  # alerts below min_level
     tactics: list[TacticView] = field(default_factory=list)
     atlas_tactics: list[TacticView] = field(default_factory=list)  # empty without AI alerts
+    # One entry per ATLAS technique of the shown alerts, by id.
+    atlas_context: list[TechniqueContext] = field(default_factory=list)
     owasp: list[OwaspListView] = field(default_factory=list)  # empty without AI alerts
     rules: list[RuleSummary] = field(default_factory=list)  # one line per rule that fired
     alerts: list[AlertView] = field(default_factory=list)
@@ -214,6 +219,10 @@ def build_report(
     ]
     report.tactics = _tactic_views(shown, mappings, attack)
     report.atlas_tactics = _tactic_views(shown, atlas_mappings, atlas)
+    seen = {t.id for mapping in atlas_mappings.values() for t in mapping.techniques}
+    report.atlas_context = [
+        context for key in sorted(seen) if (context := technique_context(atlas, key)) is not None
+    ]
     report.rules = _rule_summaries(shown)
     report.owasp = _owasp_views(report.rules, owasp_mappings, owasp)
 

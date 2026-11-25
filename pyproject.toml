@@ -29,6 +29,9 @@ vigie = "vigie.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=9.2.0", "pytest-cov>=7.1.0", "ruff>=0.17.5"]
+# Only for the anthropic provider of `vigie atlas explain --ask`.
+# 0.120.0 is the first release with the "default" server-side fallback.
+agent = ["anthropic>=0.120"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
