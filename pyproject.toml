@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=84.2.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -11,9 +11,9 @@ license = { text = "MIT; rules adapted from SigmaHQ: DRL-1.1; ATT&CK data: MITRE
 authors = [{ name = "Bouliw" }]
 requires-python = ">=3.10"
 dependencies = [
-    "evtx>=0.13,<1",
-    "Jinja2>=3.1",
-    "PyYAML>=6",
+    "evtx>=0.15.0,<1",
+    "Jinja2>=3.1.6",
+    "PyYAML>=6.0.3",
     "tzdata; sys_platform == 'win32'",
 ]
 classifiers = [
@@ -28,7 +28,7 @@ classifiers = [
 vigie = "vigie.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6"]
+dev = ["pytest>=9.2.0", "pytest-cov>=7.1.0", "ruff>=0.17.5"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
