@@ -5,7 +5,7 @@
 
 # Vigie
 
-[![CI](https://github.com/Bouliw/vigie/actions/workflows/ci.yml/badge.svg)](https://github.com/Bouliw/vigie/actions/workflows/ci.yml)
+[![CI](https://github.com/Bouliw/vigie/actions/workflows/ci.yml/badge.svg)](https://github.com/Bouliw/vigie/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/Bouliw/vigie?sort=semver)](https://github.com/Bouliw/vigie/releases/latest) [![License](https://img.shields.io/github/license/Bouliw/vigie)](LICENSE)
 
 Vigie is an open source blue team tool that reads Windows, Linux and macOS
 logs, and the activity logs of AI agents and LLM applications, runs Sigma
