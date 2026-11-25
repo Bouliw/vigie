@@ -164,6 +164,10 @@ known limits written down).
   exfiltration through tools or images, and abnormal request volumes.
 - **Maps** every alert to MITRE ATT&CK 19.2, or for the AI rules to the OWASP
   Top 10 for LLM Applications 2025 and for Agentic Applications 2026, offline.
+- **Explains** each AI alert with its MITRE ATLAS context (mitigations, related
+  techniques, case studies), offline, and can have a language model of your
+  choice answer a question about it, with every ATLAS id of the answer checked.
+  See [ATLAS context and questions about an alert](#atlas-context-and-questions-about-an-alert).
 - **Reports** in self-contained HTML, Markdown and JSON: summary, technique
   and OWASP coverage, alerts with their rule, author and evidence,
   timeline, and what was read, skipped or rejected.
@@ -550,6 +554,47 @@ takes no session id is refused). The agent has tools of its own (its ATLAS
 search and data set), and Langflow stores every message it receives, log
 events included, in its database. Reports of `vigie watch` have no question box.
 
+#### Optional: run the MITRE ATLAS agent
+
+The `local` provider is enough to ask questions. The MITRE agent adds its own
+search over the ATLAS knowledge base. It is a separate project with its own
+environment (about 3 GB), kept outside Vigie:
+
+```bash
+git clone https://github.com/mitre-atlas/atlas-knowledge-base-agent
+cd atlas-knowledge-base-agent
+uv run langflow run --env-file .env --host 127.0.0.1 --port 7860
+```
+
+Then, in Langflow (`http://127.0.0.1:7860`):
+
+1. Open the flow named "ATLAS Agent" and fill its model component (model name,
+   API base URL, API key). A local server works, for example LM Studio at
+   `http://127.0.0.1:1234/v1`; no cloud account is needed.
+2. Create an API key in the settings, and give it to Vigie:
+
+```bash
+export VIGIE_MITRE_AGENT_KEY=...   # the Langflow key, not a model key
+vigie atlas explain "Sensitive Tool Call" --ask "How do I fix it?" --provider mitre-mcp
+```
+
+Follow the README of the agent if its layout has changed since version 1.1.0.
+
+#### What to expect from the answers
+
+- The check is on the ids, not on the text around them. A model can cite a real
+  id with the wrong name or a wrong claim: with a 26B local model, the MITRE
+  agent once named AML.T0051 "Data Poisoning" (it is LLM Prompt Injection).
+  Read the verified list under the answer, which gives the real name and link
+  of each id.
+- A small model does not always answer what was asked. On the sample alert
+  "Sensitive Tool Call", with that same local model and the `local` provider,
+  the three suggested questions each got an answer with verified ids in 10
+  tries out of 10; it sometimes adds mitigations to a question that did not ask
+  for them. Another model or another alert may do worse.
+- Answers change from one try to the next, and take 15 to 30 seconds on a
+  laptop with a local model.
+
 ### Rule mapping
 
 | Rule | Level | Records | MITRE ATLAS | OWASP Top 10 |
@@ -797,6 +842,10 @@ CI runs the suite on Python 3.10 to 3.13 on Linux, and on macOS.
   calls follows prompt injections in retrieved content and tool results, not
   poisoned tool descriptions.
   The rules were written for this release and tested on synthetic logs only.
+- Answers to questions about an alert are generated text. Vigie checks the
+  ATLAS ids they cite against its bundled data, not their names, reasoning or
+  advice; see
+  [What to expect from the answers](#what-to-expect-from-the-answers).
 - Agent logs hold whatever users and models wrote, including the personal data
   and secrets the rules find: the report shows them as evidence, so treat it as
   sensitive. Card numbers and IBANs are recognized by checksum only, other
