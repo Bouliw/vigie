@@ -267,9 +267,20 @@ def test_control_characters_never_reach_the_terminal(stub, monkeypatch, capsys):
 
 
 def test_an_unclosed_reasoning_block_is_dropped(stub, monkeypatch):
-    monkeypatch.setattr(Stub, "answer", "Apply AML.M0024.<think>cut off reasoning AML.T7777")
+    monkeypatch.setattr(Stub, "answer", "<think>cut off reasoning AML.T7777")
+    with pytest.raises(agent.AgentError, match="empty answer"):
+        ask("mitre", {"VIGIE_MITRE_AGENT_URL": stub})
+    # After the answer has begun the marker is kept, and what follows is checked like the rest.
+    monkeypatch.setattr(Stub, "answer", "Apply AML.M0024.<think>then AML.T7777")
     answer = ask("local", {"VIGIE_LLM_URL": f"{stub}/v1"})
-    assert answer.text == "Apply AML.M0024." and answer.unverified == ()
+    assert answer.text.startswith("Apply AML.M0024.<think>then AML.T7777 [unverified")
+
+
+def test_a_reasoning_marker_quoted_inside_an_answer_does_not_cut_it(stub, monkeypatch):
+    quoted = "The event holds a <think> marker. Apply AML.M0024 last."
+    monkeypatch.setattr(Stub, "answer", quoted)
+    # The stub puts a <think> block in front of what the local provider answers.
+    assert ask("local", {"VIGIE_LLM_URL": f"{stub}/v1"}).text == quoted
 
 
 def test_auto_only_talks_to_this_machine(stub):

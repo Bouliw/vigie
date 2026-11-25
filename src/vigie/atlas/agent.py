@@ -56,6 +56,9 @@ MAX_EVENT_LENGTH = 600
 TIMEOUT = 180.0  # a local model can take a while to load and answer
 PROBE_TIMEOUT = 2.0
 DEADLINE = 240.0  # a whole exchange, however many requests and retries it takes
+# Reasoning a model leaves in front of its answer, closed or cut off. Only in front: the
+# same marker quoted further down (an event can hold it) must not cut the answer.
+REASONING = re.compile(r"\A(?:\s*<think>.*?(?:</think>|\Z))+", re.DOTALL)
 
 MITRE_URL = "http://127.0.0.1:7860"
 MITRE_FLOW_NAME = "atlas agent"
@@ -202,8 +205,7 @@ def ask(
     text, model = _within(
         DEADLINE, call, SYSTEM, build_prompt(question, alert, contexts, atlas.version)
     )
-    # Reasoning of the model is not part of the answer, even cut off before its end.
-    text = clean(re.sub(r"<think>.*?(?:</think>|$)", "", text, flags=re.DOTALL)).strip()
+    text = clean(REASONING.sub("", text)).strip()
     if not text:
         raise AgentError(f"the {name} provider returned an empty answer")
     marked, citations = verify(text[:MAX_ANSWER], atlas)
