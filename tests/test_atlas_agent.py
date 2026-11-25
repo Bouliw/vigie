@@ -93,6 +93,9 @@ def test_events_are_quoted_data_that_cannot_close_their_block():
     assert all(len(event) <= agent.MAX_EVENT_LENGTH for event in body["events"])
     assert prompt.endswith("Question: " + "q" * agent.MAX_QUESTION)
     assert "untrusted data" in agent.SYSTEM
+    # A question about fixing is answered with the mitigations, not turned down.
+    assert "mitigations of <atlas>" in agent.SYSTEM
+    assert "only ids that appear in <atlas>" in agent.SYSTEM
 
 
 # --- Providers, against a stand-in server ----------------------------------------------
