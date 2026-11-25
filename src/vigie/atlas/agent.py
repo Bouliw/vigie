@@ -2,10 +2,12 @@
 
 The model is given only the ATLAS entries of the alert's techniques (from the
 bundled extract, see :mod:`vigie.atlas.context`) and the events of the alert,
-and is asked to answer from them alone. Three providers can answer:
+and is asked to answer from them alone. Four providers can answer:
 
 * ``mitre``: the MITRE ATLAS Knowledge Base Agent, a Langflow flow, through the
   Langflow run API of a server on this machine;
+* ``mitre-mcp``: the same agent, as a tool of the MCP server that Langflow runs for
+  the project of the flow (streamable HTTP);
 * ``local``: any server that speaks the OpenAI chat completions API (LM Studio,
   llama.cpp, Ollama...), by default on this machine;
 * ``anthropic``: Claude, through the Anthropic API (needs the ``anthropic``
@@ -32,6 +34,8 @@ import re
 import threading
 import urllib.error
 import urllib.request
+import uuid
+import zlib
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -40,7 +44,7 @@ from urllib.parse import urlsplit
 from vigie.atlas.context import Reference, TechniqueContext, lookup, render_text
 from vigie.atlas.mapping import AtlasData
 
-PROVIDERS = ("auto", "mitre", "local", "anthropic")
+PROVIDERS = ("auto", "mitre", "mitre-mcp", "local", "anthropic")
 # Any number of digits, and no word boundary in front: a malformed id, or one glued to
 # other characters, is caught whole and reported as unknown. The report page marks ids
 # from the citations only, so what is not matched here is never shown as verified.
@@ -49,6 +53,13 @@ ATLAS_ID = re.compile(r"AML\.(?:TA|T|M|CS)\d+(?:\.\d+)?", re.IGNORECASE)
 # drive the terminal (escape sequences) when printed.
 CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
 MAX_REPLY_BYTES = 2 * 1024 * 1024
+# Reasoning a model leaves in front of its answer, closed or cut off: <think> blocks,
+# and the thought channel of Gemma models. Only in front: the same markers quoted
+# further down (an event can hold them) must not cut the answer.
+REASONING = re.compile(
+    r"\A(?:\s*(?:<think>.*?(?:</think>|\Z)|<\|channel>thought.*?(?:<channel\|>|\Z)))+",
+    re.DOTALL,
+)
 MAX_QUESTION = 1000
 MAX_ANSWER = 12000
 MAX_EVENTS = 10
@@ -56,12 +67,10 @@ MAX_EVENT_LENGTH = 600
 TIMEOUT = 180.0  # a local model can take a while to load and answer
 PROBE_TIMEOUT = 2.0
 DEADLINE = 240.0  # a whole exchange, however many requests and retries it takes
-# Reasoning a model leaves in front of its answer, closed or cut off. Only in front: the
-# same marker quoted further down (an event can hold it) must not cut the answer.
-REASONING = re.compile(r"\A(?:\s*<think>.*?(?:</think>|\Z))+", re.DOTALL)
 
 MITRE_URL = "http://127.0.0.1:7860"
 MITRE_FLOW_NAME = "atlas agent"
+MCP_PROTOCOL = "2025-06-18"
 LOCAL_URL = "http://127.0.0.1:1234/v1"
 ANTHROPIC_MODEL = "claude-opus-5-5"
 
@@ -207,6 +216,7 @@ def ask(
     text, model = _within(
         DEADLINE, call, SYSTEM, build_prompt(question, alert, contexts, atlas.version)
     )
+    # Reasoning of the model is not part of the answer, even cut off before its end.
     text = clean(REASONING.sub("", text)).strip()
     if not text:
         raise AgentError(f"the {name} provider returned an empty answer")
@@ -272,7 +282,9 @@ def resolve(provider: str, env: Mapping[str, str]) -> tuple[str, Call]:
                 f"{_mitre_url(env)}) or a local OpenAI-compatible server such as LM Studio "
                 f"({_local_url(env)}), or name a provider"
             )
-    factory = {"mitre": _mitre, "local": _local, "anthropic": _anthropic}[provider]
+    factory = {"mitre": _mitre, "mitre-mcp": _mitre_mcp, "local": _local, "anthropic": _anthropic}[
+        provider
+    ]
     return provider, factory(env)
 
 
@@ -289,7 +301,7 @@ def _mitre_ready(env: Mapping[str, str]) -> bool:
     default of other programs, and a Langflow server may hold other flows only."""
     base, headers = _mitre_url(env), _mitre_headers(env)
     if env.get("VIGIE_MITRE_AGENT_FLOW"):
-        return _answers(f"{base}/api/v1/flows/", headers)
+        return _answers(f"{base}/api/v1/flows/?header_flows=true", headers)
     try:
         _find_flow(base, headers, PROBE_TIMEOUT)
     except AgentError:
@@ -321,7 +333,12 @@ def _mitre(env: Mapping[str, str]) -> Call:
         flow = env.get("VIGIE_MITRE_AGENT_FLOW") or _find_flow(base, headers)
         reply = _http_json(
             f"{base}/api/v1/run/{flow}?stream=false",
-            {"input_value": f"{system}\n\n{user}", "input_type": "chat", "output_type": "chat"},
+            {
+                "input_value": f"{system}\n\n{user}",
+                "input_type": "chat",
+                "output_type": "chat",
+                "session_id": _new_session(),
+            },
             headers,
         )
         text = _langflow_text(reply)
@@ -332,17 +349,166 @@ def _mitre(env: Mapping[str, str]) -> Call:
     return call
 
 
-def _find_flow(base: str, headers: dict[str, str], timeout: float = TIMEOUT) -> str:
-    flows = _http_json(f"{base}/api/v1/flows/", None, headers, timeout)
-    for flow in flows if isinstance(flows, list) else []:
-        if (
-            isinstance(flow, dict)
-            and flow.get("id")
-            and MITRE_FLOW_NAME in str(flow.get("name", "")).lower()
+def _mitre_mcp(env: Mapping[str, str]) -> Call:
+    """The MITRE ATLAS agent as an MCP tool.
+
+    Langflow runs one MCP server per project and exposes each flow of the project as a
+    tool. The server is the one of the project that holds the flow, unless
+    ``VIGIE_MITRE_MCP_URL`` names it. Like the run API, the tool takes one message.
+    """
+    base, headers = _mitre_url(env), _mitre_headers(env)
+
+    def call(system: str, user: str) -> tuple[str, str]:
+        url = env.get("VIGIE_MITRE_MCP_URL")
+        if not url:
+            project = _find_flow(
+                base, headers, key="folder_id", flow=env.get("VIGIE_MITRE_AGENT_FLOW", "")
+            )
+            url = f"{base}/api/v1/mcp/project/{project}/streamable"
+        # The Langflow key goes to the Langflow server only; another one has its own.
+        key = env.get("VIGIE_MITRE_MCP_KEY")
+        sent = headers if _origin(url) == _origin(base) else {}
+        if key:
+            sent = {"x-api-key": key}
+        session = _McpSession(url, sent)
+        session.request(
+            "initialize",
+            {
+                "protocolVersion": MCP_PROTOCOL,
+                "capabilities": {},
+                "clientInfo": {"name": "vigie", "version": "0"},
+            },
+        )
+        session.request("notifications/initialized", None, notify=True)
+        listed = session.request("tools/list", {})
+        tools = listed.get("tools") if isinstance(listed, dict) else None
+        wanted = env.get("VIGIE_MITRE_MCP_TOOL", "").lower()
+        tool = next(
+            (
+                t
+                for t in (tools if isinstance(tools, list) else [])
+                if isinstance(t, dict)
+                and (
+                    str(t.get("name", "")).lower() == wanted
+                    if wanted
+                    else MITRE_FLOW_NAME in re.sub(r"[_-]+", " ", str(t.get("name", ""))).lower()
+                )
+            ),
+            None,
+        )
+        if tool is None:
+            raise AgentError(
+                f"no tool named like 'ATLAS Agent' on {_origin(url)}: set VIGIE_MITRE_MCP_TOOL"
+            )
+        try:
+            properties = list(tool["inputSchema"]["properties"])
+        except (KeyError, TypeError):
+            properties = []
+        if "session_id" not in properties:
+            # Without it the agent answers in a shared conversation and recalls the
+            # events of the alerts asked about before.
+            raise AgentError(
+                f"the tool {clean(str(tool.get('name')))[:80]} takes no session id: "
+                "Vigie cannot keep this question apart from the others"
+            )
+        others = [name for name in properties if name != "session_id"]
+        argument = "input_value" if "input_value" in others or not others else others[0]
+        result = session.request(
+            "tools/call",
+            {
+                "name": tool["name"],
+                "arguments": {argument: f"{system}\n\n{user}", "session_id": _new_session()},
+            },
+        )
+        content = result.get("content") if isinstance(result, dict) else None
+        # Langflow can hand the same message twice (as streamed, then as stored): the
+        # blocks that only differ by their spacing are kept once.
+        blocks: dict[str, str] = {}
+        for block in content if isinstance(content, list) else []:
+            if isinstance(block, dict) and isinstance(block.get("text"), str):
+                blocks.setdefault(" ".join(block["text"].split()), block["text"])
+        text = "\n\n".join(blocks.values())
+        if not isinstance(result, dict) or result.get("isError"):
+            raise AgentError(f"the MITRE ATLAS agent failed: {clean(text)[:300] or 'no detail'}")
+        return text, "MITRE ATLAS agent (Langflow, MCP)"
+
+    return call
+
+
+def _new_session() -> str:
+    """A conversation of its own for each question: the agent keeps the messages of a
+    session, and the events of one alert must not be recalled when asked about another."""
+    return f"vigie-{uuid.uuid4().hex}"
+
+
+class _McpSession:
+    """JSON-RPC requests to an MCP server over streamable HTTP, one at a time."""
+
+    def __init__(self, url: str, headers: dict[str, str]) -> None:
+        self.url, self.headers, self.session, self.count = url, headers, "", 0
+
+    def request(self, method: str, params: dict[str, Any] | None, notify: bool = False) -> Any:
+        self.count += 1
+        body: dict[str, Any] = {"jsonrpc": "2.0", "method": method}
+        if params is not None:
+            body["params"] = params
+        if not notify:
+            body["id"] = self.count
+        headers = {
+            "Accept": "application/json, text/event-stream",
+            "MCP-Protocol-Version": MCP_PROTOCOL,
+            **self.headers,
+        }
+        if self.session:
+            headers["Mcp-Session-Id"] = self.session
+        raw, reply = _http(self.url, body, headers, TIMEOUT)
+        self.session = reply.get("Mcp-Session-Id") or self.session
+        if notify:
+            return None
+        text = raw.decode("utf-8", "replace")
+        # The answer comes as one JSON object, or as server-sent events holding one each.
+        if reply.get_content_type() == "text/event-stream":
+            # Split on line feeds only: other separators can sit inside the JSON strings.
+            lines = [
+                "\n".join(line[5:] for line in event.split("\n") if line.startswith("data:"))
+                for event in text.replace("\r\n", "\n").split("\n\n")
+            ]
+        else:
+            lines = [text]
+        for line in lines:
+            try:
+                message = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(message, dict) and message.get("id") == self.count:
+                if "error" in message:
+                    error = message["error"]
+                    detail = error.get("message") if isinstance(error, dict) else error
+                    raise AgentError(
+                        f"{_origin(self.url)} refused {method}: {clean(str(detail))[:300]}"
+                    )
+                return message.get("result")
+        raise AgentError(f"{_origin(self.url)} did not answer {method} as an MCP server")
+
+
+def _find_flow(
+    base: str, headers: dict[str, str], timeout: float = TIMEOUT, key: str = "id", flow: str = ""
+) -> str:
+    """The id of the ATLAS agent flow, or with ``key`` another of its fields; ``flow``
+    names the flow by id instead of by name."""
+    # Names and ids only: the whole flows weigh megabytes.
+    flows = _http_json(f"{base}/api/v1/flows/?header_flows=true", None, headers, timeout)
+    for entry in flows if isinstance(flows, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        named = MITRE_FLOW_NAME in str(entry.get("name", "")).lower()
+        # The value goes into an address: nothing that could lead to another path.
+        if (entry.get("id") == flow if flow else named) and re.fullmatch(
+            r"[\w-]{1,64}", str(entry.get(key) or "")
         ):
-            return str(flow["id"])
+            return str(entry[key])
     raise AgentError(
-        f"no flow named like 'ATLAS Agent' on {base}: set VIGIE_MITRE_AGENT_FLOW to its id"
+        f"no flow named like 'ATLAS Agent' on {_origin(base)}: set VIGIE_MITRE_AGENT_FLOW to its id"
     )
 
 
@@ -450,6 +616,17 @@ def _answers(url: str, headers: dict[str, str] | None = None) -> bool:
 def _http_json(
     url: str, body: dict[str, Any] | None, headers: dict[str, str], timeout: float = TIMEOUT
 ) -> Any:
+    raw, _ = _http(url, body, headers, timeout)
+    try:
+        return json.loads(raw.decode("utf-8"))
+    except ValueError as exc:
+        raise AgentError(f"{_origin(url)} did not answer in JSON") from exc
+
+
+def _http(
+    url: str, body: dict[str, Any] | None, headers: dict[str, str], timeout: float
+) -> tuple[bytes, Any]:
+    """The body and the headers of the answer; any failure is an :class:`AgentError`."""
     if not url.startswith(("http://", "https://")):
         raise AgentError("the address of the provider is not a web address")
     data = json.dumps(body).encode("utf-8") if body is not None else None
@@ -459,17 +636,23 @@ def _http_json(
     try:
         with _OPENER.open(request, timeout=timeout) as response:
             raw = response.read(MAX_REPLY_BYTES + 1)
+            reply = response.headers
     except urllib.error.HTTPError as exc:
         raise AgentError(f"{_origin(url)} answered {exc.code} {exc.reason}") from exc
     except (OSError, ValueError, http.client.HTTPException) as exc:
         reason = clean(str(getattr(exc, "reason", exc)))[:200]
         raise AgentError(f"could not get an answer from {_origin(url)}: {reason}") from exc
+    if reply.get("Content-Encoding", "").lower() == "gzip":  # Langflow compresses unasked
+        unpacker = zlib.decompressobj(31)
+        try:
+            raw = unpacker.decompress(raw, MAX_REPLY_BYTES + 1)
+        except zlib.error as exc:
+            raise AgentError(f"{_origin(url)} sent a damaged answer") from exc
+        if not unpacker.eof and len(raw) <= MAX_REPLY_BYTES:  # cut off before its end
+            raise AgentError(f"{_origin(url)} sent a damaged answer")
     if len(raw) > MAX_REPLY_BYTES:
         raise AgentError(f"the answer of {_origin(url)} is too long")
-    try:
-        return json.loads(raw.decode("utf-8"))
-    except ValueError as exc:
-        raise AgentError(f"{_origin(url)} did not answer in JSON") from exc
+    return raw, reply
 
 
 def _origin(url: str) -> str:

@@ -519,6 +519,7 @@ vigie atlas explain "Sensitive Tool Call" --ask "How do I fix it?"
 | Provider | What answers | Settings |
 | --- | --- | --- |
 | `mitre` | the [MITRE ATLAS Knowledge Base Agent](https://github.com/mitre-atlas/atlas-knowledge-base-agent), through the run API of a Langflow server on this machine | `VIGIE_MITRE_AGENT_URL` (default `http://127.0.0.1:7860`), `VIGIE_MITRE_AGENT_FLOW`, `VIGIE_MITRE_AGENT_KEY` |
+| `mitre-mcp` | the same agent, as a tool of the MCP server Langflow runs for its project (streamable HTTP) | the settings of `mitre`; `VIGIE_MITRE_MCP_URL`, `VIGIE_MITRE_MCP_TOOL` and `VIGIE_MITRE_MCP_KEY` for another server, tool or key |
 | `local` | a server that speaks the OpenAI chat API (LM Studio, llama.cpp, Ollama) | `VIGIE_LLM_URL` (default `http://127.0.0.1:1234/v1`), `VIGIE_LLM_MODEL`, `VIGIE_LLM_KEY` |
 | `anthropic` | Claude, through the Anthropic API | `pip install "vigie[agent]"`, the credentials of the Anthropic SDK, `VIGIE_ANTHROPIC_MODEL` |
 
@@ -538,10 +539,16 @@ is generated text to verify before acting on it. Log events are written by
 whoever is being investigated, so they reach the model as quoted data and the
 answer is displayed as plain text.
 
-This part is experimental: the `mitre` and `anthropic` providers are written
-from the documented APIs and tested against a stand-in server only, and the
-MITRE agent ships its own ATLAS release (2026.7), older than the one bundled
-here. Reports of `vigie watch` have no question box.
+This part is experimental. The `mitre` and `mitre-mcp` providers were tried
+against version 1.1.0 of the MITRE agent (Langflow 1.10) driving a local model;
+the `anthropic` provider is written from the documented API and tested against
+a stand-in only. The MITRE agent ships its own ATLAS release (2026.7), older
+than the one bundled here. Langflow asks for an API key
+(`VIGIE_MITRE_AGENT_KEY`), and each question is sent as a conversation of its
+own so that the agent does not recall the events of another alert (a tool that
+takes no session id is refused). The agent has tools of its own (its ATLAS
+search and data set), and Langflow stores every message it receives, log
+events included, in its database. Reports of `vigie watch` have no question box.
 
 ### Rule mapping
 

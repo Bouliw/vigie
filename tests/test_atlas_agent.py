@@ -1,5 +1,6 @@
 """The ATLAS context of a technique, and the agent mode that answers questions from it."""
 
+import gzip
 import json
 import sys
 import threading
@@ -102,15 +103,30 @@ def test_events_are_quoted_data_that_cannot_close_their_block():
 
 class Stub(BaseHTTPRequestHandler):
     answer = "Apply AML.M0024. AML.T9999 too."
-    flows: ClassVar[list] = [{"id": "other", "name": "Demo"}, {"id": "f-1", "name": "ATLAS Agent"}]
+    flows: ClassVar[list] = [
+        {"id": "other", "name": "Demo", "folder_id": "p-0"},
+        {"id": "f-1", "name": "ATLAS Agent v1.1.0", "folder_id": "p-1"},
+    ]
+    mcp = "sse"  # or "json", "error", "garbage"
+    tools: ClassVar[list] = [
+        {"name": "demo", "inputSchema": {"properties": {"input_value": {}}}},
+        {
+            "name": "atlas_agent_v110",
+            "inputSchema": {"properties": {"input_value": {}, "session_id": {}}},
+        },
+    ]
     seen: ClassVar[list] = []
 
     def log_message(self, *args):
         pass
 
-    def _reply(self, data, status=200):
+    def _reply(self, data, status=200, compressed=False):
         raw = json.dumps(data).encode()
+        if compressed:
+            raw = gzip.compress(raw)
         self.send_response(status)
+        if compressed:
+            self.send_header("Content-Encoding", "gzip")
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
         self.wfile.write(raw)
@@ -120,8 +136,8 @@ class Stub(BaseHTTPRequestHandler):
             self._reply({"status": "ok"})
         elif self.path == "/v1/models":
             self._reply({"data": [{"id": "stub-model"}]})
-        elif self.path == "/api/v1/flows/":
-            self._reply(Stub.flows)
+        elif self.path == "/api/v1/flows/?header_flows=true":
+            self._reply(Stub.flows, compressed=True)  # as Langflow does, even unasked
         else:
             self._reply({}, 404)
 
@@ -131,11 +147,47 @@ class Stub(BaseHTTPRequestHandler):
         if self.path == "/v1/chat/completions":
             content = "<think>hidden reasoning AML.T8888</think>" + Stub.answer
             self._reply({"choices": [{"message": {"content": content}}]})
+        elif self.path == "/api/v1/mcp/project/p-1/streamable":
+            self._mcp(body)
         elif self.path.startswith("/api/v1/run/"):
             message = {"results": {"message": {"text": Stub.answer}}}
             self._reply({"outputs": [{"outputs": [message]}]})
         else:
             self._reply({}, 404)
+
+    def _mcp(self, body):
+        """A project MCP server as Langflow runs it: answers as server-sent events."""
+        if "id" not in body:
+            self.send_response(202)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        said = "<|channel>thought\nhidden AML.T7777<channel|>" + Stub.answer
+        result = {
+            "initialize": {"protocolVersion": "2025-06-18", "capabilities": {}},
+            "tools/list": {"tools": Stub.tools},
+            "tools/call": {
+                "isError": Stub.answer == "boom",
+                "content": [
+                    {"type": "text", "text": said.replace(". ", ".\n\n")},
+                    {"type": "text", "text": said},
+                ],
+            },
+        }[body["method"]]
+        message = {"jsonrpc": "2.0", "id": body["id"], "result": result}
+        if Stub.mcp == "error" and body["method"] == "tools/call":
+            message = {"jsonrpc": "2.0", "id": body["id"], "error": {"message": "flow broke"}}
+        # As the MCP SDK writes it: U+2028 and the like are not escaped.
+        said = json.dumps(message, ensure_ascii=False)
+        raw = said.encode() if Stub.mcp == "json" else f"event: message\ndata: {said}\n\n".encode()
+        if Stub.mcp == "garbage":
+            raw = b"event: message\ndata: not json\n\n"
+        self.send_response(200)
+        kind = "application/json" if Stub.mcp == "json" else "text/event-stream"
+        self.send_header("Content-Type", kind)
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
 
 
 @pytest.fixture
@@ -277,13 +329,6 @@ def test_an_unclosed_reasoning_block_is_dropped(stub, monkeypatch):
     monkeypatch.setattr(Stub, "answer", "Apply AML.M0024.<think>then AML.T7777")
     answer = ask("local", {"VIGIE_LLM_URL": f"{stub}/v1"})
     assert answer.text.startswith("Apply AML.M0024.<think>then AML.T7777 [unverified")
-
-
-def test_a_reasoning_marker_quoted_inside_an_answer_does_not_cut_it(stub, monkeypatch):
-    quoted = "The event holds a <think> marker. Apply AML.M0024 last."
-    monkeypatch.setattr(Stub, "answer", quoted)
-    # The stub puts a <think> block in front of what the local provider answers.
-    assert ask("local", {"VIGIE_LLM_URL": f"{stub}/v1"}).text == quoted
 
 
 def test_auto_only_talks_to_this_machine(stub):
@@ -437,7 +482,7 @@ def test_an_exchange_that_drags_on_is_given_up(monkeypatch):
 
 
 def test_auto_falls_back_to_a_local_model_when_the_port_holds_no_atlas_agent(stub, monkeypatch):
-    monkeypatch.setattr(Stub, "flows", [{"id": "other", "name": "Demo"}])
+    monkeypatch.setattr(Stub, "flows", [{"id": "other", "name": "Demo", "folder_id": "p-0"}])
     both = {"VIGIE_MITRE_AGENT_URL": stub, "VIGIE_LLM_URL": f"{stub}/v1"}
     assert ask("auto", both).provider == "local"
     # Another program on the port (no Langflow API at all) is skipped the same way.
@@ -479,3 +524,107 @@ def test_explain_uses_the_rules_it_is_given(capsys):
     first = capsys.readouterr().out.splitlines()[0]
     assert first.startswith("Alert 1: ") and "Prompt Injection In Retrieved Content" in first
     assert main(["atlas", "explain", "2", "--rules", str(rule_file)]) == 2
+
+
+# --- The MITRE agent as an MCP tool -------------------------------------------------------
+
+
+def test_mitre_mcp_provider_calls_the_tool_of_the_project_that_holds_the_flow(stub):
+    env = {"VIGIE_MITRE_AGENT_URL": stub, "VIGIE_MITRE_AGENT_KEY": "lf-key"}
+    answer = ask("mitre-mcp", env)
+    assert answer.provider == "mitre-mcp" and "MCP" in answer.model
+    # Said twice by the server with other spacing, kept once; the thought channel is gone.
+    assert answer.text.count("Apply AML.M0024.") == 1 and "hidden" not in answer.text
+    assert answer.unverified == ("AML.T9999",)
+    calls = [(path, body) for path, _, body in Stub.seen]
+    assert {path for path, _ in calls} == {"/api/v1/mcp/project/p-1/streamable"}
+    methods = [body["method"] for _, body in calls]
+    assert methods == ["initialize", "notifications/initialized", "tools/list", "tools/call"]
+    sent = calls[-1][1]["params"]
+    assert sent["name"] == "atlas_agent_v110" and "event one" in sent["arguments"]["input_value"]
+    assert all(headers["x-api-key"] == "lf-key" for _, headers, _ in Stub.seen)
+    first = sent["arguments"]["session_id"]
+    ask("mitre-mcp", env)
+    assert Stub.seen[-1][2]["params"]["arguments"]["session_id"] not in ("", first)
+
+
+def test_mitre_mcp_provider_reports_a_missing_tool_and_a_failed_call(stub, monkeypatch):
+    env = {"VIGIE_MITRE_MCP_URL": f"{stub}/api/v1/mcp/project/p-1/streamable"}
+    monkeypatch.setattr(Stub, "answer", "boom")
+    with pytest.raises(agent.AgentError, match="the MITRE ATLAS agent failed"):
+        ask("mitre-mcp", env)
+    with pytest.raises(agent.AgentError, match="no tool named like"):
+        ask("mitre-mcp", env | {"VIGIE_MITRE_MCP_TOOL": "absent"})
+    monkeypatch.setattr(Stub, "tools", "not a list")
+    with pytest.raises(agent.AgentError, match="no tool named like"):
+        ask("mitre-mcp", env)
+    with pytest.raises(agent.AgentError, match=r"as an MCP server|404"):
+        ask("mitre-mcp", {"VIGIE_MITRE_MCP_URL": f"{stub}/v1/models"})
+
+
+def test_each_question_to_the_mitre_agent_is_a_conversation_of_its_own(stub):
+    env = {"VIGIE_MITRE_AGENT_URL": stub}
+    ask("mitre", env)
+    first = Stub.seen[-1][2]["session_id"]
+    ask("mitre", env)
+    assert first.startswith("vigie-") and Stub.seen[-1][2]["session_id"] != first
+
+
+def test_an_answer_with_unusual_line_separators_or_as_plain_json_is_read(stub, monkeypatch):
+    env = {"VIGIE_MITRE_AGENT_URL": stub}
+    monkeypatch.setattr(Stub, "answer", "Apply AML.M0024.\u2028Then\x85check AML.T0051.")
+    assert ask("mitre-mcp", env).text.endswith("check AML.T0051.")
+    monkeypatch.setattr(Stub, "mcp", "json")
+    assert ask("mitre-mcp", env).text.endswith("check AML.T0051.")
+    monkeypatch.setattr(Stub, "mcp", "error")
+    with pytest.raises(agent.AgentError, match="refused tools/call: flow broke"):
+        ask("mitre-mcp", env)
+    monkeypatch.setattr(Stub, "mcp", "garbage")
+    with pytest.raises(agent.AgentError, match="did not answer initialize as an MCP server"):
+        ask("mitre-mcp", env)
+
+
+def test_the_langflow_key_only_goes_to_the_langflow_server(stub):
+    elsewhere = stub.replace("127.0.0.1", "localhost") + "/api/v1/mcp/project/p-1/streamable"
+    env = {"VIGIE_MITRE_AGENT_URL": stub, "VIGIE_MITRE_AGENT_KEY": "lf-key"}
+    ask("mitre-mcp", env | {"VIGIE_MITRE_MCP_URL": elsewhere})
+    assert Stub.seen and all(headers["x-api-key"] is None for _, headers, _ in Stub.seen)
+    ask("mitre-mcp", env | {"VIGIE_MITRE_MCP_URL": elsewhere, "VIGIE_MITRE_MCP_KEY": "other"})
+    assert Stub.seen[-1][1]["x-api-key"] == "other"
+
+
+def test_a_tool_that_cannot_start_a_conversation_of_its_own_is_refused(stub, monkeypatch):
+    tools = [{"name": "atlas_agent", "inputSchema": {"properties": {"input_value": {}}}}]
+    monkeypatch.setattr(Stub, "tools", tools)
+    with pytest.raises(agent.AgentError, match="session"):
+        ask("mitre-mcp", {"VIGIE_MITRE_AGENT_URL": stub})
+    assert [body["method"] for _, _, body in Stub.seen][-1] == "tools/list"
+
+
+def test_reasoning_markers_quoted_inside_an_answer_do_not_cut_it(stub, monkeypatch):
+    quoted = "The event holds <|channel>thought and <think> markers. Apply AML.M0024 last."
+    monkeypatch.setattr(Stub, "answer", quoted)
+    env = {"VIGIE_LLM_URL": f"{stub}/v1", "VIGIE_MITRE_AGENT_URL": stub}
+    assert ask("local", env).text == quoted  # the stub puts a <think> block in front
+    # A thought channel in front; the stub also says it twice with other spacing.
+    assert " ".join(ask("mitre-mcp", env).text.split()) == quoted
+
+
+def test_the_project_of_the_flow_given_by_id_is_used_and_its_id_is_checked(stub, monkeypatch):
+    env = {"VIGIE_MITRE_AGENT_URL": stub, "VIGIE_MITRE_AGENT_FLOW": "other"}
+    with pytest.raises(agent.AgentError, match="404"):  # the stub has no server for p-0
+        ask("mitre-mcp", env)
+    assert Stub.seen[-1][0] == "/api/v1/mcp/project/p-0/streamable"
+    monkeypatch.setattr(
+        Stub, "flows", [{"id": "f-1", "name": "ATLAS Agent", "folder_id": "../../v1/x"}]
+    )
+    with pytest.raises(agent.AgentError, match="no flow named like"):
+        ask("mitre-mcp", {"VIGIE_MITRE_AGENT_URL": stub})
+
+
+def test_a_damaged_compressed_answer_is_refused(stub, monkeypatch):
+    real = gzip.compress
+
+    monkeypatch.setattr(gzip, "compress", lambda raw: real(raw)[:-12])
+    with pytest.raises(agent.AgentError, match="damaged"):
+        ask("mitre", {"VIGIE_MITRE_AGENT_URL": stub})

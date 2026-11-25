@@ -309,7 +309,9 @@ def _parser() -> argparse.ArgumentParser:
         "that context and the events of the alert; every ATLAS id it cites is checked "
         "against the shipped data and an unknown one is marked as unverified.",
         epilog="Providers: mitre is the MITRE ATLAS agent on a local Langflow server "
-        "(VIGIE_MITRE_AGENT_URL, _FLOW, _KEY); local is an OpenAI-compatible server such as "
+        "(VIGIE_MITRE_AGENT_URL, _FLOW, _KEY); mitre-mcp is the same agent through the MCP "
+        "server of its Langflow project (VIGIE_MITRE_MCP_URL, _TOOL); "
+        "local is an OpenAI-compatible server such as "
         "LM Studio (VIGIE_LLM_URL, _MODEL, _KEY); anthropic is the Anthropic API "
         "(pip install 'vigie[agent]', VIGIE_ANTHROPIC_MODEL). auto tries mitre then local, "
         "on this machine only: log content goes to a cloud API only when you name it.",
