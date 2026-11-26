@@ -25,6 +25,8 @@ try { var vigieTheme = localStorage.getItem("vigie-theme"); if (vigieTheme === "
   <symbol id="i-x" viewBox="0 0 16 16"><path d="m4 4 8 8M12 4l-8 8"/></symbol>
   <symbol id="i-eye" viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></symbol>
   <symbol id="i-shield" viewBox="0 0 16 16"><path d="M8 1.8 2.8 3.8v3.9c0 3.2 2.2 5.6 5.2 6.5 3-.9 5.2-3.3 5.2-6.5V3.8z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/></symbol>
+  <symbol id="i-compare" viewBox="0 0 16 16"><path d="M5 2.5v11M11 2.5v11M2.5 5.5 5 3l2.5 2.5M8.5 10.5 11 13l2.5-2.5"/></symbol>
   <symbol id="i-ext" viewBox="0 0 16 16"><path d="M9.5 2.5h4v4M13.5 2.5 7 9M11.5 9.5v3a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3"/></symbol>
 </svg>
 
@@ -36,6 +38,7 @@ try { var vigieTheme = localStorage.getItem("vigie-theme"); if (vigieTheme === "
       <li><a href="#questionnaire">Questionnaire</a></li>
       <li><a href="#priorities">Priorities</a></li>
       {% if observed %}<li><a href="#observed">Seen in the logs</a></li>{% endif %}
+      {% if payload.detection is not none %}<li><a href="#blind">Blind spots</a></li>{% endif %}
       <li><a href="#techniques">Techniques</a></li>
       <li><a href="#method">Method</a></li>
     </ul></nav>
@@ -46,6 +49,7 @@ try { var vigieTheme = localStorage.getItem("vigie-theme"); if (vigieTheme === "
         <div class="menu-list" id="export-menu" hidden>
           <button type="button" data-export="csv">Answers (CSV, opens in Excel)</button>
           <button type="button" data-export="json">Answers and results (JSON)</button>
+          <button type="button" data-export="summary">One-page summary (PDF, from the print dialog)</button>
           <button type="button" data-export="md">Summary (Markdown)</button>
         </div>
       </div>
@@ -67,6 +71,22 @@ try { var vigieTheme = localStorage.getItem("vigie-theme"); if (vigieTheme === "
     </div>
     <div class="gauges" id="gauges"></div>
   </section>
+  <p class="summary-only muted" id="summary-date"></p>
+
+  <div class="context-bar js-only">
+    <div class="ctx">
+      <span class="ctx-k"><svg class="icon" aria-hidden="true"><use href="#i-target"/></svg>Threat profile</span>
+      <button type="button" class="pick" id="profile-btn" aria-haspopup="dialog"><span id="profile-label">Every ATT&amp;CK technique</span><svg class="icon" aria-hidden="true"><use href="#i-chev"/></svg></button>
+      <button type="button" class="btn btn-quiet btn-icon btn-sm" id="profile-clear" aria-label="Remove the threat profile" title="Remove the threat profile" hidden><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="ctx">
+      <span class="ctx-k"><svg class="icon" aria-hidden="true"><use href="#i-compare"/></svg>Compare with</span>
+      <label class="pick" id="baseline-pick" title="Load a previous questionnaire with its answers (CSV, Excel or JSON)"><span id="baseline-label">a previous assessment…</span><input type="file" id="baseline-file" accept=".csv,.tsv,.txt,.json,.xlsx,.xlsm" class="visually-hidden"></label>
+      <button type="button" class="btn btn-quiet btn-icon btn-sm" id="baseline-clear" aria-label="Remove the comparison" title="Remove the comparison" hidden><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+  </div>
+
+  <section class="since" id="since" aria-label="What changed since the previous assessment" hidden></section>
 
   <p class="kpi-caption" id="kpi-caption"></p>
   <section class="kpis" id="kpis" aria-label="Techniques by status"></section>
@@ -94,6 +114,7 @@ try { var vigieTheme = localStorage.getItem("vigie-theme"); if (vigieTheme === "
       <label class="toggle"><input type="checkbox" id="q-open"> Unanswered only</label>
       <div class="bulk"><span class="muted">Set unanswered to</span> <select id="q-bulk" aria-label="Set every unanswered control to"><option value="">…</option></select></div>
     </div>
+    <p class="banner info" id="mapping-note" hidden></p>
     <div id="domains"></div>
     <p class="empty" id="q-empty" hidden>No control matches.</p>
   </section>
@@ -117,6 +138,15 @@ try { var vigieTheme = localStorage.getItem("vigie-theme"); if (vigieTheme === "
   </section>
   {% endif %}
 
+  <section class="section" id="blind" aria-labelledby="b-h" hidden>
+    <div class="section-head">
+      <div><h2 id="b-h">Neither prevented nor detected</h2>
+      <p>Techniques your maturity leaves open (facilitated, or with no preventive control) that {{ meta.detection_source or "the detection rules" }} do not detect: where an attacker would go unseen. Stage by stage, facilitated ones first.</p></div>
+    </div>
+    <p class="path-verdict" id="blind-verdict"></p>
+    <div class="blind-list" id="blind-list"></div>
+  </section>
+
   <section class="section" id="techniques" aria-labelledby="t-h">
     <div class="section-head">
       <div><h2 id="t-h">All techniques</h2>
@@ -127,7 +157,7 @@ try { var vigieTheme = localStorage.getItem("vigie-theme"); if (vigieTheme === "
       <select id="t-status" aria-label="Status"><option value="">All statuses</option></select>
       <select id="t-stage" aria-label="Stage"><option value="">All stages</option></select>
     </div>
-    <div class="table-wrap"><table class="tbl" id="tech-table"><thead><tr><th scope="col">Technique</th><th scope="col">Stages</th><th scope="col">Status</th><th scope="col">Best level</th><th scope="col">Mitigations</th><th scope="col">How common</th></tr></thead><tbody></tbody></table></div>
+    <div class="table-wrap"><table class="tbl" id="tech-table"><thead><tr><th scope="col">Technique</th><th scope="col">Stages</th><th scope="col">Status</th><th scope="col">Best level</th><th scope="col">Mitigations</th><th scope="col">How common</th>{% if payload.detection is not none %}<th scope="col">Detection</th>{% endif %}</tr></thead><tbody></tbody></table></div>
     <p class="table-more muted" id="t-more"></p>
   </section>
 
@@ -143,6 +173,11 @@ try { var vigieTheme = localStorage.getItem("vigie-theme"); if (vigieTheme === "
         <h3>The easiest way through</h3>
         <p>At each stage, the path takes a facilitated technique first, then one no control prevents, then the least hindered, and among equals the one seen in the logs, then the most common in real attacks: used by the most known groups, campaigns and malware for ATT&amp;CK, the most realized for ATLAS. It is blocked at the first stage where even the easiest technique is hindered.</p>
         <p>The <b>exposure index</b> (0 to 100) is the mean of 1&nbsp;−&nbsp;<i>m</i>/{{ meta.scale }} over the assessed preventable techniques, weighted by how common each one is.</p>
+      </div>
+      <div>
+        <h3>Profile, detection, comparison</h3>
+        <p>A <b>threat profile</b> keeps the ATT&amp;CK techniques of the groups you fear: those whose ATT&amp;CK description names your sector, or groups you pick. A technique is <b>detected</b> when a detection rule ({{ meta.detection_source or "Vigie's Sigma rules" }}) is mapped to it; open and undetected, it is a <b>blind spot</b>. <b>Comparing</b> with a previous questionnaire shows how each exposure index and each status moved.</p>
+        <p>Controls that name no MITRE id can be <b>mapped from their wording</b>: Vigie looks for English and French words tied to each mitigation (MFA, bastion, sauvegardes hors ligne…) and proposes up to three, dashed, to check.</p>
       </div>
       <div>
         <h3>What it does not say</h3>

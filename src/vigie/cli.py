@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import json
 import os
 import shutil
@@ -13,15 +15,24 @@ import webbrowser
 from collections.abc import Sequence
 from datetime import datetime, tzinfo
 from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from vigie import __version__
 from vigie.analysis import analyze
 from vigie.assess import questionnaire as questionnaires
-from vigie.assess.engine import STATUS_LABELS, Assessment, assess, observed_techniques
+from vigie.assess.engine import (
+    STATUS_LABELS,
+    Assessment,
+    assess,
+    detection_of,
+    observed_techniques,
+)
+from vigie.assess.knowledge import ProfileError, default_knowledge
 from vigie.assess.render import render_html as render_assessment_html
 from vigie.assess.render import render_json as render_assessment_json
 from vigie.assess.render import render_markdown as render_assessment_markdown
+from vigie.assess.suggest import map_questionnaire
 from vigie.atlas import agent, default_atlas_data
 from vigie.atlas.context import render_text, technique_context
 from vigie.attack import default_attack_data
@@ -72,6 +83,7 @@ examples:
   vigie watch --journald              follow the systemd journal of this Linux machine
   vigie assess                        rate your controls, see the attack paths they leave open
   vigie assess answers.xlsx --logs ./logs   assess a questionnaire, crossed with the alerts
+  vigie assess controls.xlsx --map --sector healthcare   your own controls, mapped for you
   vigie rules                         list the detection rules
   vigie atlas explain AML.T0051       what MITRE ATLAS says about a technique
   vigie atlas explain 1 --ask "How do I fix it?"   ask a local model about an alert
@@ -294,7 +306,8 @@ def _parser() -> argparse.ArgumentParser:
         epilog="ANSWERS is a table with a column naming each control, a column of MITRE "
         "mitigations (M1032, AML.M0020) or techniques (T1078) per control, and a maturity "
         "column from 0 to the top of the scale. vigie assess --template answers.csv writes "
-        "the generic questionnaire to fill in.",
+        "the generic questionnaire to fill in. With --map, the MITRE column can be missing: "
+        "Vigie proposes the mitigations of each control from its wording.",
     )
     evaluate.add_argument(
         "answers",
@@ -322,6 +335,33 @@ def _parser() -> argparse.ArgumentParser:
         help="top of the maturity scale (default: 5, levels 0 to 5)",
     )
     evaluate.add_argument("--title", help="title shown on the page (default: the file name)")
+    evaluate.add_argument(
+        "--map",
+        action="store_true",
+        help="propose the MITRE mitigations of the controls that name none, from their "
+        "wording (English or French), and write them to questionnaire-mapped.csv to check",
+    )
+    evaluate.add_argument(
+        "--sector",
+        help="threat profile: keep the ATT&CK techniques of the groups whose ATT&CK "
+        "description names this sector (healthcare, financial, government, defense, energy, "
+        "industry, telecom, technology, education, retail, media, transport, legal, "
+        "civil-society)",
+    )
+    evaluate.add_argument(
+        "--group",
+        action="append",
+        metavar="GROUP",
+        help="threat profile: keep the ATT&CK techniques of this group (id, name or alias, "
+        "e.g. G0016, APT29, FIN7); repeatable, or comma-separated",
+    )
+    evaluate.add_argument(
+        "--baseline",
+        type=Path,
+        metavar="FILE",
+        help="a previous questionnaire with its answers: the page and the summary show what "
+        "changed since",
+    )
     evaluate.add_argument(
         "--logs",
         type=Path,
@@ -797,24 +837,65 @@ def _assess(args: argparse.Namespace) -> int:
         args.answers, logs, year = DEMO_ASSESSMENT, DEMO_LOGS, DEMO_YEAR
     try:
         if args.answers:
-            questionnaire = questionnaires.load(args.answers, scale=scale)
+            questionnaire = questionnaires.load(args.answers, scale=scale, unmapped_ok=args.map)
         else:
             questionnaire = questionnaires.generic()
             if scale is not None and scale != questionnaire.scale:
                 questionnaire.scale = scale
     except questionnaires.QuestionnaireError as exc:
-        raise UsageError(
-            str(exc), "vigie assess --template answers.csv writes a questionnaire to start from"
-        ) from exc
+        hint = "vigie assess --template answers.csv writes a questionnaire to start from"
+        if "no column maps the controls to MITRE" in str(exc):
+            hint = "add --map: Vigie proposes the mitigations of each control from its wording"
+        raise UsageError(str(exc), hint) from exc
+    knowledge = default_knowledge()
+    profile = None
+    if args.sector or args.group:
+        names = [name for value in args.group or [] for name in value.split(",") if name.strip()]
+        try:
+            profile = knowledge.profile(args.sector or "", names)
+        except ProfileError as exc:
+            raise UsageError(str(exc)) from exc
+    baseline = None
+    if args.baseline:
+        try:
+            baseline = questionnaires.load(
+                args.baseline, scale=questionnaire.scale, unmapped_ok=args.map
+            )
+        except questionnaires.QuestionnaireError as exc:
+            raise UsageError(f"--baseline: {exc}") from exc
+    suggested: dict[str, list[dict[str, Any]]] = {}
+    if args.map:
+        known = set(knowledge.mitigations)
+        questionnaire, mapped = map_questionnaire(questionnaire, known)
+        if baseline is not None:
+            baseline, _ = map_questionnaire(baseline, known)
+        for item in mapped:
+            if item.suggestions:
+                suggested[item.control.id] = [
+                    {
+                        "mitigation": s.mitigation,
+                        "score": s.score,
+                        "confidence": s.confidence,
+                        "terms": list(s.terms),
+                    }
+                    for s in item.suggestions
+                ]
     if args.demo:
         questionnaire.title = "Sample organization (demo)"
     if args.title:
         questionnaire.title = args.title
     observed: dict[str, int] = {}
+    if logs and not logs.exists():
+        raise UsageError(f"no such file or directory: {logs}")
+    ruleset = _load_ruleset(args.rules, console)
+    rules = [*ruleset.detections, *ruleset.correlations]
+    detection = detection_of(rules, (default_attack_data(), default_atlas_data()))
+    detection_source = (
+        f"the {len(rules)} detection rules of {', '.join(str(p) for p in args.rules)}"
+        if args.rules
+        else f"the {len(rules)} detection rules shipped with Vigie"
+    )
     if logs:
-        if not logs.exists():
-            raise UsageError(f"no such file or directory: {logs}")
-        ruleset = _load_ruleset(args.rules, console)
         _header(console, f"analyzing {logs}" if not args.demo else "analyzing the sample logs")
         report, _ = _run(
             console,
@@ -827,9 +908,23 @@ def _assess(args: argparse.Namespace) -> int:
             timeline_limit=DEFAULT_TIMELINE_LIMIT,
         )
         observed = observed_techniques(report.alerts)
-    assessment = assess(questionnaire, observed=observed)
+    assessment = assess(
+        questionnaire,
+        knowledge,
+        observed=observed,
+        profile=profile,
+        detection=detection,
+        detection_source=detection_source,
+        baseline=baseline,
+    )
+    assessment.suggested = suggested
     args.output.mkdir(parents=True, exist_ok=True)
     written = []
+    if args.map:
+        path = args.output / "questionnaire-mapped.csv"
+        path.write_text("\ufeff" + _mapped_csv(questionnaire, suggested), encoding="utf-8")
+        written.append(path)
+        _mapping_summary(console, questionnaire, suggested)
     for fmt in formats:
         path = args.output / f"assessment.{fmt}"
         path.write_text(ASSESS_RENDERERS[fmt](assessment), encoding="utf-8")
@@ -876,9 +971,47 @@ def _write_template(console: Console, path: Path) -> int:
     return 0
 
 
+def _mapped_csv(
+    questionnaire: questionnaires.Questionnaire, suggested: dict[str, list[dict[str, Any]]]
+) -> str:
+    """The questionnaire with the proposed mitigations, and on what words each rests."""
+    rows = questionnaires.to_rows(questionnaire)
+    rows[0].append("mapped by vigie")
+    for row, control in zip(rows[1:], questionnaire.controls, strict=True):
+        found = suggested.get(control.id, [])
+        row.append(
+            "; ".join(
+                f"{s['mitigation']} {s['confidence']} ({', '.join(map(str, s['terms']))})"
+                for s in found
+            )
+        )
+    buffer = io.StringIO()
+    csv.writer(buffer, lineterminator="\n").writerows(rows)
+    return buffer.getvalue()
+
+
+def _mapping_summary(
+    console: Console,
+    questionnaire: questionnaires.Questionnaire,
+    suggested: dict[str, list[dict[str, Any]]],
+) -> None:
+    unmapped = [c for c in questionnaire.controls if not c.maps_to_something]
+    likely = sum(1 for found in suggested.values() if found[0]["confidence"] == "likely")
+    console.print(
+        f"Mapped {len(suggested)} control(s) from their wording ({likely} likely, "
+        f"{len(suggested) - likely} possible); {len(unmapped)} left unmapped. Check "
+        "questionnaire-mapped.csv (or the page), correct it, and run vigie assess on it."
+    )
+
+
 def _assessment_summary(console: Console, assessment: Assessment, with_logs: bool) -> None:
     q = assessment.questionnaire
     console.print(f"{q.title}: {q.answered} of {len(q.controls)} controls answered.")
+    if assessment.profile:
+        console.print(
+            f"Threat profile: {assessment.profile.label} "
+            f"({len(assessment.profile.groups)} ATT&CK group(s))."
+        )
     for warning in q.warnings[:5]:
         console.print(f"warning: {warning}", err=True)
     if len(q.warnings) > 5:
@@ -918,6 +1051,18 @@ def _assessment_summary(console: Console, assessment: Assessment, with_logs: boo
             if seen
             else "No alert on a technique the maturity leaves open."
         )
+    if assessment.detection is not None and q.answered:
+        console.print(
+            f"{len(assessment.blind_spots)} technique(s) left open that "
+            f"{assessment.detection_source} do not detect."
+        )
+    for change in assessment.comparison():
+        if change.index_change is not None:
+            console.print(
+                f"Since the baseline, {change.label}: exposure {change.index_before} → "
+                f"{change.index_after} ({change.index_change:+d}), {len(change.improved)} "
+                f"technique(s) improved, {len(change.worsened)} worsened."
+            )
 
 
 def _watch(args: argparse.Namespace) -> int:

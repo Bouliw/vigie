@@ -25,6 +25,17 @@ The reasoning, kept simple enough to be explained to the people assessed:
    with the organization (Reconnaissance, Resource Development, AI Attack
    Adaptation).
 
+6. A *threat profile* keeps, for ATT&CK, only the techniques used by the groups
+   an organization fears (those whose description names its sector, or groups
+   chosen by name): the chain, the counts and the priorities are then theirs.
+7. A technique is *detected* when a detection rule (Vigie's Sigma rules, or the
+   ones given) is mapped to it or to one of its sub-techniques. A technique left
+   open (facilitated, or with no preventive control) and not detected is a
+   *blind spot*.
+8. *Comparing* two assessments of the same scope gives the change of each
+   exposure index and of each count, and the techniques whose status improved
+   or worsened.
+
 ``facilitated`` is a heuristic built on MITRE's mapping of mitigations to
 techniques, not a probability: it says where a control gap leaves a known
 technique without its main counter-measure. The same rules run in the browser,
@@ -36,7 +47,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any
 
@@ -45,6 +56,7 @@ from vigie.assess.knowledge import (
     AttackTechnique,
     Framework,
     KnowledgeBase,
+    Profile,
     Stage,
     default_knowledge,
     parent_id,
@@ -78,6 +90,7 @@ class TechniqueResult:
     controls: tuple[str, ...]  # ids of the controls that map to the technique
     uncovered: tuple[str, ...]  # its mitigations no control of the questionnaire implements
     observed: int = 0  # alerts on the technique (or a sub-technique) in the logs
+    detected: int = 0  # detection rules mapped to the technique (or a sub-technique)
 
 
 @dataclass(frozen=True)
@@ -132,6 +145,13 @@ class Assessment:
     unknown_ids: list[str] = field(default_factory=list)
     generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     vigie_version: str = __version__
+    profile: Profile | None = None
+    detection: dict[str, int] | None = None  # rules per technique id; None: not checked
+    detection_source: str = ""  # "53 rules shipped with Vigie"
+    baseline: Assessment | None = None  # the previous assessment, to compare with
+    # Mitigations proposed from the wording of controls that named none (--map):
+    # control id -> [{"mitigation", "score", "terms"}]
+    suggested: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
 
     @property
     def scale(self) -> int:
@@ -153,19 +173,116 @@ class Assessment:
         unique = {technique.technique.id: technique for technique in found}
         return sorted(unique.values(), key=lambda t: (-t.observed, t.technique.id))
 
+    @property
+    def blind_spots(self) -> list[TechniqueResult]:
+        """Techniques left open (facilitated or unpreventable) that no rule detects."""
+        if self.detection is None:
+            return []
+        return [
+            technique
+            for result in self.frameworks
+            for technique in _unique(result)
+            if technique.status in ("facilitated", "unpreventable") and not technique.detected
+        ]
+
+    def comparison(self) -> list[FrameworkChange]:
+        """What changed since the baseline, framework by framework (empty without one)."""
+        if self.baseline is None:
+            return []
+        return [
+            compare(self.baseline.framework(result.framework.key), result)
+            for result in self.frameworks
+        ]
+
+    def changed_controls(self) -> list[tuple[Control, float | None, float | None]]:
+        """Controls whose maturity changed since the baseline: (control, before, after)."""
+        if self.baseline is None:
+            return []
+        before = {c.id: c.maturity for c in self.baseline.questionnaire.controls}
+        return [
+            (control, before.get(control.id), control.maturity)
+            for control in self.questionnaire.controls
+            if control.id in before and before[control.id] != control.maturity
+        ]
+
+
+STATUS_RANK = {"facilitated": 0, "partial": 1, "hindered": 2}
+
+
+@dataclass(frozen=True)
+class FrameworkChange:
+    key: str
+    label: str
+    index_before: int | None
+    index_after: int | None
+    counts_before: dict[str, int]
+    counts_after: dict[str, int]
+    blocked_before: str | None
+    blocked_after: str | None
+    improved: tuple[str, ...]  # technique ids now harder for an attacker
+    worsened: tuple[str, ...]  # technique ids now easier
+
+    @property
+    def index_change(self) -> int | None:
+        if self.index_before is None or self.index_after is None:
+            return None
+        return self.index_after - self.index_before
+
+
+def compare(before: FrameworkResult, after: FrameworkResult) -> FrameworkChange:
+    """The change from ``before`` to ``after``, two results of the same framework."""
+    old = {t.technique.id: t.status for t in _unique(before)}
+    improved, worsened = [], []
+    for technique in _unique(after):
+        was = old.get(technique.technique.id)
+        if was in STATUS_RANK and technique.status in STATUS_RANK:
+            if STATUS_RANK[technique.status] > STATUS_RANK[was]:
+                improved.append(technique.technique.id)
+            elif STATUS_RANK[technique.status] < STATUS_RANK[was]:
+                worsened.append(technique.technique.id)
+    return FrameworkChange(
+        key=after.framework.key,
+        label=after.framework.label,
+        index_before=before.exposure_index,
+        index_after=after.exposure_index,
+        counts_before=dict(before.counts),
+        counts_after=dict(after.counts),
+        blocked_before=before.blocked_at,
+        blocked_after=after.blocked_at,
+        improved=tuple(sorted(improved)),
+        worsened=tuple(sorted(worsened)),
+    )
+
+
+def _unique(result: FrameworkResult) -> list[TechniqueResult]:
+    """Each technique of a result once (a technique can serve several stages)."""
+    seen: dict[str, TechniqueResult] = {}
+    for stage in result.stages:
+        for technique in stage.techniques:
+            seen.setdefault(technique.technique.id, technique)
+    return sorted(seen.values(), key=lambda t: t.technique.id)
+
 
 def assess(
     questionnaire: Questionnaire,
     knowledge: KnowledgeBase | None = None,
     observed: dict[str, int] | None = None,
+    *,
+    profile: Profile | None = None,
+    detection: dict[str, int] | None = None,
+    detection_source: str = "",
+    baseline: Questionnaire | None = None,
 ) -> Assessment:
-    """Run the assessment of ``questionnaire``; ``observed`` counts alerts per technique id."""
+    """Run the assessment of ``questionnaire``.
+
+    ``observed`` counts alerts per technique id, ``profile`` keeps the ATT&CK
+    techniques of some groups, ``detection`` counts detection rules per technique
+    id, and ``baseline`` is a previous questionnaire to compare with.
+    """
     knowledge = knowledge or default_knowledge()
     scale = questionnaire.scale
-    seen: dict[str, int] = {}
-    for technique_id, count in (observed or {}).items():
-        key = parent_id(technique_id.upper())
-        seen[key] = seen.get(key, 0) + count
+    seen = _by_parent(observed or {})
+    detected = None if detection is None else _by_parent(detection)
 
     known_techniques = {t.id for f in knowledge.frameworks for t in f.techniques}
     unknown: list[str] = []
@@ -179,17 +296,58 @@ def assess(
 
     levels = _levels(questionnaire.controls)
     results = tuple(
-        _framework(framework, questionnaire.controls, levels, scale, seen)
+        _framework(
+            _in_profile(framework, profile), questionnaire.controls, levels, scale, seen, detected
+        )
         for framework in knowledge.frameworks
     )
     priorities = _priorities(questionnaire, results, scale)
+    previous = None
+    if baseline is not None:
+        previous = assess(baseline, knowledge, observed, profile=profile, detection=detection)
     return Assessment(
         questionnaire=questionnaire,
         frameworks=results,
         priorities=priorities,
         observed=seen,
         unknown_ids=unknown,
+        profile=profile,
+        detection=detected,
+        detection_source=detection_source,
+        baseline=previous,
     )
+
+
+def _by_parent(counts: dict[str, int]) -> dict[str, int]:
+    merged: dict[str, int] = {}
+    for technique_id, count in counts.items():
+        key = parent_id(technique_id.upper())
+        merged[key] = merged.get(key, 0) + count
+    return merged
+
+
+def _in_profile(framework: Framework, profile: Profile | None) -> Framework:
+    """The framework restricted to the techniques of the profile (ATT&CK only)."""
+    if profile is None or framework.key != "attack":
+        return framework
+    return replace(
+        framework, techniques=tuple(t for t in framework.techniques if t.id in profile.techniques)
+    )
+
+
+def detection_of(rules: Iterable[Any], frameworks: Iterable[Any]) -> dict[str, int]:
+    """Detection rules per ATT&CK or ATLAS technique id, from Sigma rules and their tags."""
+    frameworks = tuple(frameworks)
+    counts: dict[str, int] = {}
+    for rule in rules:
+        ids = {
+            parent_id(technique.id)
+            for framework in frameworks
+            for technique in framework.map_tags(rule.meta.tags).techniques
+        }
+        for technique_id in ids:
+            counts[technique_id] = counts.get(technique_id, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def observed_techniques(alerts: Iterable[Any]) -> dict[str, int]:
@@ -252,6 +410,7 @@ def _evaluate(
     levels: tuple[dict[str, float], dict[str, float]],
     scale: int,
     seen: dict[str, int],
+    detected: dict[str, int] | None = None,
 ) -> TechniqueResult:
     mapped = [
         control
@@ -277,6 +436,7 @@ def _evaluate(
         controls=tuple(control.id for control in mapped),
         uncovered=uncovered,
         observed=seen.get(technique.id, 0),
+        detected=(detected or {}).get(technique.id, 0),
     )
 
 
@@ -292,9 +452,10 @@ def _framework(
     levels: tuple[dict[str, float], dict[str, float]],
     scale: int,
     seen: dict[str, int],
+    detected: dict[str, int] | None = None,
 ) -> FrameworkResult:
     evaluated = {
-        technique.id: _evaluate(technique, framework.key, controls, levels, scale, seen)
+        technique.id: _evaluate(technique, framework.key, controls, levels, scale, seen, detected)
         for technique in framework.techniques
     }
     stages = []

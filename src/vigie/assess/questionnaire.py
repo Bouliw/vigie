@@ -165,8 +165,12 @@ def generic() -> Questionnaire:
     return questionnaire
 
 
-def load(path: str | Path, scale: int | None = None) -> Questionnaire:
-    """Read a questionnaire from a CSV, Excel (.xlsx) or JSON file."""
+def load(path: str | Path, scale: int | None = None, unmapped_ok: bool = False) -> Questionnaire:
+    """Read a questionnaire from a CSV, Excel (.xlsx) or JSON file.
+
+    With ``unmapped_ok``, a table without any MITRE column is accepted: its controls
+    are then mapped from their wording (``vigie.assess.suggest``).
+    """
     path = Path(path)
     if not path.is_file():
         raise QuestionnaireError(f"{path}: no such file")
@@ -175,11 +179,15 @@ def load(path: str | Path, scale: int | None = None) -> Questionnaire:
     suffix = path.suffix.lower()
     if suffix in (".xlsx", ".xlsm"):
         rows = read_xlsx(path.read_bytes())
-        questionnaire = from_rows(rows, scale=scale, source=path.name)
+        questionnaire = from_rows(rows, scale=scale, source=path.name, unmapped_ok=unmapped_ok)
     elif suffix == ".json":
-        questionnaire = parse_json(path.read_text(encoding="utf-8-sig"), scale, path.name)
+        questionnaire = parse_json(
+            path.read_text(encoding="utf-8-sig"), scale, path.name, unmapped_ok=unmapped_ok
+        )
     elif suffix in (".csv", ".tsv", ".txt"):
-        questionnaire = parse_csv(_decode(path.read_bytes()), scale=scale, source=path.name)
+        questionnaire = parse_csv(
+            _decode(path.read_bytes()), scale=scale, source=path.name, unmapped_ok=unmapped_ok
+        )
     else:
         raise QuestionnaireError(
             f"{path.name}: use a .csv, .xlsx or .json file (this one is {suffix or 'unknown'})"
@@ -189,17 +197,21 @@ def load(path: str | Path, scale: int | None = None) -> Questionnaire:
     return questionnaire
 
 
-def parse_csv(text: str, scale: int | None = None, source: str = "") -> Questionnaire:
+def parse_csv(
+    text: str, scale: int | None = None, source: str = "", unmapped_ok: bool = False
+) -> Questionnaire:
     sample = text[:4096]
     try:
         dialect: Any = csv.Sniffer().sniff(sample, delimiters=",;\t")
     except csv.Error:
         dialect = csv.excel
     rows = [row for row in csv.reader(io.StringIO(text), dialect)]
-    return from_rows(rows, scale=scale, source=source)
+    return from_rows(rows, scale=scale, source=source, unmapped_ok=unmapped_ok)
 
 
-def parse_json(text: str, scale: int | None = None, source: str = "") -> Questionnaire:
+def parse_json(
+    text: str, scale: int | None = None, source: str = "", unmapped_ok: bool = False
+) -> Questionnaire:
     try:
         data = json.loads(text)
     except json.JSONDecodeError as exc:
@@ -224,12 +236,17 @@ def parse_json(text: str, scale: int | None = None, source: str = "") -> Questio
     rows: list[list[str]] = [keys]
     for item in items:
         rows.append([_cell(item.get(key)) for key in keys])
-    questionnaire = from_rows(rows, scale=scale, source=source)
+    questionnaire = from_rows(rows, scale=scale, source=source, unmapped_ok=unmapped_ok)
     questionnaire.title = title
     return questionnaire
 
 
-def from_rows(rows: list[list[str]], scale: int | None = None, source: str = "") -> Questionnaire:
+def from_rows(
+    rows: list[list[str]],
+    scale: int | None = None,
+    source: str = "",
+    unmapped_ok: bool = False,
+) -> Questionnaire:
     """Build a questionnaire from table rows, the first recognizable one being the header."""
     rows = [[str(cell).strip() for cell in row] for row in rows]
     header_index, columns = _find_header(rows)
@@ -238,7 +255,8 @@ def from_rows(rows: list[list[str]], scale: int | None = None, source: str = "")
             f"{source or 'the table'}: no column names a control (expected a column such as "
             '"control" or "id")'
         )
-    if "mitigations" not in columns and "techniques" not in columns:
+    mapped_columns = "mitigations" in columns or "techniques" in columns
+    if not mapped_columns and not unmapped_ok:
         raise QuestionnaireError(
             f"{source or 'the table'}: no column maps the controls to MITRE (expected a "
             '"mitigations" column, such as M1032 or AML.M0020, or a "techniques" column)'
@@ -293,7 +311,7 @@ def from_rows(rows: list[list[str]], scale: int | None = None, source: str = "")
             maturity=maturity,
             notes=item.get("notes", ""),
         )
-        if not control.maps_to_something:
+        if not control.maps_to_something and mapped_columns:
             warnings.append(
                 f"row {row}: control {control_id} maps to no MITRE mitigation or technique, "
                 "it does not count"

@@ -15,8 +15,9 @@ from vigie.assess.engine import (
     Assessment,
     FrameworkResult,
 )
-from vigie.assess.knowledge import KnowledgeBase, default_knowledge
-from vigie.assess.questionnaire import COLUMNS, Questionnaire, level_names
+from vigie.assess.knowledge import KnowledgeBase, Profile, default_knowledge
+from vigie.assess.questionnaire import COLUMNS, Control, Questionnaire, level_names
+from vigie.assess.suggest import raw_keywords
 
 OPEN_STATUSES = ("facilitated", "unpreventable")
 
@@ -26,6 +27,12 @@ def payload(
     knowledge: KnowledgeBase | None = None,
     observed: dict[str, int] | None = None,
     generated_at: str = "",
+    *,
+    profile: Profile | None = None,
+    detection: dict[str, int] | None = None,
+    detection_source: str = "",
+    baseline: Questionnaire | None = None,
+    suggested: dict[str, list[dict[str, Any]]] | None = None,
 ) -> dict[str, Any]:
     """Everything the interactive page needs; it computes the assessment itself."""
     from vigie import __version__
@@ -44,6 +51,7 @@ def payload(
             "status_labels": STATUS_LABELS,
             "columns": {key: list(aliases) for key, aliases in COLUMNS.items()},
             "copyright": [framework.copyright for framework in knowledge.frameworks],
+            "detection_source": detection_source,
         },
         "frameworks": [
             {
@@ -82,22 +90,60 @@ def payload(
             mitigation_id: {"name": m.name, "url": m.url, "framework": m.framework}
             for mitigation_id, m in knowledge.mitigations.items()
         },
-        "controls": [
-            {
-                "id": control.id,
-                "title": control.title,
-                "domain": control.domain,
-                "description": control.description,
-                "mitigations": list(control.mitigations),
-                "techniques": list(control.techniques),
-                "maturity": control.maturity,
-                "notes": control.notes,
-            }
-            for control in questionnaire.controls
-        ],
+        "controls": [_control(control, suggested) for control in questionnaire.controls],
         "observed": dict(sorted((observed or {}).items())),
         "warnings": list(questionnaire.warnings),
+        "sectors": dict(knowledge.sectors),
+        "groups": {
+            group.id: {
+                "name": group.name,
+                "aliases": list(group.aliases),
+                "url": group.url,
+                "sectors": list(group.sectors),
+                "techniques": list(group.techniques),
+            }
+            for group in knowledge.groups
+        },
+        "profile": (
+            None
+            if profile is None
+            # A sector profile is kept as a sector, so the page can show it as one.
+            else {
+                "sector": profile.sector,
+                "groups": [] if profile.sector else list(profile.groups),
+                "label": profile.label,
+            }
+        ),
+        "detection": None if detection is None else dict(sorted(detection.items())),
+        "baseline": (
+            None
+            if baseline is None
+            else {
+                "title": baseline.title,
+                "source": baseline.source,
+                "controls": [_control(control) for control in baseline.controls],
+            }
+        ),
+        "keywords": raw_keywords(),
     }
+
+
+def _control(
+    control: Control, suggested: dict[str, list[dict[str, Any]]] | None = None
+) -> dict[str, Any]:
+    data = {
+        "id": control.id,
+        "title": control.title,
+        "domain": control.domain,
+        "description": control.description,
+        "mitigations": list(control.mitigations),
+        "techniques": list(control.techniques),
+        "maturity": control.maturity,
+        "notes": control.notes,
+    }
+    if suggested and control.id in suggested:
+        data["suggested"] = suggested[control.id]
+    return data
 
 
 def render_html(assessment: Assessment, knowledge: KnowledgeBase | None = None) -> str:
@@ -114,6 +160,11 @@ def render_html(assessment: Assessment, knowledge: KnowledgeBase | None = None) 
         knowledge,
         assessment.observed,
         assessment.generated_at.strftime("%Y-%m-%d %H:%M UTC"),
+        profile=assessment.profile,
+        detection=assessment.detection,
+        detection_source=assessment.detection_source,
+        baseline=assessment.baseline.questionnaire if assessment.baseline else None,
+        suggested=assessment.suggested,
     )
     template = env.get_template("assessment.html.j2")
     return template.render(meta=data["meta"], payload=data, observed=bool(assessment.observed))
@@ -149,6 +200,48 @@ def to_dict(assessment: Assessment) -> dict[str, Any]:
         "observed_open": [t.technique.id for t in assessment.observed_open],
         "warnings": questionnaire.warnings,
         "unknown_ids": assessment.unknown_ids,
+        "profile": (
+            None
+            if assessment.profile is None
+            else {
+                "label": assessment.profile.label,
+                "sector": assessment.profile.sector,
+                "groups": list(assessment.profile.groups),
+            }
+        ),
+        "detection": (
+            None
+            if assessment.detection is None
+            else {
+                "source": assessment.detection_source,
+                "blind_spots": [t.technique.id for t in assessment.blind_spots],
+            }
+        ),
+        "comparison": (
+            None
+            if assessment.baseline is None
+            else {
+                "baseline": assessment.baseline.questionnaire.title,
+                "frameworks": [
+                    {
+                        "key": change.key,
+                        "exposure_index": [change.index_before, change.index_after],
+                        "counts": {
+                            status: [change.counts_before[status], change.counts_after[status]]
+                            for status in STATUSES
+                        },
+                        "blocked_at": [change.blocked_before, change.blocked_after],
+                        "improved": list(change.improved),
+                        "worsened": list(change.worsened),
+                    }
+                    for change in assessment.comparison()
+                ],
+                "controls": [
+                    {"control": control.id, "before": before, "after": after}
+                    for control, before, after in assessment.changed_controls()
+                ],
+            }
+        ),
     }
 
 
@@ -176,6 +269,7 @@ def _framework_dict(result: FrameworkResult) -> dict[str, Any]:
                 "level": technique.level,
                 "controls": list(technique.controls),
                 "observed": technique.observed,
+                "detected": technique.detected,
             }
             for stage in result.stages
             for technique in stage.techniques
@@ -192,6 +286,17 @@ def render_markdown(assessment: Assessment) -> str:
         f"{assessment.generated_at.strftime('%Y-%m-%d %H:%M UTC')}."
     )
     lines.append("")
+    if assessment.profile:
+        profile = assessment.profile
+        count = len(profile.groups)
+        lines.append(
+            f"Threat profile: the MITRE ATT&CK techniques of the {profile.label}"
+            if profile.sector
+            else f"Threat profile: the MITRE ATT&CK techniques of {profile.label}"
+        )
+        lines[-1] += f" ({count} group{'s' if count != 1 else ''})."
+        lines.append("")
+    lines.extend(_comparison_lines(assessment))
     for result in assessment.frameworks:
         framework = result.framework
         lines.append(f"## {framework.label} {framework.version} ({framework.scope})")
@@ -243,6 +348,8 @@ def render_markdown(assessment: Assessment) -> str:
                 f"{STATUS_LABELS[technique.status].lower()}"
             )
         lines.append("")
+    if assessment.detection is not None:
+        lines.extend(_blind_spot_lines(assessment))
     if q.warnings or assessment.unknown_ids:
         lines.append("## Warnings")
         lines.append("")
@@ -255,3 +362,65 @@ def render_markdown(assessment: Assessment) -> str:
         "counter-measure, as MITRE maps them; it is not a probability of attack."
     )
     return "\n".join(lines) + "\n"
+
+
+BLIND_SPOT_LIMIT = 25
+
+
+def _blind_spot_lines(assessment: Assessment) -> list[str]:
+    spots = assessment.blind_spots
+    source = assessment.detection_source or "the detection rules"
+    lines = ["## Neither prevented nor detected", ""]
+    if not spots:
+        lines += [f"Every technique left open is detected by {source}.", ""]
+        return lines
+    lines.append(
+        f"{len(spots)} technique{'s' if len(spots) != 1 else ''} left open "
+        f"(facilitated, or with no preventive control) that {source} do not detect, "
+        "most common first:"
+    )
+    lines.append("")
+    ranked = sorted(spots, key=lambda t: (-t.technique.weight, t.technique.id))
+    for technique in ranked[:BLIND_SPOT_LIMIT]:
+        lines.append(
+            f"- {technique.technique.id} {technique.technique.name}: "
+            f"{STATUS_LABELS[technique.status].lower()}"
+        )
+    if len(ranked) > BLIND_SPOT_LIMIT:
+        lines.append(f"- and {len(ranked) - BLIND_SPOT_LIMIT} more")
+    lines.append("")
+    return lines
+
+
+def _comparison_lines(assessment: Assessment) -> list[str]:
+    if assessment.baseline is None:
+        return []
+    title = assessment.baseline.questionnaire.title or "the previous assessment"
+    lines = [f"## Since {title}", ""]
+    for change in assessment.comparison():
+        delta = change.index_change
+        index = (
+            "not comparable"
+            if delta is None
+            else f"{change.index_before} → {change.index_after} ({delta:+d})"
+        )
+        facilitated = (
+            f"{change.counts_before['facilitated']} → {change.counts_after['facilitated']}"
+        )
+        lines.append(
+            f"- {change.label}: exposure index {index}; facilitated techniques {facilitated}; "
+            f"{len(change.improved)} improved, {len(change.worsened)} worsened."
+        )
+    changed = assessment.changed_controls()
+    if changed:
+        lines.append("")
+        lines.append("| Control | Before | Now |")
+        lines.append("|---|---|---|")
+        for control, before, after in changed:
+            lines.append(f"| {control.id} {control.title} | {_level(before)} | {_level(after)} |")
+    lines.append("")
+    return lines
+
+
+def _level(value: float | None) -> str:
+    return "-" if value is None else f"{value:g}"

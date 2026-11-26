@@ -28,8 +28,11 @@
     title: META.title,
     fw: "attack",
     result: null,
+    base: null,
     dirty: false,
-    techLimit: 120
+    techLimit: 120,
+    profile: DATA.profile ? { sector: DATA.profile.sector, groups: DATA.profile.groups.slice() } : null,
+    baseline: DATA.baseline ? { title: DATA.baseline.title, controls: DATA.baseline.controls } : null
   };
   var FW = {};
   DATA.frameworks.forEach(function (f) { FW[f.key] = f; });
@@ -94,7 +97,8 @@
     return {
       t: t, status: status, level: level, exposure: exposure,
       controls: mapped.map(function (c) { return c.id; }), uncovered: uncovered,
-      observed: seen[t.id] || 0
+      observed: seen[t.id] || 0,
+      detected: DATA.detection ? (DATA.detection[t.id] || 0) : 0
     };
   }
 
@@ -159,14 +163,32 @@
     };
   }
 
-  function compute(controls) {
+  // The threat profile: the ATT&CK techniques of the chosen groups (null: all of them).
+  function profileSet(profile) {
+    if (!profile) { return null; }
+    var set = {}, n = 0;
+    Object.keys(DATA.groups).forEach(function (id) {
+      var g = DATA.groups[id];
+      var chosen = profile.groups.length ? profile.groups.indexOf(id) >= 0 : g.sectors.indexOf(profile.sector) >= 0;
+      if (chosen) { n += 1; g.techniques.forEach(function (t) { set[t] = true; }); }
+    });
+    return n ? set : null;
+  }
+
+  function inProfile(fw, set) {
+    if (!set || fw.key !== "attack") { return fw; }
+    return Object.assign({}, fw, { techniques: fw.techniques.filter(function (t) { return set[t.id]; }) });
+  }
+
+  function compute(controls, profile) {
+    var set = profileSet(profile === undefined ? state.profile : profile);
     var seen = {};
     Object.keys(DATA.observed || {}).forEach(function (id) {
       var key = parentId(id);
       seen[key] = (seen[key] || 0) + DATA.observed[id];
     });
     var lv = levels(controls);
-    var results = DATA.frameworks.map(function (fw) { return computeFramework(fw, controls, lv, seen); });
+    var results = DATA.frameworks.map(function (fw) { return computeFramework(inProfile(fw, set), controls, lv, seen); });
     var target = targetLevel();
     var onPath = {};
     results.forEach(function (r) { r.path.forEach(function (s) { if (s.step) { onPath[s.step.t.id] = true; } }); });
@@ -208,9 +230,77 @@
     return { frameworks: results, priorities: priorities.slice(0, PRIORITY_LIMIT), byId: byId, observedOpen: observedOpen, seen: seen };
   }
 
+  var RANK = { facilitated: 0, partial: 1, hindered: 2 };
+  // What changed between two results of the same framework (vigie/assess/engine.py: compare).
+  function compareFw(before, after) {
+    var old = {};
+    before.evaluated.forEach(function (e) { old[e.t.id] = e.status; });
+    var improved = [], worsened = [];
+    after.evaluated.forEach(function (e) {
+      var was = old[e.t.id];
+      if (was in RANK && e.status in RANK) {
+        if (RANK[e.status] > RANK[was]) { improved.push(e.t.id); }
+        else if (RANK[e.status] < RANK[was]) { worsened.push(e.t.id); }
+      }
+    });
+    return {
+      key: after.fw.key, before: before.index, after: after.index,
+      change: before.index === null || after.index === null ? null : after.index - before.index,
+      countsBefore: before.counts, countsAfter: after.counts,
+      blockedBefore: before.blockedAt, blockedAfter: after.blockedAt,
+      improved: improved.sort(), worsened: worsened.sort()
+    };
+  }
+
+  // Mitigations a control's wording points to (vigie/assess/suggest.py: keep in step).
+  function singular(w) { return w.length > 3 && (/s$/.test(w) || /eaux$/.test(w)) ? w.slice(0, -1) : w; }
+  function normalizeText(text) {
+    var t = String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return (t.match(/[a-z0-9]+/g) || []).map(singular).join(" ");
+  }
+  var KW = (function () {
+    var raw = DATA.keywords, out = { context: [], words: {}, mitigations: {} };
+    function uniq(list) { var seen = {}, res = []; list.forEach(function (x) { if (!seen[x]) { seen[x] = true; res.push(x); } }); return res; }
+    out.context = uniq(raw.context.map(normalizeText));
+    out.context.concat(uniq(raw.model_words.map(normalizeText))).forEach(function (w) { out.words[w] = true; });
+    Object.keys(raw.mitigations).forEach(function (id) {
+      var terms = [], spelled = {};
+      raw.mitigations[id].terms.forEach(function (term) { var n = normalizeText(term); if (!(n in spelled)) { spelled[n] = term; terms.push(n); } });
+      out.mitigations[id] = { terms: terms, spelled: spelled, ai: !!raw.mitigations[id].ai };
+    });
+    return out;
+  })();
+  function suggest(text) {
+    var padded = " " + normalizeText(text) + " ";
+    if (!padded.trim()) { return []; }
+    var context = KW.context.some(function (term) { return padded.indexOf(" " + term + " ") >= 0; });
+    var found = [];
+    Object.keys(KW.mitigations).forEach(function (id) {
+      if (!DATA.mitigations[id]) { return; }
+      var m = KW.mitigations[id], score = 0, terms = [];
+      m.terms.forEach(function (term) {
+        if (padded.indexOf(" " + term + " ") < 0) { return; }
+        if (m.ai && !context && !term.split(" ").some(function (w) { return KW.words[w]; })) { return; }
+        score += term.split(" ").length + 1; terms.push(m.spelled[term]);
+      });
+      if (score >= 2) { found.push({ mitigation: id, score: score, terms: terms, confidence: score >= 4 ? "likely" : "possible" }); }
+    });
+    found.sort(function (a, b) { return b.score - a.score || (a.mitigation < b.mitigation ? -1 : a.mitigation > b.mitigation ? 1 : 0); });
+    return found.slice(0, 3);
+  }
+  function mapControls(controls) {
+    var n = 0;
+    controls.forEach(function (c) {
+      if (c.mitigations.length || c.techniques.length) { return; }
+      var found = suggest(c.title + " " + (c.description || ""));
+      if (found.length) { c.suggested = found; c.mitigations = found.map(function (s) { return s.mitigation; }); n += 1; }
+    });
+    return n;
+  }
+
   // Exposed for the tests, which run this file in Node and compare with Python.
   if (typeof window.__vigieAssessTest === "function") {
-    window.__vigieAssessTest({ compute: compute, state: state, DATA: DATA });
+    window.__vigieAssessTest({ compute: compute, compareFw: compareFw, suggest: suggest, state: state, DATA: DATA });
     return;
   }
 
@@ -285,6 +375,9 @@
 
   function renderResults() {
     state.result = compute(state.controls);
+    state.base = state.baseline ? compute(state.baseline.controls) : null;
+    renderContext();
+    renderSince();
     renderHero();
     renderGauges();
     renderKpis();
@@ -292,7 +385,181 @@
     renderImpacts();
     renderPriorities();
     renderObserved();
+    renderBlind();
     renderTechniques();
+  }
+
+  // ------------------------------------------------------------- profile, baseline
+
+  function profileLabel(profile) {
+    if (!profile) { return "Every ATT&CK technique"; }
+    if (!profile.groups.length) { return "Groups that target " + (DATA.sectors[profile.sector] || profile.sector); }
+    var names = profile.groups.map(function (id) { return DATA.groups[id] ? DATA.groups[id].name : id; }).sort(function (a, b) { return a.toLowerCase() < b.toLowerCase() ? -1 : 1; });
+    return names.slice(0, 3).join(", ") + (names.length > 3 ? " and " + (names.length - 3) + " more" : "");
+  }
+  function profileGroupCount(profile) {
+    if (!profile) { return 0; }
+    if (profile.groups.length) { return profile.groups.length; }
+    return Object.keys(DATA.groups).filter(function (id) { return DATA.groups[id].sectors.indexOf(profile.sector) >= 0; }).length;
+  }
+
+  function renderContext() {
+    $("profile-label").textContent = profileLabel(state.profile);
+    $("profile-clear").hidden = !state.profile;
+    $("profile-btn").classList.toggle("on", !!state.profile);
+    $("baseline-label").textContent = state.baseline ? (state.baseline.title || "previous assessment") : "a previous assessment…";
+    $("baseline-clear").hidden = !state.baseline;
+    $("baseline-pick").classList.toggle("on", !!state.baseline);
+  }
+
+  function setProfile(profile) {
+    var previous = state.profile;
+    state.profile = profile && (profile.sector || profile.groups.length) ? profile : null;
+    renderResults();
+    return previous;
+  }
+
+  function openProfile() {
+    var body = el("div", "profile");
+    body.appendChild(el("p", "", "Keep the ATT&CK techniques of the groups you fear: those whose ATT&CK description names your sector, or groups you pick. The chain, the counts and the priorities then follow them. ATLAS has no groups and stays whole."));
+    var sectors = el("div", "sector-list");
+    var all = el("button", "sector" + (!state.profile ? " on" : "")); all.type = "button";
+    add(all, el("span", "", "Every ATT&CK technique"), el("small", "", "no profile"));
+    all.addEventListener("click", function () { setProfile(null); closeDrawer(); });
+    sectors.appendChild(all);
+    Object.keys(DATA.sectors).sort(function (a, b) { return DATA.sectors[a] < DATA.sectors[b] ? -1 : 1; }).forEach(function (key) {
+      var n = profileGroupCount({ sector: key, groups: [] });
+      var b = el("button", "sector" + (state.profile && !state.profile.groups.length && state.profile.sector === key ? " on" : "")); b.type = "button";
+      add(b, el("span", "", DATA.sectors[key]), el("small", "", plural(n, "group")));
+      b.addEventListener("click", function () { setProfile({ sector: key, groups: [] }); closeDrawer(); });
+      sectors.appendChild(b);
+    });
+    body.appendChild(el("h3", "", "By sector"));
+    body.appendChild(sectors);
+    body.appendChild(el("h3", "", "Or by group"));
+    var search = el("input"); search.type = "search"; search.placeholder = "APT29, FIN7, G0016…"; search.setAttribute("aria-label", "Search groups");
+    var list = el("div", "group-list");
+    var picked = state.profile && state.profile.groups.length ? state.profile.groups.slice() : [];
+    var apply = el("button", "btn btn-primary", "Use the groups picked"); apply.type = "button";
+    function fill() {
+      var q = search.value.trim().toLowerCase(); list.textContent = "";
+      Object.keys(DATA.groups).map(function (id) { return [id, DATA.groups[id]]; })
+        .filter(function (x) { return !q || (x[0] + " " + x[1].name + " " + x[1].aliases.join(" ")).toLowerCase().indexOf(q) >= 0; })
+        .sort(function (a, b) { return a[1].name.toLowerCase() < b[1].name.toLowerCase() ? -1 : 1; })
+        .slice(0, 80).forEach(function (x) {
+          var row = el("label", "group");
+          var box = el("input"); box.type = "checkbox"; box.checked = picked.indexOf(x[0]) >= 0;
+          box.addEventListener("change", function () {
+            if (box.checked) { picked.push(x[0]); } else { picked = picked.filter(function (id) { return id !== x[0]; }); }
+            apply.disabled = !picked.length; apply.textContent = picked.length ? "Use the " + plural(picked.length, "group") + " picked" : "Use the groups picked";
+          });
+          var text = el("span", "g-text");
+          add(text, el("b", "", x[1].name), " ", el("code", "", x[0]));
+          if (x[1].aliases.length) { text.appendChild(el("small", "", x[1].aliases.slice(0, 4).join(", "))); }
+          add(row, box, text, el("span", "muted", plural(x[1].techniques.length, "technique")));
+          list.appendChild(row);
+        });
+    }
+    search.addEventListener("input", fill);
+    apply.disabled = !picked.length;
+    apply.addEventListener("click", function () { setProfile({ sector: "", groups: picked.slice() }); closeDrawer(); });
+    add(body, search, list, apply);
+    body.appendChild(el("p", "muted small", "Sectors are read from MITRE's own description of each group: a group appears under every sector it is said to target."));
+    fill();
+    openDrawer("Threat profile", "Which attackers?", body);
+  }
+
+  function renderSince() {
+    var box = $("since"); box.textContent = "";
+    if (!state.base) { box.hidden = true; return; }
+    box.hidden = false;
+    var head = el("div", "since-head");
+    add(head, el("h2", "", "Since " + (state.baseline.title || "the previous assessment")));
+    box.appendChild(head);
+    var grid = el("div", "since-grid");
+    state.result.frameworks.forEach(function (r) {
+      var b = state.base.frameworks.filter(function (x) { return x.fw.key === r.fw.key; })[0];
+      var ch = compareFw(b, r);
+      var card = el("div", "since-card");
+      add(card, el("p", "k", r.fw.label));
+      var big = el("p", "v");
+      add(big, ch.before === null ? "–" : String(ch.before), el("span", "arrow", " → "), ch.after === null ? "–" : String(ch.after));
+      if (ch.change !== null && ch.change !== 0) { big.appendChild(el("span", "delta " + (ch.change < 0 ? "good" : "bad"), (ch.change > 0 ? "+" : "−") + Math.abs(ch.change))); }
+      add(card, big, el("p", "muted", "exposure index"));
+      var facB = ch.countsBefore.facilitated, facA = ch.countsAfter.facilitated;
+      var lines = el("ul", "since-lines");
+      add(lines, el("li", "", "Facilitated: " + facB + " → " + facA));
+      if (ch.improved.length) { add(lines, el("li", "good", plural(ch.improved.length, "technique") + " harder to use")); }
+      if (ch.worsened.length) { add(lines, el("li", "bad", plural(ch.worsened.length, "technique") + " easier to use")); }
+      if (ch.blockedBefore !== ch.blockedAfter) {
+        var name = function (s) { var x = r.fw.stages.filter(function (y) { return y.shortname === s; })[0]; return x ? x.name : s; };
+        add(lines, el("li", ch.blockedAfter ? "good" : "bad", ch.blockedAfter ? "The easiest path is now blocked at " + name(ch.blockedAfter) : "The easiest path is no longer blocked"));
+      }
+      card.appendChild(lines);
+      grid.appendChild(card);
+    });
+    var before = {};
+    state.baseline.controls.forEach(function (x) { before[x.id] = x.maturity; });
+    var changed = state.controls.filter(function (x) { return x.id in before && before[x.id] !== x.maturity && !(before[x.id] == null && x.maturity == null); });
+    var card = el("div", "since-card controls");
+    add(card, el("p", "k", plural(changed.length, "control") + " changed"));
+    var ul = el("ul", "since-lines");
+    changed.slice(0, 6).forEach(function (x) {
+      var li = el("li", (x.maturity || 0) >= (before[x.id] || 0) ? "good" : "bad");
+      add(li, el("b", "", x.id), " " + x.title + ": " + fmtLevel(before[x.id]) + " → " + fmtLevel(x.maturity));
+      ul.appendChild(li);
+    });
+    if (changed.length > 6) { ul.appendChild(el("li", "muted", "and " + (changed.length - 6) + " more")); }
+    if (!changed.length) { ul.appendChild(el("li", "muted", "Same answers as the baseline.")); }
+    card.appendChild(ul);
+    grid.appendChild(card);
+    box.appendChild(grid);
+  }
+
+  function loadBaseline(file) {
+    readRows(file).then(function (rows) {
+      var parsed = fromRows(rows);
+      if (!parsed.hasMapping) { mapControls(parsed.controls); }
+      var previous = state.baseline;
+      state.baseline = { title: file.name.replace(/\.[^.]+$/, ""), controls: parsed.controls };
+      renderResults();
+      $("since").scrollIntoView({ behavior: "smooth", block: "start" });
+      toast("Compared with " + state.baseline.title + ".", { label: "Undo", run: function () { state.baseline = previous; renderResults(); } });
+    }).catch(function (err) { toast("Could not read " + file.name + ": " + err.message); });
+  }
+
+  // ------------------------------------------------------------------ blind spots
+
+  function renderBlind() {
+    var section = $("blind");
+    if (!DATA.detection) { section.hidden = true; return; }
+    section.hidden = false;
+    var r = current(), list = $("blind-list"); list.textContent = "";
+    var spots = r.evaluated.filter(function (e) { return (e.status === "facilitated" || e.status === "unpreventable") && !e.detected; });
+    var fac = spots.filter(function (e) { return e.status === "facilitated"; }).length;
+    var verdict = $("blind-verdict"); verdict.textContent = "";
+    if (!answeredCount()) { verdict.textContent = "Rate a few controls: the techniques left open and undetected show here."; return; }
+    if (!spots.length) { verdict.textContent = "Every technique left open in " + r.fw.label + " is detected by " + META.detection_source + "."; return; }
+    add(verdict, el("b", "", plural(spots.length, "technique")), " of " + r.fw.label + " left open and not detected: " + fac + " facilitated, " + (spots.length - fac) + " with no preventive control.");
+    r.stages.forEach(function (s) {
+      var here = s.techniques.filter(function (e) { return spots.indexOf(e) >= 0; });
+      if (!here.length) { return; }
+      var row = el("div", "blind-row");
+      var head = el("button", "blind-stage"); head.type = "button";
+      add(head, el("span", "", s.stage.name), el("b", "", String(here.length)));
+      head.addEventListener("click", function () { openStage(s); });
+      var chips = el("div", "chips");
+      here.slice().sort(function (a, b) { return (a.status === "facilitated" ? 0 : 1) - (b.status === "facilitated" ? 0 : 1) || b.t.weight - a.t.weight; })
+        .slice(0, 5).forEach(function (e) {
+          var chip = el("button", "chip f-" + e.status); chip.type = "button"; chip.title = LABELS[e.status];
+          add(chip, el("i"), el("b", "", e.t.id), e.t.name);
+          chip.addEventListener("click", function () { var lv = levels(state.controls); openDrawer(r.fw.label + " · " + e.t.id, e.t.name, techniqueBlock(e, lv)); });
+          chips.appendChild(chip);
+        });
+      if (here.length > 5) { chips.appendChild(el("span", "chip", "+" + (here.length - 5))); }
+      add(row, head, chips);
+      list.appendChild(row);
+    });
   }
 
   function current() {
@@ -322,6 +589,9 @@
     var r = current();
     var parts = [];
     var scope = all.length > 1 ? "Across " + all.map(function (x) { return x.fw.label; }).join(" and ") + ", " : "";
+    if (state.profile) {
+      parts.push("Against " + profileLabel(state.profile).replace(/^Groups/, "the groups") + " (" + plural(profileGroupCount(state.profile), "ATT&CK group") + "). ");
+    }
     parts.push(scope + fac + " of the " + plural(assessed, "preventable technique") + " assessed " + (fac === 1 ? "is" : "are") + " facilitated.");
     if (r.assessed) {
       if (r.blockedAt) {
@@ -370,7 +640,8 @@
 
   function renderKpis() {
     var box = $("kpis"), r = current();
-    $("kpi-caption").textContent = "Techniques of " + r.fw.label + " " + r.fw.version + " (" + r.fw.scope + "), by status: click one to list them";
+    var who = state.profile && r.fw.key === "attack" ? " used by " + profileLabel(state.profile).replace(/^Groups/, "the groups") : "";
+    $("kpi-caption").textContent = "Techniques of " + r.fw.label + " " + r.fw.version + " (" + r.fw.scope + ")" + who + ", by status: click one to list them";
     if (!box.childNodes.length) {
       STATUSES.forEach(function (s) {
         var k = el("button", "kpi f-" + s); k.type = "button"; k.setAttribute("data-status", s);
@@ -494,6 +765,7 @@
     var line = el("div", "chips");
     add(line, pill(e.status), el("span", "chip", "Best level " + fmtLevel(e.level)), el("span", "chip", e.t.prevalence));
     if (e.observed) { var o = el("span", "chip gap"); add(o, svgUse("i-eye"), plural(e.observed, "alert") + " in the logs"); line.appendChild(o); }
+    if (DATA.detection) { line.appendChild(el("span", "chip" + (e.detected ? "" : " gap"), e.detected ? "Detected by " + plural(e.detected, "rule") : "No detection rule")); }
     box.appendChild(line);
     if (e.t.summary) { box.appendChild(el("p", "why", e.t.summary)); }
     if (e.t.mitigations.length) {
@@ -617,15 +889,7 @@
         var h3 = el("h3"); add(h3, el("span", "cid", c.id), c.title);
         text.appendChild(h3);
         if (c.description) { text.appendChild(el("p", "", c.description)); }
-        var chips = el("div", "chips");
-        c.mitigations.forEach(function (m) {
-          var info = DATA.mitigations[m];
-          if (m === c.id && info && info.name === c.title) { return; }
-          var chip = link(info ? info.url : "", "", "chip"); add(chip, el("b", "", m), info ? info.name : "unknown to MITRE data");
-          chips.appendChild(chip);
-        });
-        c.techniques.forEach(function (t) { var chip = el("span", "chip"); add(chip, el("b", "", t)); chips.appendChild(chip); });
-        if (chips.childNodes.length) { text.appendChild(chips); }
+        text.appendChild(mappingChips(c));
         text.appendChild(el("div", "impact"));
         var rate = el("div", "rate");
         add(rate, levelPicker(c), el("div", "lvl-name", levelName(c.maturity)));
@@ -638,6 +902,61 @@
     for (var v = 0; v <= Math.min(SCALE, 10); v++) { var o = el("option", "", levelName(v)); o.value = v; bulk.appendChild(o); }
     updateDomainCounts();
     filterControls();
+    mappingNote();
+  }
+
+  // The MITRE ids of a control; those Vigie proposed from its wording are dashed and
+  // removable, and the mapping can be typed in.
+  function mappingChips(c) {
+    var chips = el("div", "chips");
+    var proposed = {};
+    (c.suggested || []).forEach(function (s) { proposed[s.mitigation] = s; });
+    c.mitigations.forEach(function (m) {
+      var info = DATA.mitigations[m];
+      if (m === c.id && info && info.name === c.title) { return; }
+      var s = proposed[m];
+      var chip = link(info ? info.url : "", "", "chip" + (s ? " proposed" : ""));
+      add(chip, el("b", "", m), info ? info.name : "unknown to MITRE data");
+      if (s) {
+        chip.title = "Proposed by Vigie (" + s.confidence + "), from: " + s.terms.join(", ");
+        var x = el("button", "chip-x"); x.type = "button"; x.setAttribute("aria-label", "Remove " + m); x.appendChild(svgUse("i-x", "icon"));
+        x.addEventListener("click", function (e) {
+          e.preventDefault(); e.stopPropagation();
+          c.mitigations = c.mitigations.filter(function (y) { return y !== m; });
+          c.suggested = c.suggested.filter(function (y) { return y.mitigation !== m; });
+          state.dirty = true; chips.replaceWith(mappingChips(c)); mappingNote(); refresh();
+        });
+        chip.appendChild(x);
+      }
+      chips.appendChild(chip);
+    });
+    c.techniques.forEach(function (t) { var chip = el("span", "chip"); add(chip, el("b", "", t)); chips.appendChild(chip); });
+    if (!c.mitigations.length && !c.techniques.length) { chips.appendChild(el("span", "chip gap", "No MITRE id: it does not count")); }
+    var edit = el("button", "chip-edit", "Edit ids"); edit.type = "button";
+    edit.addEventListener("click", function () {
+      var input = el("input", "ids-input"); input.type = "text"; input.value = c.mitigations.concat(c.techniques).join(" ");
+      input.setAttribute("aria-label", "MITRE ids of " + c.title); input.placeholder = "M1032 AML.M0020 T1078";
+      var done = function () {
+        c.mitigations = idsIn(MITIGATION_ID, input.value); c.techniques = idsIn(TECHNIQUE_ID, input.value);
+        c.suggested = (c.suggested || []).filter(function (s) { return c.mitigations.indexOf(s.mitigation) >= 0; });
+        state.dirty = true; input.parentNode.replaceWith(mappingChips(c)); mappingNote(); refresh();
+      };
+      input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); done(); } if (e.key === "Escape") { input.parentNode.replaceWith(mappingChips(c)); } });
+      input.addEventListener("blur", done);
+      chips.textContent = ""; chips.appendChild(input); input.focus();
+    });
+    chips.appendChild(edit);
+    return chips;
+  }
+
+  function mappingNote() {
+    var n = state.controls.filter(function (c) { return c.suggested && c.suggested.length; }).length;
+    var none = state.controls.filter(function (c) { return !c.mitigations.length && !c.techniques.length; }).length;
+    var note = $("mapping-note"); note.textContent = "";
+    if (!n && !none) { note.hidden = true; return; }
+    note.hidden = false;
+    if (n) { add(note, el("b", "", plural(n, "control") + " mapped from their wording."), " The dashed ids were proposed by Vigie from the words of each control: check them, remove the wrong ones (×) or edit the ids. "); }
+    if (none) { add(note, none === 1 ? "1 control names no MITRE id and does not count yet." : none + " controls name no MITRE id and do not count yet."); }
   }
 
   function updateDomainCounts() {
@@ -778,6 +1097,7 @@
       if (!e.t.mitigations.length) { chips.appendChild(el("span", "muted", "None preventive")); }
       mits.appendChild(chips);
       add(tr, a, stages, stat, el("td", "", fmtLevel(e.level)), mits, el("td", "muted", e.t.prevalence));
+      if (DATA.detection) { tr.appendChild(el("td", e.detected ? "" : "undetected", e.detected ? plural(e.detected, "rule") : "None")); }
       tbody.appendChild(tr);
     });
     var more = $("t-more"); more.textContent = "";
@@ -955,14 +1275,16 @@
     });
   }
 
-  function importFile(file) {
+  function readRows(file) {
     var name = file.name.toLowerCase();
-    if (file.size > 20 * 1024 * 1024) { toast("The file is larger than 20 MB."); return; }
-    var job;
-    if (/\.xls[xm]$/.test(name)) { job = file.arrayBuffer().then(readXlsx); }
-    else if (/\.json$/.test(name)) { job = file.text().then(function (t) { return jsonRows(JSON.parse(t)); }); }
-    else { job = file.text().then(parseCsv); }
-    job.then(function (rows) {
+    if (file.size > 20 * 1024 * 1024) { return Promise.reject(new Error("the file is larger than 20 MB")); }
+    if (/\.xls[xm]$/.test(name)) { return file.arrayBuffer().then(readXlsx); }
+    if (/\.json$/.test(name)) { return file.text().then(function (t) { return jsonRows(JSON.parse(t)); }); }
+    return file.text().then(parseCsv);
+  }
+
+  function importFile(file) {
+    readRows(file).then(function (rows) {
       var parsed = fromRows(rows);
       var known = {}; state.controls.forEach(function (c) { known[c.id] = c; });
       var matching = parsed.controls.filter(function (c) { return c.id in known; });
@@ -972,10 +1294,11 @@
         matching.forEach(function (c) { known[c.id].maturity = c.maturity; if (c.notes) { known[c.id].notes = c.notes; } });
         message = "Answers loaded for " + plural(matching.length, "control") + ".";
       } else {
-        if (!parsed.hasMapping) { throw new Error("no column maps the controls to MITRE (a \"mitigations\" column such as M1032, or \"techniques\")"); }
+        var mapped = mapControls(parsed.controls);
+        if (mapped) { parsed.warnings = parsed.warnings.filter(function (w) { return !/maps to no MITRE/.test(w); }); }
         state.controls = parsed.controls;
         state.title = file.name.replace(/\.[^.]+$/, "");
-        message = "Questionnaire loaded: " + plural(parsed.controls.length, "control") + ".";
+        message = "Questionnaire loaded: " + plural(parsed.controls.length, "control") + (mapped ? ", " + mapped + " mapped to MITRE from their wording: check the dashed ids" : "") + ".";
       }
       if (parsed.warnings.length) { message += " " + plural(parsed.warnings.length, "warning") + ": " + parsed.warnings[0]; }
       state.dirty = true;
@@ -1006,11 +1329,14 @@
     var r = state.result;
     return {
       title: state.title, scale: SCALE, generated_by: "Vigie " + META.vigie_version, exported_at: new Date().toISOString(),
+      profile: state.profile ? { label: profileLabel(state.profile), sector: state.profile.sector, groups: state.profile.groups } : null,
       controls: state.controls,
       frameworks: r.frameworks.map(function (f) {
         return {
           key: f.fw.key, name: f.fw.label, version: f.fw.version, exposure_index: f.index, counts: f.counts,
           blocked_at: f.blockedAt,
+          blind_spots: DATA.detection ? f.evaluated.filter(function (e) { return (e.status === "facilitated" || e.status === "unpreventable") && !e.detected; }).map(function (e) { return e.t.id; }) : null,
+          compared: state.base ? compareFw(state.base.frameworks.filter(function (x) { return x.fw.key === f.fw.key; })[0], f) : null,
           path: f.path.map(function (s) { return { stage: s.stage.name, technique: s.step ? s.step.t.id : null, name: s.step ? s.step.t.name : null, status: s.status }; })
         };
       }),
@@ -1022,6 +1348,15 @@
   function exportMarkdown() {
     var r = state.result, lines = ["# " + (state.title || "Maturity assessment"), ""];
     lines.push(answeredCount() + " of " + state.controls.length + " controls answered, on a 0-" + SCALE + " scale. Vigie " + META.vigie_version + ".", "");
+    if (state.profile) { lines.push("Threat profile: the MITRE ATT&CK techniques of " + profileLabel(state.profile).replace(/^Groups/, "the groups") + " (" + plural(profileGroupCount(state.profile), "group") + ").", ""); }
+    if (state.base) {
+      lines.push("## Since " + (state.baseline.title || "the previous assessment"), "");
+      r.frameworks.forEach(function (f) {
+        var ch = compareFw(state.base.frameworks.filter(function (x) { return x.fw.key === f.fw.key; })[0], f);
+        lines.push("- " + f.fw.label + ": exposure index " + (ch.change === null ? "not comparable" : ch.before + " → " + ch.after + " (" + (ch.change >= 0 ? "+" : "") + ch.change + ")") + "; facilitated techniques " + ch.countsBefore.facilitated + " → " + ch.countsAfter.facilitated + "; " + ch.improved.length + " improved, " + ch.worsened.length + " worsened.");
+      });
+      lines.push("");
+    }
     r.frameworks.forEach(function (f) {
       lines.push("## " + f.fw.label + " " + f.fw.version + " (" + f.fw.scope + ")", "");
       lines.push("Exposure index: " + (f.index === null ? "not assessed" : f.index + "/100") + ". " +
@@ -1039,6 +1374,13 @@
       lines.push("");
     }
     download(fileStem() + ".md", "text/markdown;charset=utf-8", lines.join("\n"));
+  }
+  // A one-page summary, to save as PDF from the print dialog: the verdict, the
+  // gauges, the comparison, the chain, the first priorities and the blind spots.
+  function printSummary() {
+    document.body.classList.add("print-summary");
+    $("summary-date").textContent = "Vigie " + META.vigie_version + " · " + new Date().toISOString().slice(0, 10);
+    setTimeout(function () { window.print(); }, 60);
   }
   function fileStem() { return (state.title || "assessment").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").toLowerCase() || "assessment"; }
 
@@ -1074,6 +1416,16 @@
       $(id).addEventListener(id === "t-search" ? "input" : "change", function () { state.techLimit = 120; renderTechniques(); });
     });
     $("import").addEventListener("change", function (e) { var f = e.target.files[0]; if (f) { importFile(f); } e.target.value = ""; });
+    $("profile-btn").addEventListener("click", openProfile);
+    $("profile-clear").addEventListener("click", function () {
+      var previous = setProfile(null);
+      toast("Threat profile removed.", { label: "Undo", run: function () { setProfile(previous); } });
+    });
+    $("baseline-file").addEventListener("change", function (e) { var f = e.target.files[0]; if (f) { loadBaseline(f); } e.target.value = ""; });
+    $("baseline-clear").addEventListener("click", function () {
+      var previous = state.baseline; state.baseline = null; renderResults();
+      toast("Comparison removed.", { label: "Undo", run: function () { state.baseline = previous; renderResults(); } });
+    });
     var menuBtn = $("export-btn"), menu = $("export-menu");
     menuBtn.addEventListener("click", function () { var open = menu.hidden; menu.hidden = !open; menuBtn.setAttribute("aria-expanded", String(open)); });
     document.addEventListener("click", function (e) { if (!menu.hidden && !menu.contains(e.target) && !menuBtn.contains(e.target)) { menu.hidden = true; menuBtn.setAttribute("aria-expanded", "false"); } });
@@ -1082,12 +1434,16 @@
       menu.hidden = true; menuBtn.setAttribute("aria-expanded", "false");
       if (kind === "csv") { exportCsv(); }
       else if (kind === "json") { download(fileStem() + ".json", "application/json", JSON.stringify(resultsJson(), null, 2)); }
+      else if (kind === "summary") { printSummary(); }
       else { exportMarkdown(); }
     });
     $("print").addEventListener("click", function () { window.print(); });
     var opened = [];
-    window.addEventListener("beforeprint", function () { opened = []; document.querySelectorAll(".domain:not([open])").forEach(function (d) { opened.push(d); d.open = true; }); });
-    window.addEventListener("afterprint", function () { opened.forEach(function (d) { d.open = false; }); });
+    window.addEventListener("beforeprint", function () {
+      if (document.body.classList.contains("print-summary")) { return; }
+      opened = []; document.querySelectorAll(".domain:not([open])").forEach(function (d) { opened.push(d); d.open = true; });
+    });
+    window.addEventListener("afterprint", function () { opened.forEach(function (d) { d.open = false; }); opened = []; document.body.classList.remove("print-summary"); });
     $("theme").addEventListener("click", function () {
       var root = document.documentElement;
       var dark = root.getAttribute("data-theme") === "dark" || (!root.getAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);

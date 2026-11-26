@@ -1,6 +1,6 @@
 # Sample organization (demo)
 
-86 of 86 controls answered, on a 0-5 scale. Made with Vigie 0.6.0 on 2026-11-26 15:09 UTC.
+86 of 86 controls answered, on a 0-5 scale. Made with Vigie 0.6.0 on 2026-11-26 15:33 UTC.
 
 ## MITRE ATT&CK 19.2 (Enterprise)
 
@@ -72,5 +72,36 @@ Nothing blocks the easiest path.
 - AML.T0055 Unsecured Credentials: 2 alerts, no preventive control
 - AML.T0050 Command and Scripting Interpreter: 1 alert, facilitated
 - AML.T0098 AI Agent Tool Credential Harvesting: 1 alert, facilitated
+
+## Neither prevented nor detected
+
+140 techniques left open (facilitated, or with no preventive control) that the 53 detection rules shipped with Vigie do not detect, most common first:
+
+- T1082 System Information Discovery: no preventive control
+- T1083 File and Directory Discovery: no preventive control
+- T1140 Deobfuscate/Decode Files or Information: no preventive control
+- T1057 Process Discovery: no preventive control
+- T1016 System Network Configuration Discovery: no preventive control
+- T1033 System Owner/User Discovery: no preventive control
+- T1518 Software Discovery: no preventive control
+- T1113 Screen Capture: no preventive control
+- T1560 Archive Collected Data: facilitated
+- T1074 Data Staged: no preventive control
+- T1497 Virtualization/Sandbox Evasion: no preventive control
+- T1588 Obtain Capabilities: no preventive control
+- T1012 Query Registry: no preventive control
+- T1018 Remote System Discovery: no preventive control
+- T1680 Local Storage Discovery: no preventive control
+- T1124 System Time Discovery: no preventive control
+- T1049 System Network Connections Discovery: no preventive control
+- T1583 Acquire Infrastructure: no preventive control
+- T1069 Permission Groups Discovery: no preventive control
+- T1480 Execution Guardrails: no preventive control
+- T1007 System Service Discovery: no preventive control
+- T1614 System Location Discovery: no preventive control
+- T1120 Peripheral Device Discovery: no preventive control
+- T1587 Develop Capabilities: no preventive control
+- T1115 Clipboard Data: no preventive control
+- and 115 more
 
 Facilitated means that a control gap leaves a known technique without its main counter-measure, as MITRE maps them; it is not a probability of attack.

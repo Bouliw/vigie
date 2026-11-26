@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
 
@@ -84,9 +84,37 @@ class Framework:
 
 
 @dataclass(frozen=True)
+class Group:
+    """An ATT&CK group (G0016 APT29...), the techniques it uses, the sectors it targets."""
+
+    id: str
+    name: str
+    aliases: tuple[str, ...]
+    url: str
+    sectors: tuple[str, ...]  # keys of KnowledgeBase.sectors its ATT&CK description names
+    techniques: tuple[str, ...]  # ATT&CK technique ids (sub-techniques as their parent)
+
+
+@dataclass(frozen=True)
+class Profile:
+    """A threat profile: the ATT&CK techniques of the groups an organization fears."""
+
+    label: str  # "groups that target Healthcare and life sciences"
+    groups: tuple[str, ...]  # group ids
+    techniques: frozenset[str]
+    sector: str = ""  # the sector key when the profile was chosen by sector
+
+
+class ProfileError(ValueError):
+    """A sector or group that ATT&CK does not know."""
+
+
+@dataclass(frozen=True)
 class KnowledgeBase:
     frameworks: tuple[Framework, ...]
     mitigations: dict[str, Mitigation]
+    groups: tuple[Group, ...] = ()
+    sectors: dict[str, str] = field(default_factory=dict)  # key -> label
 
     def framework(self, key: str) -> Framework:
         return next(framework for framework in self.frameworks if framework.key == key)
@@ -99,6 +127,58 @@ class KnowledgeBase:
                 if technique.id == wanted:
                     return technique
         return None
+
+    def profile(self, sector: str = "", groups: tuple[str, ...] | list[str] = ()) -> Profile:
+        """The profile of the groups that target ``sector``, or of the ``groups`` named.
+
+        Groups are named by id (G0016), name or alias (APT29, Cozy Bear), case ignored.
+        """
+        chosen: dict[str, Group] = {}
+        if sector:
+            key = _sector_key(sector, self.sectors)
+            if key is None:
+                raise ProfileError(
+                    f"unknown sector {sector!r}; known sectors: {', '.join(self.sectors)}"
+                )
+            chosen.update((g.id, g) for g in self.groups if key in g.sectors)
+            sector = key
+        names = {}
+        for group in self.groups:
+            for name in (group.id, group.name, *group.aliases):
+                names.setdefault(name.casefold(), group)
+        unknown = []
+        for name in groups:
+            group = names.get(name.strip().casefold())
+            if group is None:
+                unknown.append(name)
+            else:
+                chosen[group.id] = group
+        if unknown:
+            raise ProfileError(f"unknown ATT&CK group: {', '.join(unknown)}")
+        if not chosen:
+            raise ProfileError("the profile names no group")
+        if sector and not groups:
+            label = f"groups that target {self.sectors[sector]}"
+        else:
+            listed = sorted(chosen.values(), key=lambda g: g.name.casefold())
+            label = ", ".join(g.name for g in listed[:4]) + (
+                f" and {len(listed) - 4} more" if len(listed) > 4 else ""
+            )
+        techniques = frozenset(t for group in chosen.values() for t in group.techniques)
+        return Profile(
+            label=label,
+            groups=tuple(sorted(chosen)),
+            techniques=techniques,
+            sector=sector if not groups else "",
+        )
+
+
+def _sector_key(value: str, sectors: dict[str, str]) -> str | None:
+    wanted = value.strip().casefold()
+    for key, label in sectors.items():
+        if wanted in (key, label.casefold()) or label.casefold().startswith(wanted):
+            return key
+    return None
 
 
 def parent_id(technique_id: str) -> str:
@@ -130,9 +210,23 @@ def build(attack: AttackData, atlas: AtlasData) -> KnowledgeBase:
         )
         for mitigation_id, entry in atlas.mitigations.items()
     }
+    known = {t for t in attack.entries if "." not in t}
+    groups = tuple(
+        Group(
+            id=group_id,
+            name=entry["name"],
+            aliases=tuple(entry.get("aliases", ())),
+            url=entry.get("url", ""),
+            sectors=tuple(entry.get("sectors", ())),
+            techniques=tuple(t for t in entry.get("techniques", ()) if t in known),
+        )
+        for group_id, entry in attack.groups.items()
+    )
     return KnowledgeBase(
         frameworks=(_attack_framework(attack), _atlas_framework(atlas)),
         mitigations=mitigations,
+        groups=groups,
+        sectors=dict(attack.sectors),
     )
 
 

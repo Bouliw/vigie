@@ -48,7 +48,7 @@ from jinja2 import ChoiceLoader, Environment, PackageLoader, StrictUndefined
 from vigie import __version__
 from vigie.analysis import analyze
 from vigie.assess import questionnaire as questionnaires
-from vigie.assess.engine import assess, observed_techniques
+from vigie.assess.engine import assess, detection_of, observed_techniques
 from vigie.assess.render import render_html as render_assessment
 from vigie.atlas import agent, default_atlas_data
 from vigie.atlas.context import technique_context
@@ -841,7 +841,16 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(observed_file.read_text(encoding="utf-8"))
             observed = {str(k): int(v) for k, v in data.items()}
         questionnaire = questionnaires.generic()
-        return render_assessment(assess(questionnaire, observed=observed)).encode("utf-8")
+        ruleset = self.app.ruleset()
+        rules = [*ruleset.detections, *ruleset.correlations]
+        detection = detection_of(rules, (default_attack_data(), default_atlas_data()))
+        result = assess(
+            questionnaire,
+            observed=observed,
+            detection=detection,
+            detection_source=f"the {len(rules)} detection rules shipped with Vigie",
+        )
+        return render_assessment(result).encode("utf-8")
 
     def _report_file(self, report_id: str) -> Path:
         if not REPORT_ID.match(report_id) or self.app.recent.get(report_id) is None:

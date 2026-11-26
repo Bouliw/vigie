@@ -95,6 +95,9 @@ class AttackData:
         # mitigations themselves (absent from extracts made before Vigie 0.6).
         self.entries: dict[str, dict[str, Any]] = raw
         self.mitigations: dict[str, dict[str, Any]] = data.get("mitigations", {})
+        # Groups (G0016...) with the techniques they use and the sectors they target.
+        self.groups: dict[str, dict[str, Any]] = data.get("groups", {})
+        self.sectors: dict[str, str] = data.get("sectors", {})
         # One or two sentences of each description, for the HTML report.
         self._summaries: dict[str, str] = {
             item["id"]: item["summary"] for item in data["tactics"] if item.get("summary")

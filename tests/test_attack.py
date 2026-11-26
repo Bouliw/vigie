@@ -262,7 +262,22 @@ def test_build_script_keeps_mitigations_and_users(tmp_path):
             "x_mitre_deprecated": True,
             "external_references": reference("T0001", "techniques/T0001"),
         },
-        {"type": "intrusion-set", "id": "group--1", "name": "Group"},
+        {
+            "type": "intrusion-set",
+            "id": "group--1",
+            "name": "Group",
+            "aliases": ["Group", "Other Name"],
+            "description": "[Group](https://attack.mitre.org/groups/G0001) targets hospitals "
+            "and banks (Citation: Report), lured through social media.",
+            "external_references": reference("G0001", "groups/G0001"),
+        },
+        {
+            "type": "intrusion-set",
+            "id": "group--2",
+            "name": "Idle",
+            "external_references": reference("G0002", "groups/G0002"),
+        },
+        {"type": "campaign", "id": "campaign--1", "name": "Campaign"},
         {"type": "malware", "id": "malware--1", "name": "Malware"},
         {"type": "malware", "id": "malware--2", "name": "Gone", "revoked": True},
     ]
@@ -273,6 +288,7 @@ def test_build_script_keeps_mitigations_and_users(tmp_path):
         ("uses", "malware--1", "ap--1"),
         ("uses", "malware--1", "ap--2"),
         ("uses", "malware--2", "ap--1"),
+        ("attributed-to", "campaign--1", "group--1"),
     ]
     for number, (kind, source, target) in enumerate(links):
         bundle["objects"].append(
@@ -306,6 +322,20 @@ def test_build_script_keeps_mitigations_and_users(tmp_path):
     attack = AttackData.load(output)
     assert attack.mitigations["M1032"]["name"] == "Multi-factor Authentication"
     assert attack.entries["T0001.001"]["mitigations"] == ["M1032"]
+    # A group uses its techniques as parents; the sectors come from its description,
+    # without the citations, and "social media" is no media sector. A group with no
+    # technique is left out.
+    assert data["groups"] == {
+        "G0001": {
+            "name": "Group",
+            "aliases": ["Other Name"],
+            "url": "https://attack.mitre.org/groups/G0001",
+            "sectors": ["healthcare", "financial"],
+            "techniques": ["T0001"],
+        }
+    }
+    assert attack.groups["G0001"]["sectors"] == ["healthcare", "financial"]
+    assert attack.sectors["healthcare"] == "Healthcare and life sciences"
 
 
 def test_shipped_extract_has_mitigations_and_users():
