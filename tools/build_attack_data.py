@@ -2,8 +2,11 @@
 
 The full Enterprise ATT&CK bundle is about 54 MB. Vigie only needs, for each
 tactic and technique, its name, tactics, URL and a one or two sentence summary
-of its description (shown in the HTML report), so this script keeps just that
-(about 300 KB) in ``src/vigie/attack/data/enterprise_attack.json``.
+of its description (shown in the HTML report), the mitigations MITRE lists
+against it and how many known groups, campaigns and pieces of software use it
+(for ``vigie assess``), and for each mitigation its name and summary. This
+script keeps just that (about 400 KB) in
+``src/vigie/attack/data/enterprise_attack.json``.
 
 Usage::
 
@@ -55,7 +58,8 @@ def main(argv: list[str] | None = None) -> int:
     args.output.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     print(
         f"ATT&CK {data['attack_version']}: {len(data['tactics'])} tactics, "
-        f"{len(data['techniques'])} techniques, {len(data['revoked'])} revoked ids "
+        f"{len(data['techniques'])} techniques, {len(data['mitigations'])} mitigations, "
+        f"{len(data['revoked'])} revoked ids "
         f"-> {args.output}",
         file=sys.stderr,
     )
@@ -119,6 +123,48 @@ def extract(bundle: dict[str, Any], source: str) -> dict[str, Any]:
             if old and new and old["type"] == "attack-pattern" and attack_id(new) in techniques:
                 revoked[attack_id(old)] = attack_id(new)
 
+    # Mitigations (M1032 Multi-factor Authentication...) and the techniques each one
+    # mitigates, for `vigie assess`. The old technique-specific courses of action
+    # (T1003-style ids) are deprecated and left out.
+    mitigations = {}
+    for obj in objects:
+        if obj["type"] == "course-of-action" and is_active(obj):
+            mitigation_id = attack_id(obj)
+            if re.fullmatch(r"M\d{4}", mitigation_id):
+                summary = complete_sentences(with_summary(obj).get("summary", ""))
+                mitigations[mitigation_id] = {
+                    "name": obj["name"],
+                    "url": attack_url(obj),
+                    **({"summary": summary} if summary else {}),
+                }
+    mitigated_by: dict[str, set[str]] = {}
+    used_by: dict[str, set[str]] = {}
+    users = {"intrusion-set", "campaign", "malware", "tool"}
+    for obj in objects:
+        if obj["type"] != "relationship" or not is_active(obj):
+            continue
+        actor, target = by_id.get(obj["source_ref"]), by_id.get(obj["target_ref"])
+        if not actor or not target or target["type"] != "attack-pattern" or not is_active(actor):
+            continue
+        technique_id = attack_id(target)
+        if technique_id not in techniques:
+            continue
+        if obj["relationship_type"] == "mitigates" and actor["type"] == "course-of-action":
+            mitigation_id = attack_id(actor)
+            if mitigation_id in mitigations:
+                mitigated_by.setdefault(technique_id, set()).add(mitigation_id)
+        elif obj["relationship_type"] == "uses" and actor["type"] in users:
+            used_by.setdefault(technique_id, set()).add(actor["id"])
+    # A technique counts the users of its sub-techniques too: a group seen using
+    # T1059.001 (PowerShell) uses T1059 (Command and Scripting Interpreter).
+    for technique_id in list(used_by):
+        if "." in technique_id:
+            parent = technique_id.split(".")[0]
+            used_by.setdefault(parent, set()).update(used_by[technique_id])
+    for technique_id, entry in techniques.items():
+        entry["mitigations"] = sorted(mitigated_by.get(technique_id, ()))
+        entry["used_by"] = len(used_by.get(technique_id, ()))
+
     modified = collection["modified"]
     return {
         "attack_version": collection["x_mitre_version"],
@@ -127,6 +173,7 @@ def extract(bundle: dict[str, Any], source: str) -> dict[str, Any]:
         "copyright": COPYRIGHT.format(year=modified[:4]),
         "tactics": tactics,
         "techniques": dict(sorted(techniques.items())),
+        "mitigations": dict(sorted(mitigations.items())),
         "revoked": dict(sorted(revoked.items())),
     }
 
@@ -164,6 +211,14 @@ def summarize(description: str) -> str:
     if len(text) > SUMMARY_LENGTH:
         text = text[: SUMMARY_LENGTH - 1].rsplit(" ", 1)[0] + "…"
     return text
+
+
+def complete_sentences(summary: str) -> str:
+    """Drop a last sentence that only introduces a list ("These factors include:")."""
+    sentences = re.split(r"(?<=[.!?])\s+", summary)
+    while len(sentences) > 1 and sentences[-1].rstrip().endswith(":"):
+        sentences.pop()
+    return " ".join(sentences)
 
 
 def is_active(obj: dict[str, Any]) -> bool:

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Vigie {{ meta.vigie_version }}">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<title>{{ meta.title or "Maturity assessment" }} · Vigie</title>
+<script>
+document.documentElement.className = window.self !== window.top ? "js framed" : "js";
+try { var vigieTheme = localStorage.getItem("vigie-theme"); if (vigieTheme === "light" || vigieTheme === "dark") { document.documentElement.setAttribute("data-theme", vigieTheme); } } catch (e) {}
+</script>
+<style>
+{% include "_assess.css.j2" %}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mark" viewBox="0 0 32 32"><path d="M16 2.2 4.4 6.6v8.6c0 7.2 4.9 12.6 11.6 14.6 6.7-2 11.6-7.4 11.6-14.6V6.6z" fill="var(--ink)"/><path d="M9.2 17.6a6.8 6.8 0 0 1 13.6 0" fill="none" stroke="var(--paper)" stroke-width="2.2" stroke-linecap="round"/><circle cx="16" cy="17.4" r="2.5" fill="var(--paper)"/><path d="M8.4 21.4h15.2" stroke="var(--paper)" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></symbol>
+  <symbol id="i-up" viewBox="0 0 16 16"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5"/></symbol>
+  <symbol id="i-down" viewBox="0 0 16 16"><path d="M8 3v10M3.5 8.5 8 13l4.5-4.5"/></symbol>
+  <symbol id="i-print" viewBox="0 0 16 16"><path d="M4.5 6V2.5h7V6M4.5 11.5h-2v-5h11v5h-2"/><rect x="4.5" y="9.5" width="7" height="4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 16 16"><path d="M13.6 9.9A5.8 5.8 0 0 1 6.1 2.4a5.8 5.8 0 1 0 7.5 7.5z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 16 16"><path d="m4 4 8 8M12 4l-8 8"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 16 16"><path d="M8 1.8 2.8 3.8v3.9c0 3.2 2.2 5.6 5.2 6.5 3-.9 5.2-3.3 5.2-6.5V3.8z"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 16 16"><path d="M9.5 2.5h4v4M13.5 2.5 7 9M11.5 9.5v3a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3"/></symbol>
+</svg>
+
+<header class="masthead">
+  <div class="wrap">
+    <a class="brand" href="#top" id="top"><svg aria-hidden="true"><use href="#mark"/></svg>Vigie <small>assessment</small></a>
+    <nav aria-label="Sections"><ul class="jump">
+      <li><a href="#chain">Kill chain</a></li>
+      <li><a href="#questionnaire">Questionnaire</a></li>
+      <li><a href="#priorities">Priorities</a></li>
+      {% if observed %}<li><a href="#observed">Seen in the logs</a></li>{% endif %}
+      <li><a href="#techniques">Techniques</a></li>
+      <li><a href="#method">Method</a></li>
+    </ul></nav>
+    <div class="actions js-only">
+      <label class="btn btn-quiet" title="Load answers from a CSV, Excel or JSON file"><svg class="icon" aria-hidden="true"><use href="#i-up"/></svg><span>Import</span><input type="file" id="import" accept=".csv,.tsv,.txt,.json,.xlsx,.xlsm" class="visually-hidden"></label>
+      <div class="menu">
+        <button type="button" class="btn btn-quiet" id="export-btn" aria-haspopup="true" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-down"/></svg><span>Export</span></button>
+        <div class="menu-list" id="export-menu" hidden>
+          <button type="button" data-export="csv">Answers (CSV, opens in Excel)</button>
+          <button type="button" data-export="json">Answers and results (JSON)</button>
+          <button type="button" data-export="md">Summary (Markdown)</button>
+        </div>
+      </div>
+      <button type="button" class="btn btn-quiet btn-icon" id="print" aria-label="Print or save as PDF" title="Print or save as PDF"><svg class="icon" aria-hidden="true"><use href="#i-print"/></svg></button>
+      <button type="button" class="btn btn-quiet btn-icon" id="theme" aria-label="Switch theme" title="Switch theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<noscript><div class="wrap"><p class="banner">This page computes the assessment in the browser: turn JavaScript on to see it, or run <code>vigie assess --format md</code> for a static summary.</p></div></noscript>
+
+<main class="wrap" id="app">
+  <section class="hero" aria-labelledby="headline">
+    <div class="hero-text">
+      <p class="eyebrow"><span id="q-title">{{ meta.title }}</span> <span class="dot" aria-hidden="true">·</span> <span id="q-progress"></span></p>
+      <h1 id="headline">Maturity assessment</h1>
+      <p class="lede" id="lede"></p>
+      <div class="answered" aria-hidden="true"><i id="answered-bar"></i></div>
+    </div>
+    <div class="gauges" id="gauges"></div>
+  </section>
+
+  <section class="kpis" id="kpis" aria-label="Techniques by status"></section>
+  <p class="banner warn" id="warnings" hidden></p>
+
+  <section class="section" id="chain" aria-labelledby="chain-h">
+    <div class="section-head">
+      <div><h2 id="chain-h">The easiest way through</h2>
+      <p>The stages of an attack, in order. Each stage shows the technique an attacker would find the easiest given your maturity; click a stage to see all its techniques.</p></div>
+      <div class="seg" role="tablist" aria-label="Knowledge base" id="fw-tabs"></div>
+    </div>
+    <ul class="legend" id="legend"></ul>
+    <p class="path-verdict" id="path-verdict"></p>
+    <ol class="chain" id="chain-list"></ol>
+  </section>
+
+  <section class="section" id="questionnaire" aria-labelledby="q-h">
+    <div class="section-head">
+      <div><h2 id="q-h">Questionnaire</h2>
+      <p>Rate each control from 0 (absent) to {{ meta.scale }}. Everything on the page updates as you go. Leave a control on "–" when it was not assessed.</p></div>
+    </div>
+    <div class="toolbar">
+      <div class="search"><input type="search" id="q-search" placeholder="Search controls, MITRE ids…" aria-label="Search controls"></div>
+      <select id="q-domain" aria-label="Domain"><option value="">All domains</option></select>
+      <label class="toggle"><input type="checkbox" id="q-open"> Unanswered only</label>
+      <div class="bulk"><span class="muted">Set unanswered to</span> <select id="q-bulk" aria-label="Set every unanswered control to"><option value="">…</option></select></div>
+    </div>
+    <div id="domains"></div>
+    <p class="empty" id="q-empty" hidden>No control matches.</p>
+  </section>
+
+  <section class="section" id="priorities" aria-labelledby="p-h">
+    <div class="section-head">
+      <div><h2 id="p-h">What to raise first</h2>
+      <p>The assessed controls whose raise to level <span id="target-level"></span> would stop the most techniques from being facilitated. Techniques on the easiest path count double, those seen in the logs triple.</p></div>
+    </div>
+    <ol class="priorities" id="priority-list"></ol>
+    <p class="empty" id="p-empty" hidden></p>
+  </section>
+
+  {% if observed %}
+  <section class="section" id="observed" aria-labelledby="o-h">
+    <div class="section-head">
+      <div><h2 id="o-h">Seen in the logs</h2>
+      <p>Techniques the alerts of the analysis map to, with what your maturity says about each one. Seen and facilitated is where to look first.</p></div>
+    </div>
+    <div class="table-wrap"><table class="tbl" id="observed-table"><thead><tr><th scope="col">Technique</th><th scope="col">Alerts</th><th scope="col">Status</th><th scope="col">Controls</th></tr></thead><tbody></tbody></table></div>
+  </section>
+  {% endif %}
+
+  <section class="section" id="techniques" aria-labelledby="t-h">
+    <div class="section-head">
+      <div><h2 id="t-h">All techniques</h2>
+      <p>Every technique of the selected knowledge base, its status and the controls behind it.</p></div>
+    </div>
+    <div class="toolbar">
+      <div class="search"><input type="search" id="t-search" placeholder="Search techniques…" aria-label="Search techniques"></div>
+      <select id="t-status" aria-label="Status"><option value="">All statuses</option></select>
+      <select id="t-stage" aria-label="Stage"><option value="">All stages</option></select>
+    </div>
+    <div class="table-wrap"><table class="tbl" id="tech-table"><thead><tr><th scope="col">Technique</th><th scope="col">Stages</th><th scope="col">Status</th><th scope="col">Best level</th><th scope="col">Mitigations</th><th scope="col">How common</th></tr></thead><tbody></tbody></table></div>
+    <p class="table-more muted" id="t-more"></p>
+  </section>
+
+  <section class="section method" id="method" aria-labelledby="m-h">
+    <div class="section-head"><div><h2 id="m-h">How it is computed</h2></div></div>
+    <div class="cols">
+      <div>
+        <h3>From controls to techniques</h3>
+        <p>Each control implements MITRE mitigations, from <a href="https://attack.mitre.org/mitigations/enterprise/">ATT&amp;CK</a> (M1032) or <a href="https://atlas.mitre.org/mitigations">ATLAS</a> (AML.M0020), or counters techniques directly. A mitigation is as strong as the most mature control implementing it, and a technique as hard as the strongest mitigation MITRE lists against it (its sub-techniques' included).</p>
+        <p>With a maturity <i>m</i> on a scale of {{ meta.scale }}: <i>m</i>/{{ meta.scale }} below {{ (meta.facilitated_below * 100) | round | int }}% leaves a technique <b>facilitated</b>, below {{ (meta.hindered_from * 100) | round | int }}% <b>partly hindered</b>, and from {{ (meta.hindered_from * 100) | round | int }}% <b>hindered</b>. A technique MITRE lists no preventive mitigation for, such as most of Reconnaissance, has <b>no preventive control</b>.</p>
+      </div>
+      <div>
+        <h3>The easiest way through</h3>
+        <p>At each stage, the path takes a facilitated technique first, then one no control prevents, then the least hindered, and among equals the one seen in the logs, then the most common in real attacks: used by the most known groups, campaigns and malware for ATT&amp;CK, the most realized for ATLAS. It is blocked at the first stage where even the easiest technique is hindered.</p>
+        <p>The <b>exposure index</b> (0 to 100) is the mean of 1&nbsp;−&nbsp;<i>m</i>/{{ meta.scale }} over the assessed techniques controls can prevent, weighted by how common each one is.</p>
+      </div>
+      <div>
+        <h3>What it does not say</h3>
+        <p>"Facilitated" says that a control gap leaves a known technique without its main counter-measure, as MITRE maps them. It is not a probability of attack, and a real attack does not go through every stage. Read it with the people who know the systems.</p>
+        <p class="muted small" id="versions"></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" hidden>
+  <div class="drawer-head">
+    <div><p class="eyebrow" id="drawer-eyebrow"></p><h2 id="drawer-title"></h2></div>
+    <button type="button" class="btn btn-quiet btn-icon" id="drawer-close" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<footer class="foot"><div class="wrap">
+  <p>Made with Vigie {{ meta.vigie_version }} on {{ meta.generated_at }}. Everything is computed in this page, offline: nothing you enter leaves your computer.</p>
+  <p>{% for line in meta.copyright %}{{ line }} {% endfor %}MITRE ATT&amp;CK® and ATT&amp;CK® are registered trademarks of The MITRE Corporation.</p>
+</div></footer>
+
+<script type="application/json" id="vigie-data">{{ payload | tojson }}</script>
+<script>
+{% include "_assess.js.j2" %}
+</script>
+</body>
+</html>

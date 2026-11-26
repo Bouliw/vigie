@@ -1,0 +1,1088 @@
+{% raw %}
+(function () {
+  "use strict";
+
+  var DATA = JSON.parse(document.getElementById("vigie-data").textContent);
+  var META = DATA.meta;
+  var SCALE = META.scale;
+  var FACILITATED_BELOW = META.facilitated_below;
+  var HINDERED_FROM = META.hindered_from;
+  var STATUSES = ["facilitated", "unpreventable", "partial", "hindered", "unassessed"];
+  var LABELS = META.status_labels;
+  var SHORT = { facilitated: "Facilitated", unpreventable: "No control", partial: "Partly hindered", hindered: "Hindered", unassessed: "Not assessed" };
+  var HINTS = {
+    facilitated: "A control gap leaves the technique without its main counter-measure.",
+    unpreventable: "MITRE lists no preventive mitigation: detection is the defense.",
+    partial: "Its best counter-measure is in place, but not fully.",
+    hindered: "A mature control counters it.",
+    unassessed: "None of its mitigations was assessed."
+  };
+  var PRIORITY_LIMIT = 12;
+  var PRE_COMPROMISE = ["reconnaissance", "resource-development", "ai-attack-adaptation"];
+  var MITIGATION_ID = /\b(AML\.M\d{4}|M\d{4})\b/gi;
+  var TECHNIQUE_ID = /\b(AML\.T\d{4}(?:\.\d{3})?|T\d{4}(?:\.\d{3})?)\b/gi;
+  var NOT_ASSESSED = ["", "-", "n/a", "na", "n.a.", "none", "?", "nc", "n/c", "not assessed", "nan", "–"];
+
+  var state = {
+    controls: DATA.controls.map(function (c) { return Object.assign({}, c); }),
+    title: META.title,
+    fw: "attack",
+    result: null,
+    dirty: false,
+    techLimit: 120
+  };
+  var FW = {};
+  DATA.frameworks.forEach(function (f) { FW[f.key] = f; });
+
+  // ------------------------------------------------------------------ engine
+  // The same rules as vigie/assess/engine.py: keep them in step.
+
+  function parentId(id) {
+    id = String(id).toUpperCase();
+    if (id.indexOf("AML.") === 0) { return id.split(".").slice(0, 2).join("."); }
+    return id.split(".")[0];
+  }
+
+  function statusOf(level) {
+    if (level === null || level === undefined) { return "unassessed"; }
+    var ratio = level / SCALE;
+    if (ratio < FACILITATED_BELOW) { return "facilitated"; }
+    if (ratio < HINDERED_FROM) { return "partial"; }
+    return "hindered";
+  }
+
+  function targetLevel() { return Math.ceil(HINDERED_FROM * SCALE - 1e-9); }
+
+  function round(value, digits) { var f = Math.pow(10, digits); return Math.round(value * f) / f; }
+
+  function levels(controls) {
+    var byMitigation = {}, byTechnique = {};
+    controls.forEach(function (c) {
+      if (c.maturity === null || c.maturity === undefined) { return; }
+      c.mitigations.forEach(function (m) {
+        byMitigation[m] = Math.max(m in byMitigation ? byMitigation[m] : -1, c.maturity);
+      });
+      c.techniques.forEach(function (t) {
+        var key = parentId(t);
+        byTechnique[key] = Math.max(key in byTechnique ? byTechnique[key] : -1, c.maturity);
+      });
+    });
+    return { mitigation: byMitigation, technique: byTechnique };
+  }
+
+  function evaluate(t, controls, lv, seen) {
+    var mapped = controls.filter(function (c) {
+      return c.mitigations.some(function (m) { return t.mitigations.indexOf(m) >= 0; }) ||
+        c.techniques.some(function (x) { return parentId(x) === t.id; });
+    });
+    var implemented = {};
+    mapped.forEach(function (c) { c.mitigations.forEach(function (m) { implemented[m] = true; }); });
+    var uncovered = t.mitigations.filter(function (m) { return !implemented[m]; });
+    var found = t.mitigations.filter(function (m) { return m in lv.mitigation; })
+      .map(function (m) { return lv.mitigation[m]; });
+    if (t.id in lv.technique) { found.push(lv.technique[t.id]); }
+    var level = found.length ? Math.max.apply(null, found) : null;
+    var direct = mapped.some(function (c) {
+      return c.techniques.some(function (x) { return parentId(x) === t.id; });
+    });
+    var status, exposure;
+    if (!t.preventable && !direct) { status = "unpreventable"; exposure = 1; }
+    else {
+      status = statusOf(level);
+      exposure = level === null ? null : round(1 - level / SCALE, 4);
+    }
+    return {
+      t: t, status: status, level: level, exposure: exposure,
+      controls: mapped.map(function (c) { return c.id; }), uncovered: uncovered,
+      observed: seen[t.id] || 0
+    };
+  }
+
+  function rank(a, b) {
+    var ea = a.exposure === null ? -1 : a.exposure, eb = b.exposure === null ? -1 : b.exposure;
+    if (eb !== ea) { return eb - ea; }
+    if (b.observed !== a.observed) { return b.observed - a.observed; }
+    if (b.t.weight !== a.t.weight) { return b.t.weight - a.t.weight; }
+    return a.t.id < b.t.id ? -1 : a.t.id > b.t.id ? 1 : 0;
+  }
+
+  function stepOf(members) {
+    var wanted = [["facilitated"], ["unpreventable"], ["partial", "hindered"]];
+    for (var i = 0; i < wanted.length; i++) {
+      for (var j = 0; j < members.length; j++) {
+        if (wanted[i].indexOf(members[j].status) >= 0) { return members[j]; }
+      }
+    }
+    return members.length ? members[0] : null;
+  }
+
+  function share(members) {
+    var assessed = members.filter(function (m) { return m.status === "facilitated" || m.status === "partial" || m.status === "hindered"; });
+    var total = assessed.reduce(function (s, m) { return s + m.t.weight; }, 0);
+    if (!total) { return null; }
+    var fac = assessed.filter(function (m) { return m.status === "facilitated"; })
+      .reduce(function (s, m) { return s + m.t.weight; }, 0);
+    return round(fac / total, 4);
+  }
+
+  function emptyCounts() { var c = {}; STATUSES.forEach(function (s) { c[s] = 0; }); return c; }
+
+  function computeFramework(fw, controls, lv, seen) {
+    var evaluated = fw.techniques.map(function (t) { return evaluate(t, controls, lv, seen); });
+    var stages = [], blockedAt = null;
+    fw.stages.forEach(function (stage) {
+      var members = evaluated.filter(function (r) { return r.t.stages.indexOf(stage.shortname) >= 0; }).sort(rank);
+      var counts = emptyCounts();
+      members.forEach(function (m) { counts[m.status] += 1; });
+      var step = stepOf(members);
+      var status = step ? step.status : "unassessed";
+      if (status === "hindered" && blockedAt === null) { blockedAt = stage.shortname; }
+      stages.push({
+        stage: stage, techniques: members, counts: counts, share: share(members), step: step,
+        status: status, observed: members.reduce(function (s, m) { return s + m.observed; }, 0)
+      });
+    });
+    var counts = emptyCounts();
+    evaluated.forEach(function (r) { counts[r.status] += 1; });
+    var preventable = evaluated.filter(function (r) { return r.status === "facilitated" || r.status === "partial" || r.status === "hindered"; });
+    var weight = preventable.reduce(function (s, r) { return s + r.t.weight; }, 0);
+    var index = weight ? Math.floor(100 * preventable.reduce(function (s, r) { return s + r.t.weight * (r.exposure || 0); }, 0) / weight + 0.5) : null;
+    var path = [];
+    for (var i = 0; i < stages.length; i++) {
+      if (!stages[i].step) { continue; }
+      path.push(stages[i]);
+      if (stages[i].stage.shortname === blockedAt) { break; }
+    }
+    return {
+      fw: fw, stages: stages, blockedAt: blockedAt, index: index, counts: counts,
+      assessed: preventable.length, path: path, evaluated: evaluated
+    };
+  }
+
+  function compute(controls) {
+    var seen = {};
+    Object.keys(DATA.observed || {}).forEach(function (id) {
+      var key = parentId(id);
+      seen[key] = (seen[key] || 0) + DATA.observed[id];
+    });
+    var lv = levels(controls);
+    var results = DATA.frameworks.map(function (fw) { return computeFramework(fw, controls, lv, seen); });
+    var target = targetLevel();
+    var onPath = {};
+    results.forEach(function (r) { r.path.forEach(function (s) { if (s.step) { onPath[s.step.t.id] = true; } }); });
+    var byId = {};
+    results.forEach(function (r) { r.evaluated.forEach(function (e) { byId[e.t.id] = e; }); });
+    var ids = Object.keys(byId).sort();
+    var priorities = [];
+    controls.forEach(function (c) {
+      if (c.maturity === null || c.maturity === undefined || c.maturity >= target) { return; }
+      var relieved = [], gain = 0, pathCount = 0, observed = 0;
+      ids.forEach(function (id) {
+        var e = byId[id];
+        if (e.status !== "facilitated" || e.controls.indexOf(c.id) < 0) { return; }
+        if (statusOf(target) === "facilitated") { return; }
+        relieved.push(id);
+        var factor = 1;
+        if (onPath[id]) { factor *= 2; pathCount += 1; }
+        if (e.observed) { factor *= 3; observed += 1; }
+        if (e.t.stages.every(function (s) { return PRE_COMPROMISE.indexOf(s) >= 0; })) { factor *= 0.5; }
+        gain += e.t.weight * factor;
+      });
+      if (relieved.length) {
+        priorities.push({ control: c, target: target, relieved: relieved, onPath: pathCount, observed: observed, gain: round(gain, 3) });
+      }
+    });
+    priorities.sort(function (a, b) {
+      if (b.gain !== a.gain) { return b.gain - a.gain; }
+      if (b.relieved.length !== a.relieved.length) { return b.relieved.length - a.relieved.length; }
+      return a.control.id < b.control.id ? -1 : a.control.id > b.control.id ? 1 : 0;
+    });
+    var seenOpen = {};
+    results.forEach(function (r) {
+      r.evaluated.forEach(function (e) {
+        if (e.observed && (e.status === "facilitated" || e.status === "unpreventable")) { seenOpen[e.t.id] = e; }
+      });
+    });
+    var observedOpen = Object.keys(seenOpen).map(function (k) { return seenOpen[k]; })
+      .sort(function (a, b) { return b.observed - a.observed || (a.t.id < b.t.id ? -1 : 1); });
+    return { frameworks: results, priorities: priorities.slice(0, PRIORITY_LIMIT), byId: byId, observedOpen: observedOpen, seen: seen };
+  }
+
+  // Exposed for the tests, which run this file in Node and compare with Python.
+  if (typeof window.__vigieAssessTest === "function") {
+    window.__vigieAssessTest({ compute: compute, state: state, DATA: DATA });
+    return;
+  }
+
+  // -------------------------------------------------------------------- DOM helpers
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) { node.className = cls; }
+    if (text !== undefined && text !== null) { node.textContent = text; }
+    return node;
+  }
+  function add(parent) { for (var i = 1; i < arguments.length; i++) { var c = arguments[i]; if (c === null || c === undefined) { continue; } parent.appendChild(typeof c === "string" ? document.createTextNode(c) : c); } return parent; }
+  function svgUse(id, cls) {
+    var ns = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(ns, "svg"); svg.setAttribute("class", cls || "icon"); svg.setAttribute("aria-hidden", "true");
+    var use = document.createElementNS(ns, "use"); use.setAttribute("href", "#" + id); svg.appendChild(use); return svg;
+  }
+  function plural(n, word, many) { return n + " " + (n === 1 ? word : (many || word + "s")); }
+  function fmtLevel(v) { return v === null || v === undefined ? "–" : (Math.round(v * 100) / 100).toString(); }
+  function pill(status, text) {
+    var p = el("span", "pill f-" + status); add(p, el("i"), text || LABELS[status]); return p;
+  }
+  function levelName(v) {
+    if (v === null || v === undefined) { return "Not assessed"; }
+    var names = META.levels;
+    return Number.isInteger(v) && names[v] ? v + " · " + names[v] : String(v);
+  }
+  function safeUrl(u) { return /^https:\/\//.test(u || "") ? u : null; }
+  function link(url, text, cls) {
+    var href = safeUrl(url);
+    var a = el(href ? "a" : "span", cls || "", text);
+    if (href) { a.href = href; a.rel = "noreferrer"; a.target = "_blank"; }
+    return a;
+  }
+  var toastTimer = null;
+  function toast(text, action) {
+    var t = $("toast"); t.textContent = text;
+    if (action) {
+      var b = el("button", "btn btn-sm", action.label); b.style.marginLeft = "12px";
+      b.addEventListener("click", function () { action.run(); t.classList.remove("show"); });
+      t.appendChild(b);
+    }
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove("show"); }, action ? 7000 : 3500);
+  }
+  function animateNumber(node, to) {
+    var from = parseFloat(node.getAttribute("data-v"));
+    node.setAttribute("data-v", to === null ? "" : to);
+    if (to === null) { node.textContent = "–"; return; }
+    if (isNaN(from) || window.matchMedia("(prefers-reduced-motion: reduce)").matches) { node.textContent = to; return; }
+    var start = performance.now(), dur = 420;
+    function frame(now) {
+      var k = Math.min(1, (now - start) / dur), e = 1 - Math.pow(1 - k, 3);
+      node.textContent = Math.round(from + (to - from) * e);
+      if (k < 1) { requestAnimationFrame(frame); }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ------------------------------------------------------------------ rendering
+
+  var pending = false;
+  function refresh() {
+    if (pending) { return; }
+    pending = true;
+    requestAnimationFrame(function () { pending = false; renderResults(); });
+  }
+
+  function answeredCount() { return state.controls.filter(function (c) { return c.maturity !== null && c.maturity !== undefined; }).length; }
+
+  function renderResults() {
+    state.result = compute(state.controls);
+    renderHero();
+    renderGauges();
+    renderKpis();
+    renderChain();
+    renderImpacts();
+    renderPriorities();
+    renderObserved();
+    renderTechniques();
+  }
+
+  function current() {
+    return state.result.frameworks.filter(function (r) { return r.fw.key === state.fw; })[0];
+  }
+
+  function renderHero() {
+    var total = state.controls.length, answered = answeredCount();
+    $("q-title").textContent = state.title || "Maturity assessment";
+    $("q-progress").textContent = answered + " of " + plural(total, "control") + " answered";
+    $("answered-bar").style.width = (total ? 100 * answered / total : 0) + "%";
+    var h = $("headline"), lede = $("lede");
+    h.textContent = ""; lede.textContent = "";
+    var all = state.result.frameworks;
+    var fac = all.reduce(function (s, r) { return s + r.counts.facilitated; }, 0);
+    var assessed = all.reduce(function (s, r) { return s + r.assessed; }, 0);
+    if (!answered) {
+      h.textContent = "Rate your controls to see where an attack would get through";
+      lede.textContent = "Each control maps to the MITRE ATT&CK and ATLAS techniques it counters. As you rate them, the page shows which techniques your maturity leaves facilitated and the easiest way through an attack, stage by stage.";
+      return;
+    }
+    if (fac) {
+      add(h, el("em", "", plural(fac, "technique")), " facilitated by the current maturity");
+    } else {
+      h.textContent = "No assessed technique is facilitated";
+    }
+    var r = current();
+    var parts = [];
+    parts.push("Of the " + plural(assessed, "technique") + " controls can prevent that were assessed, " + fac + " " + (fac === 1 ? "is" : "are") + " facilitated.");
+    if (r.assessed) {
+      if (r.blockedAt) {
+        parts.push(" In " + r.fw.label + ", the easiest path is blocked at " + r.fw.stages.filter(function (s) { return s.shortname === r.blockedAt; })[0].name + ".");
+      } else {
+        parts.push(" In " + r.fw.label + ", the easiest path goes through all " + r.stages.length + " stages of an attack.");
+      }
+    }
+    var top = state.result.priorities[0];
+    if (top) {
+      parts.push(" Raising " + top.control.title + " to level " + top.target + " would relieve " + plural(top.relieved.length, "technique") + ".");
+    }
+    lede.textContent = parts.join("");
+  }
+
+  function gaugeColor(v) {
+    if (v === null) { return "var(--s-unassessed)"; }
+    if (v >= 60) { return "var(--s-facilitated)"; }
+    if (v >= 30) { return "var(--s-partial)"; }
+    return "var(--s-hindered)";
+  }
+
+  function renderGauges() {
+    var box = $("gauges");
+    if (!box.childNodes.length) {
+      state.result.frameworks.forEach(function (r) {
+        var b = el("button", "gauge"); b.type = "button"; b.setAttribute("data-fw", r.fw.key);
+        b.innerHTML = '<svg viewBox="0 0 120 120" aria-hidden="true"><circle class="track" cx="60" cy="60" r="50" fill="none" stroke-width="11"/>' +
+          '<circle class="arc" cx="60" cy="60" r="50" fill="none" stroke-width="11" transform="rotate(-90 60 60)" stroke-dasharray="314.16" stroke-dashoffset="314.16"/>' +
+          '<text class="num" x="60" y="64" text-anchor="middle" data-v="">–</text><text class="of" x="60" y="82" text-anchor="middle">out of 100</text></svg>';
+        add(b, el("b", "", "Exposure · " + (r.fw.key === "attack" ? "ATT&CK" : "ATLAS")), el("span", "", r.fw.scope));
+        b.addEventListener("click", function () { selectFramework(r.fw.key); });
+        box.appendChild(b);
+      });
+    }
+    state.result.frameworks.forEach(function (r) {
+      var b = box.querySelector('[data-fw="' + r.fw.key + '"]');
+      b.setAttribute("aria-pressed", r.fw.key === state.fw ? "true" : "false");
+      b.setAttribute("aria-label", "Exposure index " + (r.fw.key === "attack" ? "ATT&CK" : "ATLAS") + ": " + (r.index === null ? "not assessed" : r.index + " out of 100"));
+      var arc = b.querySelector(".arc");
+      arc.style.stroke = gaugeColor(r.index);
+      arc.setAttribute("stroke-dashoffset", String(314.16 * (1 - (r.index || 0) / 100)));
+      animateNumber(b.querySelector(".num"), r.index);
+    });
+  }
+
+  function renderKpis() {
+    var box = $("kpis"), r = current();
+    if (!box.childNodes.length) {
+      STATUSES.forEach(function (s) {
+        var k = el("button", "kpi f-" + s); k.type = "button"; k.setAttribute("data-status", s);
+        add(k, el("span", "n"), el("span", "l", LABELS[s]), el("span", "d", HINTS[s]));
+        k.addEventListener("click", function () {
+          $("t-status").value = s; renderTechniques();
+          $("techniques").scrollIntoView({ behavior: "smooth" });
+        });
+        box.appendChild(k);
+      });
+    }
+    STATUSES.forEach(function (s) {
+      var n = box.querySelector('[data-status="' + s + '"] .n');
+      animateNumber(n, r.counts[s]);
+    });
+  }
+
+  function renderTabs() {
+    var tabs = $("fw-tabs"); tabs.textContent = "";
+    DATA.frameworks.forEach(function (fw) {
+      var b = el("button"); b.type = "button"; b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", fw.key === state.fw ? "true" : "false");
+      add(b, fw.scope + " ", el("small", "", "· " + (fw.key === "attack" ? "ATT&CK " : "ATLAS ") + fw.version));
+      b.addEventListener("click", function () { selectFramework(fw.key); });
+      tabs.appendChild(b);
+    });
+  }
+
+  function selectFramework(key) {
+    state.fw = key;
+    renderTabs();
+    fillStageFilter();
+    renderResults();
+  }
+
+  function renderLegend() {
+    var ul = $("legend");
+    STATUSES.forEach(function (s) {
+      var li = el("li", "f-" + s); add(li, el("i"), LABELS[s]); ul.appendChild(li);
+    });
+  }
+
+  function renderChain() {
+    var r = current(), list = $("chain-list"), verdict = $("path-verdict");
+    list.textContent = ""; verdict.textContent = "";
+    if (!r.assessed && !answeredCount()) {
+      verdict.textContent = "Rate a few controls below: the chain fills in as you go.";
+    } else if (r.blockedAt) {
+      var name = r.fw.stages.filter(function (s) { return s.shortname === r.blockedAt; })[0].name;
+      add(verdict, "The easiest path is ", el("span", "blocked", "blocked at " + name), ": even its easiest technique is hindered by a mature control.");
+    } else {
+      var open = r.path.filter(function (s) { return s.status === "facilitated"; }).length;
+      add(verdict, el("span", "open", "Nothing blocks the easiest path"), ": " + open + " of its " + r.path.length + " stages go through a facilitated technique.");
+    }
+    var beyond = false;
+    r.stages.forEach(function (s, i) {
+      var li = el("li", "f-" + s.status);
+      var onPath = !beyond && !!s.step;
+      if (onPath) { li.classList.add("on-path"); }
+      var b = el("button", "node f-" + s.status + (onPath ? " on-path" : "") + (beyond ? " beyond" : ""));
+      b.type = "button";
+      li.style.animationDelay = (i * 25) + "ms";
+      var top = el("div", "top");
+      add(top, el("span", "idx", (i < 9 ? "0" : "") + (i + 1)), el("span", "st", SHORT[s.status]));
+      add(b, top, el("span", "stage", s.stage.name));
+      var step = el("span", "step");
+      if (s.step) { add(step, s.step.t.name + " ", el("code", "", s.step.t.id)); }
+      else { step.textContent = "No technique"; }
+      add(b, step);
+      var bar = el("span", "bar");
+      var assessed = s.counts.facilitated + s.counts.partial + s.counts.hindered;
+      var i2 = el("i"); i2.style.width = (s.share === null ? 0 : Math.round(s.share * 100)) + "%"; bar.appendChild(i2);
+      b.appendChild(bar);
+      var meta = el("span", "meta");
+      add(meta, el("span", "", assessed ? s.counts.facilitated + " of " + assessed + " facilitated" : plural(s.techniques.length, "technique")));
+      if (s.observed) {
+        var seen = el("span", "seen"); add(seen, svgUse("i-eye"), String(s.observed)); seen.title = plural(s.observed, "alert") + " in the logs";
+        meta.appendChild(seen);
+      }
+      b.appendChild(meta);
+      if (s.stage.shortname === r.blockedAt) {
+        var rib = el("span", "ribbon"); add(rib, svgUse("i-shield"), "Blocked here"); b.appendChild(rib);
+        beyond = true;
+      }
+      b.setAttribute("aria-label", (i + 1) + ". " + s.stage.name + ": " + LABELS[s.status] + (s.step ? ", easiest technique " + s.step.t.name : ""));
+      b.addEventListener("click", function () { openStage(s); });
+      li.appendChild(b);
+      list.appendChild(li);
+    });
+  }
+
+  function mitigationChip(id, lv) {
+    var m = DATA.mitigations[id] || { name: id, url: "" };
+    var c = link(m.url, "", "chip" + (id in lv.mitigation ? "" : " gap"));
+    add(c, el("b", "", id), m.name);
+    if (id in lv.mitigation) { add(c, el("span", "lv", " · " + fmtLevel(lv.mitigation[id]))); }
+    else { c.title = "No control of the questionnaire implements it"; }
+    return c;
+  }
+
+  function techniqueBlock(e, lv) {
+    var box = el("div", "tech");
+    var head = el("div", "tech-head");
+    add(head, el("span", "nm", e.t.name), link(e.t.url, e.t.id));
+    add(box, head);
+    var line = el("div", "chips");
+    add(line, pill(e.status), el("span", "chip", "Best level " + fmtLevel(e.level)), el("span", "chip", e.t.prevalence));
+    if (e.observed) { var o = el("span", "chip gap"); add(o, svgUse("i-eye"), plural(e.observed, "alert") + " in the logs"); line.appendChild(o); }
+    box.appendChild(line);
+    if (e.t.summary) { box.appendChild(el("p", "why", e.t.summary)); }
+    if (e.t.mitigations.length) {
+      var ms = el("div", "chips");
+      e.t.mitigations.forEach(function (m) { ms.appendChild(mitigationChip(m, lv)); });
+      box.appendChild(ms);
+    } else {
+      box.appendChild(el("p", "why", "MITRE lists no preventive mitigation for this technique: detection and response are the defenses."));
+    }
+    return box;
+  }
+
+  var lastFocus = null;
+  function openDrawer(eyebrow, title, body) {
+    lastFocus = document.activeElement;
+    $("drawer-eyebrow").textContent = eyebrow; $("drawer-title").textContent = title;
+    var b = $("drawer-body"); b.textContent = ""; b.appendChild(body); b.scrollTop = 0;
+    $("drawer").hidden = false; $("scrim").hidden = false;
+    document.body.style.overflow = "hidden";
+    $("drawer-close").focus();
+  }
+  function closeDrawer() {
+    $("drawer").hidden = true; $("scrim").hidden = true; document.body.style.overflow = "";
+    if (lastFocus) { lastFocus.focus(); }
+  }
+
+  function openStage(s) {
+    var lv = levels(state.controls), r = current();
+    var body = el("div");
+    if (s.stage.summary) { body.appendChild(el("p", "", s.stage.summary)); }
+    var stack = el("div", "stack");
+    STATUSES.forEach(function (st) {
+      if (!s.counts[st]) { return; }
+      var i = el("i", "f-" + st); i.style.width = (100 * s.counts[st] / s.techniques.length) + "%"; i.title = s.counts[st] + " " + LABELS[st];
+      stack.appendChild(i);
+    });
+    body.appendChild(stack);
+    var counts = el("div", "chips");
+    STATUSES.forEach(function (st) { if (s.counts[st]) { counts.appendChild(pill(st, s.counts[st] + " " + LABELS[st].toLowerCase())); } });
+    body.appendChild(counts);
+    s.techniques.forEach(function (e) { body.appendChild(techniqueBlock(e, lv)); });
+    openDrawer(r.fw.label + " · " + s.stage.id, s.stage.name, body);
+  }
+
+  // ---------------------------------------------------------------- questionnaire
+
+  function domainsOf() {
+    var order = [], groups = {};
+    state.controls.forEach(function (c) {
+      var d = c.domain || "Controls";
+      if (!(d in groups)) { groups[d] = []; order.push(d); }
+      groups[d].push(c);
+    });
+    return { order: order, groups: groups };
+  }
+
+  function setMaturity(control, value, quiet) {
+    control.maturity = value;
+    state.dirty = true;
+    var row = document.querySelector('.control[data-id="' + cssEscape(control.id) + '"]');
+    if (row) {
+      var input = row.querySelector('input[value="' + (value === null ? "" : value) + '"]');
+      if (input) { input.checked = true; }
+      var range = row.querySelector('input[type="range"]');
+      if (range) { range.value = value === null ? 0 : value; row.querySelector('input[type="number"]').value = value === null ? "" : value; }
+      row.querySelector(".lvl-name").textContent = levelName(value);
+      if (!quiet) { row.classList.remove("changed"); void row.offsetWidth; row.classList.add("changed"); }
+    }
+    updateDomainCounts();
+    refresh();
+  }
+
+  function cssEscape(s) { return window.CSS && CSS.escape ? CSS.escape(s) : String(s).replace(/["\\]/g, "\\$&"); }
+
+  function levelPicker(c) {
+    var wrap;
+    if (SCALE <= 10) {
+      wrap = el("div", "lvl"); wrap.setAttribute("role", "radiogroup"); wrap.setAttribute("aria-label", "Maturity of " + c.title);
+      var name = "m-" + c.id;
+      var opts = [{ v: null, t: "–", cls: "na", tip: "Not assessed" }];
+      for (var v = 0; v <= SCALE; v++) { opts.push({ v: v, t: String(v), tip: levelName(v) }); }
+      opts.forEach(function (o) {
+        var lab = el("label", o.cls || ""); lab.title = o.tip;
+        var input = el("input"); input.type = "radio"; input.name = name; input.value = o.v === null ? "" : o.v;
+        input.checked = (c.maturity === null || c.maturity === undefined) ? o.v === null : c.maturity === o.v;
+        input.setAttribute("aria-label", o.tip);
+        input.addEventListener("change", function () { setMaturity(c, o.v); });
+        var span = el("span", "", o.t);
+        if (o.v !== null) { span.style.setProperty("--c", "var(--s-" + statusOf(o.v) + ")"); }
+        add(lab, input, span);
+        wrap.appendChild(lab);
+      });
+    } else {
+      wrap = el("div", "range");
+      var range = el("input"); range.type = "range"; range.min = 0; range.max = SCALE; range.step = 1; range.value = c.maturity === null ? 0 : c.maturity;
+      range.setAttribute("aria-label", "Maturity of " + c.title);
+      var num = el("input"); num.type = "number"; num.min = 0; num.max = SCALE; num.value = c.maturity === null ? "" : c.maturity; num.placeholder = "–";
+      num.setAttribute("aria-label", "Maturity of " + c.title + ", number");
+      range.addEventListener("input", function () { setMaturity(c, Number(range.value), true); });
+      num.addEventListener("change", function () { var v = num.value === "" ? null : Math.max(0, Math.min(SCALE, Number(num.value))); setMaturity(c, v); });
+      add(wrap, range, num);
+    }
+    return wrap;
+  }
+
+  function renderQuestionnaire() {
+    var box = $("domains"); box.textContent = "";
+    var d = domainsOf();
+    var select = $("q-domain"); select.length = 1;
+    d.order.forEach(function (name, index) {
+      var opt = el("option", "", name); opt.value = name; select.appendChild(opt);
+      var det = el("details", "domain"); det.setAttribute("data-domain", name);
+      det.open = index < 2 || d.order.length <= 3;
+      var sum = el("summary");
+      var mini = el("span", "mini"); mini.appendChild(el("i"));
+      add(sum, el("span", "", name), el("span", "count"), mini, svgUse("i-chev", "icon chev"));
+      det.appendChild(sum);
+      d.groups[name].forEach(function (c) {
+        var row = el("div", "control"); row.setAttribute("data-id", c.id);
+        var text = el("div", "ctext");
+        var h3 = el("h3"); add(h3, el("span", "cid", c.id), c.title);
+        text.appendChild(h3);
+        if (c.description) { text.appendChild(el("p", "", c.description)); }
+        var chips = el("div", "chips");
+        c.mitigations.forEach(function (m) {
+          var info = DATA.mitigations[m];
+          if (m === c.id && info && info.name === c.title) { return; }
+          var chip = link(info ? info.url : "", "", "chip"); add(chip, el("b", "", m), info ? info.name : "unknown to MITRE data");
+          chips.appendChild(chip);
+        });
+        c.techniques.forEach(function (t) { var chip = el("span", "chip"); add(chip, el("b", "", t)); chips.appendChild(chip); });
+        if (chips.childNodes.length) { text.appendChild(chips); }
+        text.appendChild(el("div", "impact"));
+        var rate = el("div", "rate");
+        add(rate, levelPicker(c), el("div", "lvl-name", levelName(c.maturity)));
+        add(row, text, rate);
+        det.appendChild(row);
+      });
+      box.appendChild(det);
+    });
+    var bulk = $("q-bulk"); bulk.length = 1;
+    for (var v = 0; v <= Math.min(SCALE, 10); v++) { var o = el("option", "", levelName(v)); o.value = v; bulk.appendChild(o); }
+    updateDomainCounts();
+    filterControls();
+  }
+
+  function updateDomainCounts() {
+    document.querySelectorAll(".domain").forEach(function (det) {
+      var name = det.getAttribute("data-domain");
+      var cs = state.controls.filter(function (c) { return (c.domain || "Controls") === name; });
+      var done = cs.filter(function (c) { return c.maturity !== null && c.maturity !== undefined; });
+      var avg = done.length ? done.reduce(function (s, c) { return s + c.maturity; }, 0) / done.length : null;
+      det.querySelector(".count").textContent = done.length + "/" + cs.length + " answered" + (avg === null ? "" : " · average " + (Math.round(avg * 10) / 10));
+      det.querySelector(".mini i").style.width = (cs.length ? 100 * done.length / cs.length : 0) + "%";
+    });
+  }
+
+  function renderImpacts() {
+    var per = {};
+    state.result.frameworks.forEach(function (r) {
+      r.evaluated.forEach(function (e) {
+        e.controls.forEach(function (id) {
+          var p = per[id] || (per[id] = { total: 0, fac: 0 });
+          p.total += 1; if (e.status === "facilitated") { p.fac += 1; }
+        });
+      });
+    });
+    document.querySelectorAll(".control").forEach(function (row) {
+      var p = per[row.getAttribute("data-id")] || { total: 0, fac: 0 };
+      var box = row.querySelector(".impact"); box.textContent = "";
+      add(box, "Counters " + plural(p.total, "technique"));
+      if (p.fac) { add(box, " · ", el("b", "", p.fac + " facilitated now")); }
+    });
+  }
+
+  function filterControls() {
+    var q = $("q-search").value.trim().toLowerCase(), domain = $("q-domain").value, open = $("q-open").checked, shown = 0;
+    document.querySelectorAll(".domain").forEach(function (det) {
+      var name = det.getAttribute("data-domain"), visible = 0;
+      det.querySelectorAll(".control").forEach(function (row) {
+        var c = byControlId(row.getAttribute("data-id"));
+        var hay = (c.id + " " + c.title + " " + c.description + " " + c.mitigations.join(" ") + " " + c.techniques.join(" ") + " " + c.notes).toLowerCase();
+        var ok = (!q || hay.indexOf(q) >= 0) && (!domain || name === domain) && (!open || c.maturity === null || c.maturity === undefined);
+        row.hidden = !ok; if (ok) { visible += 1; }
+      });
+      det.hidden = visible === 0;
+      if ((q || open || domain) && visible) { det.open = true; }
+      shown += visible;
+    });
+    $("q-empty").hidden = shown > 0;
+  }
+
+  function byControlId(id) { return state.controls.filter(function (c) { return c.id === id; })[0]; }
+
+  // ------------------------------------------------------------------ priorities
+
+  function renderPriorities() {
+    var list = $("priority-list"), empty = $("p-empty"), r = state.result;
+    $("target-level").textContent = levelName(targetLevel());
+    list.textContent = "";
+    if (!r.priorities.length) {
+      empty.hidden = false;
+      empty.textContent = answeredCount() ? "No assessed control below level " + targetLevel() + " leaves a technique facilitated." : "Priorities appear once controls are rated.";
+      return;
+    }
+    empty.hidden = true;
+    r.priorities.forEach(function (p, i) {
+      var li = el("li", "prio"); li.style.animationDelay = (i * 30) + "ms";
+      var body = el("div");
+      var h3 = el("h3"); add(h3, el("span", "cid", p.control.id), p.control.title);
+      var facts = el("div", "facts");
+      var a = el("span"); add(a, "Stops ", el("b", "", plural(p.relieved.length, "technique")), " from being facilitated"); facts.appendChild(a);
+      if (p.onPath) { var b = el("span"); add(b, el("b", "", String(p.onPath)), " on the easiest path"); facts.appendChild(b); }
+      if (p.observed) { var c = el("span"); add(c, el("b", "", String(p.observed)), " seen in the logs"); facts.appendChild(c); }
+      if (p.control.domain) { facts.appendChild(el("span", "muted", p.control.domain)); }
+      add(body, h3, facts);
+      var right = el("div");
+      var lift = el("span", "lift"); add(lift, el("span", "from", fmtLevel(p.control.maturity)), " → ", el("span", "to", String(p.target)));
+      var apply = el("button", "btn btn-sm", "Apply"); apply.type = "button"; apply.title = "Set this control to level " + p.target + " to see the effect";
+      apply.style.marginLeft = "12px";
+      apply.addEventListener("click", function () {
+        var before = p.control.maturity;
+        setMaturity(p.control, p.target);
+        toast(p.control.title + " set to level " + p.target + ".", { label: "Undo", run: function () { setMaturity(p.control, before); } });
+      });
+      add(right, lift, apply);
+      var det = el("details"); add(det, el("summary", "", "Which techniques"));
+      var chips = el("div", "chips");
+      p.relieved.forEach(function (id) {
+        var e = r.byId[id]; var ch = link(e.t.url, "", "chip"); add(ch, el("b", "", id), e.t.name); chips.appendChild(ch);
+      });
+      det.appendChild(chips);
+      add(li, el("span", "rank", String(i + 1)), body, right, det);
+      list.appendChild(li);
+    });
+  }
+
+  // ------------------------------------------------------------------ observed
+
+  function renderObserved() {
+    var table = $("observed-table");
+    if (!table) { return; }
+    var tbody = table.querySelector("tbody"); tbody.textContent = "";
+    var rows = Object.keys(state.result.byId).map(function (k) { return state.result.byId[k]; })
+      .filter(function (e) { return e.observed; })
+      .sort(function (a, b) { return STATUSES.indexOf(a.status) - STATUSES.indexOf(b.status) || b.observed - a.observed; });
+    rows.forEach(function (e) {
+      var tr = el("tr");
+      var td = el("td"); add(td, el("div", "nm", e.t.name), link(e.t.url, e.t.id, "id"));
+      var ctrls = el("td"); ctrls.textContent = e.controls.length ? e.controls.map(function (id) { var c = byControlId(id); return id + " (" + fmtLevel(c.maturity) + ")"; }).join(", ") : "No control maps to it";
+      var st = el("td"); st.appendChild(pill(e.status));
+      add(tr, td, el("td", "", String(e.observed)), st, ctrls);
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ------------------------------------------------------------------ techniques table
+
+  function fillStageFilter() {
+    var sel = $("t-stage"), keep = sel.value; sel.length = 1;
+    FW[state.fw].stages.forEach(function (s) { var o = el("option", "", s.name); o.value = s.shortname; sel.appendChild(o); });
+    sel.value = keep;
+    if (sel.value !== keep) { sel.value = ""; }
+  }
+
+  function renderTechniques() {
+    var r = current(), q = $("t-search").value.trim().toLowerCase(), st = $("t-status").value, stage = $("t-stage").value;
+    var lv = levels(state.controls);
+    var rows = r.evaluated.slice().sort(rank).filter(function (e) {
+      return (!st || e.status === st) && (!stage || e.t.stages.indexOf(stage) >= 0) &&
+        (!q || (e.t.id + " " + e.t.name).toLowerCase().indexOf(q) >= 0);
+    });
+    var tbody = $("tech-table").querySelector("tbody"); tbody.textContent = "";
+    rows.slice(0, state.techLimit).forEach(function (e) {
+      var tr = el("tr");
+      var a = el("td"); add(a, el("div", "nm", e.t.name), link(e.t.url, e.t.id, "id"));
+      var stages = el("td", "", e.t.stages.map(function (s) { var x = FW[state.fw].stages.filter(function (y) { return y.shortname === s; })[0]; return x ? x.name : s; }).join(", "));
+      var stat = el("td"); stat.appendChild(pill(e.status));
+      var mits = el("td"); var chips = el("div", "chips"); chips.style.marginTop = "0";
+      e.t.mitigations.slice(0, 6).forEach(function (m) { chips.appendChild(mitigationChip(m, lv)); });
+      if (e.t.mitigations.length > 6) { chips.appendChild(el("span", "chip", "+" + (e.t.mitigations.length - 6))); }
+      if (!e.t.mitigations.length) { chips.appendChild(el("span", "muted", "None preventive")); }
+      mits.appendChild(chips);
+      add(tr, a, stages, stat, el("td", "", fmtLevel(e.level)), mits, el("td", "muted", e.t.prevalence));
+      tbody.appendChild(tr);
+    });
+    var more = $("t-more"); more.textContent = "";
+    if (rows.length > state.techLimit) {
+      add(more, "Showing " + state.techLimit + " of " + rows.length + ". ");
+      var b = el("button", "btn btn-sm", "Show all"); b.type = "button";
+      b.addEventListener("click", function () { state.techLimit = 100000; renderTechniques(); });
+      more.appendChild(b);
+    } else { more.textContent = plural(rows.length, "technique"); }
+  }
+
+  function fillStatusFilter() {
+    var sel = $("t-status");
+    STATUSES.forEach(function (s) { var o = el("option", "", LABELS[s]); o.value = s; sel.appendChild(o); });
+  }
+
+  // ------------------------------------------------------------------ import
+
+  function normalize(name) {
+    var t = String(name).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    t = t.replace(/[_\-/()[\]:]+/g, " ");
+    return t.split(/\s+/).filter(Boolean).join(" ");
+  }
+
+  function columnsOf(header) {
+    var keys = header.map(normalize), found = {}, used = {};
+    [true, false].forEach(function (exact) {
+      keys.forEach(function (key, index) {
+        if (!key || used[index]) { return; }
+        var names = Object.keys(META.columns);
+        for (var i = 0; i < names.length; i++) {
+          var col = names[i]; if (col in found) { continue; }
+          var aliases = META.columns[col];
+          var hit = exact ? aliases.indexOf(key) >= 0 : aliases.some(function (a) { return key.indexOf(a + " ") === 0; });
+          if (hit) { found[col] = index; used[index] = true; break; }
+        }
+      });
+    });
+    return found;
+  }
+
+  function idsIn(pattern, text) {
+    var out = [], m; pattern.lastIndex = 0;
+    while ((m = pattern.exec(text || "")) !== null) { var v = m[1].toUpperCase(); if (out.indexOf(v) < 0) { out.push(v); } }
+    return out;
+  }
+
+  function parseNumber(text) {
+    var v = String(text === undefined || text === null ? "" : text).trim().replace(",", ".");
+    if (NOT_ASSESSED.indexOf(v.toLowerCase()) >= 0) { return null; }
+    var m = /^(-?\d+(?:\.\d+)?)\s*(?:\/\s*\d+)?$/.exec(v);
+    if (!m) { return undefined; }
+    var n = parseFloat(m[1]);
+    return Number.isInteger(n) ? n : Math.round(n * 100) / 100;
+  }
+
+  function fromRows(rows) {
+    rows = rows.map(function (r) { return r.map(function (c) { return String(c === undefined || c === null ? "" : c).trim(); }); });
+    var best = { index: 0, cols: {} };
+    for (var i = 0; i < Math.min(rows.length, 30); i++) {
+      var cols = columnsOf(rows[i]);
+      if (Object.keys(cols).length > Object.keys(best.cols).length) { best = { index: i, cols: cols }; }
+      if (("maturity" in cols) && (("mitigations" in cols) || ("techniques" in cols))) { best = { index: i, cols: cols }; break; }
+    }
+    var c = best.cols;
+    if (!("id" in c) && !("title" in c)) { throw new Error("no column names a control (expected a column such as \"control\" or \"id\")"); }
+    var controls = [], warnings = [], ids = {};
+    rows.slice(best.index + 1).forEach(function (row, k) {
+      if (!row.some(Boolean)) { return; }
+      var get = function (key) { return key in c ? (row[c[key]] || "") : ""; };
+      var id = get("id") || "C" + (controls.length + 1);
+      if (ids[id]) { id = id + "-" + (best.index + k + 2); } ids[id] = true;
+      var raw = get("maturity"), m = parseNumber(raw);
+      if (m === undefined) { warnings.push("row " + (best.index + k + 2) + ": maturity \"" + raw + "\" is not a number"); m = null; }
+      if (m !== null && (m < 0 || m > SCALE)) { throw new Error("maturity " + m + " is outside 0-" + SCALE + "; for another scale, run vigie assess --scale"); }
+      controls.push({
+        id: id, title: get("title") || id, domain: get("domain"), description: get("description"),
+        mitigations: idsIn(MITIGATION_ID, get("mitigations")), techniques: idsIn(TECHNIQUE_ID, get("techniques")),
+        maturity: m, notes: get("notes")
+      });
+    });
+    if (!controls.length) { throw new Error("no control found"); }
+    return { controls: controls, warnings: warnings, hasMapping: ("mitigations" in c) || ("techniques" in c) };
+  }
+
+  function parseCsv(text) {
+    var first = text.split(/\r?\n/, 1)[0] || "";
+    var counts = { ",": (first.match(/,/g) || []).length, ";": (first.match(/;/g) || []).length, "\t": (first.match(/\t/g) || []).length };
+    var sep = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; })[0];
+    var rows = [], row = [], field = "", quoted = false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (quoted) {
+        if (ch === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else { quoted = false; } }
+        else { field += ch; }
+      } else if (ch === '"') { quoted = true; }
+      else if (ch === sep) { row.push(field); field = ""; }
+      else if (ch === "\n" || ch === "\r") {
+        if (ch === "\r" && text[i + 1] === "\n") { i++; }
+        row.push(field); rows.push(row); row = []; field = "";
+      } else { field += ch; }
+    }
+    if (field || row.length) { row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  function jsonRows(data) {
+    var items = Array.isArray(data) ? data : (data && data.controls);
+    if (!Array.isArray(items)) { throw new Error("expected a list of controls, or an object with a \"controls\" list"); }
+    var keys = [];
+    items.forEach(function (it) { Object.keys(it).forEach(function (k) { if (keys.indexOf(k) < 0) { keys.push(k); } }); });
+    return [keys].concat(items.map(function (it) {
+      return keys.map(function (k) { var v = it[k]; return Array.isArray(v) ? v.join(" ") : (v === null || v === undefined ? "" : String(v)); });
+    }));
+  }
+
+  function readXlsx(buffer) {
+    var bytes = new Uint8Array(buffer), view = new DataView(buffer), eocd = -1;
+    for (var i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--) {
+      if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) { return Promise.reject(new Error("not an Excel .xlsx file")); }
+    var count = view.getUint16(eocd + 10, true), p = view.getUint32(eocd + 16, true), files = {};
+    var dec = new TextDecoder();
+    for (var n = 0; n < count && view.getUint32(p, true) === 0x02014b50; n++) {
+      var nameLen = view.getUint16(p + 28, true), extra = view.getUint16(p + 30, true), comment = view.getUint16(p + 32, true);
+      files[dec.decode(bytes.subarray(p + 46, p + 46 + nameLen))] = {
+        method: view.getUint16(p + 10, true), size: view.getUint32(p + 20, true), local: view.getUint32(p + 42, true)
+      };
+      p += 46 + nameLen + extra + comment;
+    }
+    function read(name) {
+      var f = files[name];
+      if (!f) { return Promise.resolve(null); }
+      var start = f.local + 30 + view.getUint16(f.local + 26, true) + view.getUint16(f.local + 28, true);
+      var data = bytes.subarray(start, start + f.size);
+      if (f.method === 0) { return Promise.resolve(dec.decode(data)); }
+      if (f.method !== 8 || typeof DecompressionStream === "undefined") { return Promise.reject(new Error("this browser cannot read .xlsx files: save the sheet as CSV")); }
+      var stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      return new Response(stream).arrayBuffer().then(function (b) { return dec.decode(b); });
+    }
+    function xml(text) { return new DOMParser().parseFromString(text, "application/xml"); }
+    var sheetPath = "xl/worksheets/sheet1.xml", shared = [];
+    return Promise.all([read("xl/workbook.xml"), read("xl/_rels/workbook.xml.rels"), read("xl/sharedStrings.xml")]).then(function (parts) {
+      if (parts[0] && parts[1]) {
+        var sheet = xml(parts[0]).getElementsByTagName("sheet")[0];
+        var rid = sheet && (sheet.getAttribute("r:id") || sheet.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id"));
+        Array.prototype.forEach.call(xml(parts[1]).getElementsByTagName("Relationship"), function (rel) {
+          if (rel.getAttribute("Id") === rid) { var t = rel.getAttribute("Target").replace(/^\//, ""); sheetPath = t.indexOf("xl/") === 0 ? t : "xl/" + t; }
+        });
+      }
+      if (parts[2]) {
+        Array.prototype.forEach.call(xml(parts[2]).getElementsByTagName("si"), function (si) {
+          shared.push(Array.prototype.map.call(si.getElementsByTagName("t"), function (t) { return t.textContent; }).join(""));
+        });
+      }
+      return read(sheetPath);
+    }).then(function (text) {
+      if (!text) { throw new Error("the workbook has no readable sheet"); }
+      var rows = [];
+      Array.prototype.forEach.call(xml(text).getElementsByTagName("row"), function (row) {
+        var cells = {}, max = -1;
+        Array.prototype.forEach.call(row.getElementsByTagName("c"), function (cell, k) {
+          var ref = (cell.getAttribute("r") || "").replace(/\d+/g, ""), col = k;
+          if (ref) { col = 0; for (var j = 0; j < ref.length; j++) { col = col * 26 + (ref.charCodeAt(j) - 64); } col -= 1; }
+          var type = cell.getAttribute("t") || "", v = cell.getElementsByTagName("v")[0], value = "";
+          if (type === "s" && v) { value = shared[parseInt(v.textContent, 10)] || ""; }
+          else if (type === "inlineStr") { value = Array.prototype.map.call(cell.getElementsByTagName("t"), function (t) { return t.textContent; }).join(""); }
+          else if (v) { value = v.textContent; if (/^-?\d+\.0+$/.test(value)) { value = value.split(".")[0]; } }
+          cells[col] = value; max = Math.max(max, col);
+        });
+        if (max >= 0) { var r = []; for (var x = 0; x <= max; x++) { r.push(cells[x] || ""); } rows.push(r); }
+      });
+      return rows;
+    });
+  }
+
+  function importFile(file) {
+    var name = file.name.toLowerCase();
+    if (file.size > 20 * 1024 * 1024) { toast("The file is larger than 20 MB."); return; }
+    var job;
+    if (/\.xls[xm]$/.test(name)) { job = file.arrayBuffer().then(readXlsx); }
+    else if (/\.json$/.test(name)) { job = file.text().then(function (t) { return jsonRows(JSON.parse(t)); }); }
+    else { job = file.text().then(parseCsv); }
+    job.then(function (rows) {
+      var parsed = fromRows(rows);
+      var known = {}; state.controls.forEach(function (c) { known[c.id] = c; });
+      var matching = parsed.controls.filter(function (c) { return c.id in known; });
+      var previous = state.controls.map(function (c) { return Object.assign({}, c); }), previousTitle = state.title;
+      var message;
+      if (matching.length && matching.length >= parsed.controls.length / 2) {
+        matching.forEach(function (c) { known[c.id].maturity = c.maturity; if (c.notes) { known[c.id].notes = c.notes; } });
+        message = "Answers loaded for " + plural(matching.length, "control") + ".";
+      } else {
+        if (!parsed.hasMapping) { throw new Error("no column maps the controls to MITRE (a \"mitigations\" column such as M1032, or \"techniques\")"); }
+        state.controls = parsed.controls;
+        state.title = file.name.replace(/\.[^.]+$/, "");
+        message = "Questionnaire loaded: " + plural(parsed.controls.length, "control") + ".";
+      }
+      if (parsed.warnings.length) { message += " " + plural(parsed.warnings.length, "warning") + ": " + parsed.warnings[0]; }
+      state.dirty = true;
+      renderQuestionnaire();
+      renderResults();
+      toast(message, { label: "Undo", run: function () { state.controls = previous; state.title = previousTitle; renderQuestionnaire(); renderResults(); } });
+    }).catch(function (err) { toast("Could not read " + file.name + ": " + err.message); });
+  }
+
+  // ------------------------------------------------------------------ export
+
+  function download(name, type, text) {
+    var blob = new Blob([text], { type: type });
+    var a = el("a"); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    state.dirty = false;
+  }
+  function csvCell(v) { v = v === null || v === undefined ? "" : String(v); return /[",\n\r;]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  function exportCsv() {
+    var rows = [["id", "domain", "control", "description", "mitigations", "techniques", "maturity", "notes"]];
+    state.controls.forEach(function (c) {
+      rows.push([c.id, c.domain, c.title, c.description, c.mitigations.join(" "), c.techniques.join(" "), c.maturity === null || c.maturity === undefined ? "" : c.maturity, c.notes]);
+    });
+    download(fileStem() + ".csv", "text/csv;charset=utf-8", "\ufeff" + rows.map(function (r) { return r.map(csvCell).join(","); }).join("\n") + "\n");
+  }
+  function resultsJson() {
+    var r = state.result;
+    return {
+      title: state.title, scale: SCALE, generated_by: "Vigie " + META.vigie_version, exported_at: new Date().toISOString(),
+      controls: state.controls,
+      frameworks: r.frameworks.map(function (f) {
+        return {
+          key: f.fw.key, name: f.fw.label, version: f.fw.version, exposure_index: f.index, counts: f.counts,
+          blocked_at: f.blockedAt,
+          path: f.path.map(function (s) { return { stage: s.stage.name, technique: s.step ? s.step.t.id : null, name: s.step ? s.step.t.name : null, status: s.status }; })
+        };
+      }),
+      priorities: r.priorities.map(function (p) {
+        return { control: p.control.id, title: p.control.title, current: p.control.maturity, target: p.target, relieved: p.relieved, on_path: p.onPath, observed: p.observed };
+      })
+    };
+  }
+  function exportMarkdown() {
+    var r = state.result, lines = ["# " + (state.title || "Maturity assessment"), ""];
+    lines.push(answeredCount() + " of " + state.controls.length + " controls answered, on a 0-" + SCALE + " scale. Vigie " + META.vigie_version + ".", "");
+    r.frameworks.forEach(function (f) {
+      lines.push("## " + f.fw.label + " " + f.fw.version + " (" + f.fw.scope + ")", "");
+      lines.push("Exposure index: " + (f.index === null ? "not assessed" : f.index + "/100") + ". " +
+        STATUSES.map(function (s) { return LABELS[s] + ": " + f.counts[s]; }).join(", ") + ".", "");
+      lines.push(f.blockedAt ? "The easiest path is blocked at " + f.stages.filter(function (s) { return s.stage.shortname === f.blockedAt; })[0].stage.name + "." : "Nothing blocks the easiest path.", "");
+      lines.push("| Stage | Easiest technique | Status |", "|---|---|---|");
+      f.path.forEach(function (s) { lines.push("| " + s.stage.name + " | " + (s.step ? s.step.t.id + " " + s.step.t.name : "-") + " | " + LABELS[s.status] + " |"); });
+      lines.push("");
+    });
+    if (r.priorities.length) {
+      lines.push("## What to raise first", "");
+      r.priorities.forEach(function (p, i) {
+        lines.push((i + 1) + ". **" + p.control.id + " " + p.control.title + "**: " + fmtLevel(p.control.maturity) + " → " + p.target + ", stops " + plural(p.relieved.length, "technique") + " from being facilitated" + (p.onPath ? ", " + p.onPath + " on the easiest path" : "") + (p.observed ? ", " + p.observed + " seen in the logs" : "") + ".");
+      });
+      lines.push("");
+    }
+    download(fileStem() + ".md", "text/markdown;charset=utf-8", lines.join("\n"));
+  }
+  function fileStem() { return (state.title || "assessment").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").toLowerCase() || "assessment"; }
+
+  // ------------------------------------------------------------------ wiring
+
+  function init() {
+    renderLegend();
+    fillStatusFilter();
+    renderTabs();
+    fillStageFilter();
+    renderQuestionnaire();
+    renderResults();
+    var v = $("versions");
+    v.textContent = DATA.frameworks.map(function (f) { return f.label + " " + f.version; }).join(", ") + ". Scale 0-" + SCALE + ": " +
+      META.levels.slice(0, Math.min(META.levels.length, 11)).map(function (n, i) { return i + " " + n; }).join(", ") + ".";
+    if (DATA.warnings && DATA.warnings.length) {
+      var w = $("warnings"); w.hidden = false;
+      w.textContent = plural(DATA.warnings.length, "warning") + " while reading the questionnaire: " + DATA.warnings.slice(0, 3).join("; ") + (DATA.warnings.length > 3 ? "…" : "");
+    }
+
+    $("q-search").addEventListener("input", filterControls);
+    $("q-domain").addEventListener("change", filterControls);
+    $("q-open").addEventListener("change", filterControls);
+    $("q-bulk").addEventListener("change", function () {
+      var value = $("q-bulk").value; if (value === "") { return; }
+      var level = Number(value), changed = [];
+      state.controls.forEach(function (c) { if (c.maturity === null || c.maturity === undefined) { changed.push(c); c.maturity = level; } });
+      $("q-bulk").value = "";
+      renderQuestionnaire(); renderResults(); state.dirty = true;
+      toast(plural(changed.length, "unanswered control") + " set to " + levelName(level) + ".", { label: "Undo", run: function () { changed.forEach(function (c) { c.maturity = null; }); renderQuestionnaire(); renderResults(); } });
+    });
+    ["t-search", "t-status", "t-stage"].forEach(function (id) {
+      $(id).addEventListener(id === "t-search" ? "input" : "change", function () { state.techLimit = 120; renderTechniques(); });
+    });
+    $("import").addEventListener("change", function (e) { var f = e.target.files[0]; if (f) { importFile(f); } e.target.value = ""; });
+    var menuBtn = $("export-btn"), menu = $("export-menu");
+    menuBtn.addEventListener("click", function () { var open = menu.hidden; menu.hidden = !open; menuBtn.setAttribute("aria-expanded", String(open)); });
+    document.addEventListener("click", function (e) { if (!menu.hidden && !menu.contains(e.target) && !menuBtn.contains(e.target)) { menu.hidden = true; menuBtn.setAttribute("aria-expanded", "false"); } });
+    menu.addEventListener("click", function (e) {
+      var kind = e.target.getAttribute("data-export"); if (!kind) { return; }
+      menu.hidden = true; menuBtn.setAttribute("aria-expanded", "false");
+      if (kind === "csv") { exportCsv(); }
+      else if (kind === "json") { download(fileStem() + ".json", "application/json", JSON.stringify(resultsJson(), null, 2)); }
+      else { exportMarkdown(); }
+    });
+    $("print").addEventListener("click", function () { window.print(); });
+    var opened = [];
+    window.addEventListener("beforeprint", function () { opened = []; document.querySelectorAll(".domain:not([open])").forEach(function (d) { opened.push(d); d.open = true; }); });
+    window.addEventListener("afterprint", function () { opened.forEach(function (d) { d.open = false; }); });
+    $("theme").addEventListener("click", function () {
+      var root = document.documentElement;
+      var dark = root.getAttribute("data-theme") === "dark" || (!root.getAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      var next = dark ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("vigie-theme", next); } catch (e) { /* storage unavailable */ }
+    });
+    $("drawer-close").addEventListener("click", closeDrawer);
+    $("scrim").addEventListener("click", closeDrawer);
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("drawer").hidden) { closeDrawer(); } });
+  }
+
+  init();
+})();
+{% endraw %}

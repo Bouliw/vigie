@@ -23,6 +23,8 @@ Generated on 2026-09-28 12:00:00Z by Vigie 0.5.0. Alerts are mapped to MITRE ATT
 
 ## MITRE ATT&CK
 
+The alerts reach 5 tactics; the furthest stage of an attack they reach is Credential Access.
+
 | Tactic | Alerts | Techniques |
 |---|---|---|
 | [Initial Access](https://attack.mitre.org/tactics/TA0001) (TA0001) | 1 | [T1078.003](https://attack.mitre.org/techniques/T1078/003) Valid Accounts: Local Accounts |

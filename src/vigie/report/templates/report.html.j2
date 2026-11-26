@@ -116,13 +116,17 @@ run with <code>--min-level {{ r.hidden_by_level | first }}</code> to include the
 
   {% for strip in view.strips %}
   <div class="coverage">
-    <h2 id="strip-{{ strip.key }}">Where the alerts sit in an attack, by {{ strip.label }} tactic</h2>
-    <p class="hint">Tactics run from the first steps of an attack on the left to its goal on the right. Darker means more alerts.</p>
-    <ul class="strip" style="--cols: {{ strip.cells | length }}" aria-labelledby="strip-{{ strip.key }}">
+    <h2 id="strip-{{ strip.key }}">How far the attack got, by {{ strip.label }} tactic</h2>
+    {% if strip.furthest %}
+    <p class="reach">The alerts reach <b>{{ strip.reached | length }} of the {{ strip.cells | length }} stages</b> of an attack; the furthest is <b>{{ strip.furthest.name }}</b>.{% if strip.story | length > 1 %} In the order they were first seen{% if strip.story[0].first_seen != strip.story[-1].first_seen %}, from {{ strip.story[0].first_seen | ts }} to {{ strip.story[-1].first_seen | ts }}{% else %}, all at {{ strip.story[0].first_seen | ts }}{% endif %}:
+{% for cell in strip.story %}<span class="step">{{ cell.tactic.name }}</span>{% if not loop.last %} <span class="arrow" aria-hidden="true">→</span><span class="visually-hidden">, then</span> {% endif %}{% endfor %}.{% endif %}</p>
+    {% endif %}
+    <p class="hint">The stages run from the first steps of an attack to its goal. Darker means more alerts; the flag marks the furthest stage reached.</p>
+    <ol class="strip chain" style="--cols: {{ strip.cells | length }}" aria-labelledby="strip-{{ strip.key }}">
       {% for cell in strip.cells %}
-      <li>{% if cell.count %}<button type="button" class="cell h{{ cell.heat }}" data-tactic="{{ cell.tactic.id }}" aria-haspopup="dialog" aria-expanded="false"><b>{{ cell.count }}</b> <span>{{ cell.tactic.name }}</span></button>{% else %}<div class="cell"><b>0</b> <span>{{ cell.tactic.name }}</span></div>{% endif %}</li>
+      <li class="{{ 'reached' if cell.count }}{{ ' furthest' if strip.furthest and cell.tactic.id == strip.furthest.id }}">{% if cell.count %}<button type="button" class="cell h{{ cell.heat }}" data-tactic="{{ cell.tactic.id }}" aria-haspopup="dialog" aria-expanded="false"><b>{{ cell.count }}</b> <span>{{ cell.tactic.name }}</span>{% if cell.first_seen %}<small class="when">first {{ cell.first_seen | ts }}</small>{% endif %}</button>{% else %}<div class="cell"><b>0</b> <span>{{ cell.tactic.name }}</span></div>{% endif %}{% if strip.furthest and cell.tactic.id == strip.furthest.id %}<span class="flag">Furthest</span>{% endif %}</li>
       {% endfor %}
-    </ul>
+    </ol>
   </div>
   {% endfor %}
 </section>

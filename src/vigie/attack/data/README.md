@@ -3,7 +3,11 @@
 `enterprise_attack.json` is a reduced copy of the Enterprise ATT&CK STIX
 bundle: for each tactic and technique, only the id, name, tactics, URL and the
 first sentences of the description (at most 320 characters, as plain text) are
-kept, plus the list of revoked technique ids and their replacements.
+kept, plus the list of revoked technique ids and their replacements. For
+`vigie assess`, each technique also lists the mitigations MITRE relates to it
+(`mitigates` relationships) and the number of known groups, campaigns, malware
+and tools that use it or one of its sub-techniques (`uses` relationships), and each mitigation keeps its id,
+name, URL and first sentences.
 
 - Source: https://github.com/mitre-attack/attack-stix-data
   (`enterprise-attack/enterprise-attack-19.2.json`)

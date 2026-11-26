@@ -27,6 +27,8 @@ Generated on {{ r.generated_at | ts }} by Vigie {{ r.vigie_version | md }}. Aler
 ## MITRE ATT&CK
 
 {% if r.tactics %}
+The alerts reach {{ r.tactics | length }} tactic{{ "s" if r.tactics | length != 1 }}; the furthest stage of an attack they reach is {{ r.tactics[-1].tactic.name | md }}.
+
 | Tactic | Alerts | Techniques |
 |---|---|---|
 {% for view in r.tactics %}
@@ -39,6 +41,8 @@ No alert, so no ATT&CK technique observed.
 {% endif %}
 {% if r.atlas_tactics %}
 ## MITRE ATLAS
+
+The alerts reach {{ r.atlas_tactics | length }} tactic{{ "s" if r.atlas_tactics | length != 1 }}; the furthest stage of an attack they reach is {{ r.atlas_tactics[-1].tactic.name | md }}.
 
 | Tactic | Alerts | Techniques |
 |---|---|---|

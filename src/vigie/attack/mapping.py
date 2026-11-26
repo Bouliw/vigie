@@ -91,6 +91,10 @@ class AttackData:
             for technique_id, entry in raw.items()
         }
         self._revoked: dict[str, str] = data["revoked"]
+        # What vigie.assess reads: each technique's mitigations and users, and the
+        # mitigations themselves (absent from extracts made before Vigie 0.6).
+        self.entries: dict[str, dict[str, Any]] = raw
+        self.mitigations: dict[str, dict[str, Any]] = data.get("mitigations", {})
         # One or two sentences of each description, for the HTML report.
         self._summaries: dict[str, str] = {
             item["id"]: item["summary"] for item in data["tactics"] if item.get("summary")
