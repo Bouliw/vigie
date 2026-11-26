@@ -32,7 +32,7 @@ button, input, select { font: inherit; color: inherit; }
   stroke-linecap: round; stroke-linejoin: round; }
 
 /* Masthead */
-.framed .masthead .brand small { display: none; }
+.framed .masthead .brand { visibility: hidden; width: 0; overflow: hidden; margin-right: auto; }
 .masthead { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--surface) 88%, transparent);
   backdrop-filter: saturate(1.6) blur(12px); -webkit-backdrop-filter: saturate(1.6) blur(12px);
   border-bottom: 1px solid var(--line); }

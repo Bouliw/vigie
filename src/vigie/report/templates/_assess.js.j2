@@ -781,7 +781,7 @@
 
   function normalize(name) {
     var t = String(name).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    t = t.replace(/[_\-/()[\]:]+/g, " ");
+    t = t.replace(/[_\-/()[\]:.'\u2019]+/g, " ");
     return t.split(/\s+/).filter(Boolean).join(" ");
   }
 

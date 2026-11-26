@@ -437,7 +437,7 @@ def _columns(header: list[str]) -> dict[str, int]:
 
 def _normalize(name: str) -> str:
     text = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
-    text = re.sub(r"[_\-/()\[\]:]+", " ", text.lower())
+    text = re.sub(r"[_\-/()\[\]:.'\u2019]+", " ", text.lower())
     return " ".join(text.split())
 
 

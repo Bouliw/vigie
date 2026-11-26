@@ -103,6 +103,7 @@ class KnowledgeBase:
 
 def parent_id(technique_id: str) -> str:
     """``T1059`` for ``T1059.001``, ``AML.T0051`` for ``AML.T0051.001``."""
+    technique_id = technique_id.upper()
     if technique_id.startswith("AML."):
         parts = technique_id.split(".")
         return ".".join(parts[:2])

@@ -47,6 +47,9 @@ from jinja2 import ChoiceLoader, Environment, PackageLoader, StrictUndefined
 
 from vigie import __version__
 from vigie.analysis import analyze
+from vigie.assess import questionnaire as questionnaires
+from vigie.assess.engine import assess, observed_techniques
+from vigie.assess.render import render_html as render_assessment
 from vigie.atlas import agent, default_atlas_data
 from vigie.atlas.context import technique_context
 from vigie.attack import default_attack_data
@@ -147,6 +150,9 @@ class Analysis:
             target.write_text(render_html(report), encoding="utf-8", errors="backslashreplace")
             # What a question asked from the report is answered from (see _ask).
             (folder / "agent.json").write_text(json.dumps(agent_facts(report)), encoding="utf-8")
+            # The techniques of its alerts, for an assessment crossed with them (_assessment).
+            observed = observed_techniques(report.alerts)
+            (folder / "observed.json").write_text(json.dumps(observed), encoding="utf-8")
             entry = {
                 "id": self.id,
                 "label": source["label"],
@@ -558,7 +564,14 @@ class Handler(BaseHTTPRequestHandler):
             if analysis is None:
                 raise HTTPError(HTTPStatus.NOT_FOUND, "unknown analysis")
             self._stream(analysis.channel)
+        elif method == "GET" and parts == ["assess", "assessment.html"]:
+            self._send(self._assessment(None), "text/html; charset=utf-8", report=True)
         elif method == "GET" and len(parts) == 3 and parts[0] == "reports":
+            if parts[2] == "assessment.html":
+                report = self._report_file(parts[1])
+                body = self._assessment(report.with_name("observed.json"))
+                self._send(body, "text/html; charset=utf-8", report=True)
+                return
             if parts[2] != "report.html":
                 raise HTTPError(HTTPStatus.NOT_FOUND, "not found")
             self._send_file(self._report_file(parts[1]))
@@ -812,6 +825,23 @@ class Handler(BaseHTTPRequestHandler):
             "atlas_version": atlas.version,
             "citations": [vars(citation) for citation in answer.citations],
         }
+
+    def _assessment(self, observed_file: Path | None) -> bytes:
+        """The assessment page on the generic questionnaire, crossed with a report's alerts.
+
+        Answers are given in the page and stay there: the page imports and exports them
+        itself, so nothing about the assessment is stored by the app.
+        """
+        observed: dict[str, int] = {}
+        if observed_file is not None:
+            if not observed_file.is_file():
+                raise HTTPError(
+                    HTTPStatus.NOT_FOUND, "this report was made before Vigie 0.6: analyze again"
+                )
+            data = json.loads(observed_file.read_text(encoding="utf-8"))
+            observed = {str(k): int(v) for k, v in data.items()}
+        questionnaire = questionnaires.generic()
+        return render_assessment(assess(questionnaire, observed=observed)).encode("utf-8")
 
     def _report_file(self, report_id: str) -> Path:
         if not REPORT_ID.match(report_id) or self.app.recent.get(report_id) is None:
