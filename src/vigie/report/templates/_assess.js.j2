@@ -369,6 +369,7 @@
 
   function renderKpis() {
     var box = $("kpis"), r = current();
+    $("kpi-caption").textContent = "Techniques of " + r.fw.label + " " + r.fw.version + " (" + r.fw.scope + "), by status: click one to list them";
     if (!box.childNodes.length) {
       STATUSES.forEach(function (s) {
         var k = el("button", "kpi f-" + s); k.type = "button"; k.setAttribute("data-status", s);
