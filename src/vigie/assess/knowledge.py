@@ -164,10 +164,10 @@ def _attack_framework(attack: AttackData) -> Framework:
                 mitigations=preventive,
                 weight=round(1 + math.log2(1 + users), 3),
                 prevalence=(
-                    f"used by {users} known group{'s' if users != 1 else ''}, campaign"
-                    f"{'s' if users != 1 else ''} or piece{'s' if users != 1 else ''} of software"
+                    f"Used by {users} known group{'s' if users != 1 else ''},"
+                    f" campaign{'s' if users != 1 else ''} or software"
                     if users
-                    else "no known use recorded by MITRE"
+                    else "No known use recorded by MITRE"
                 ),
                 preventable=bool(preventive),
             )

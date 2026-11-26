@@ -44,7 +44,7 @@ def test_a_technique_carries_the_mitigations_of_its_sub_techniques():
     brute_force = kb.technique("T1110.003")  # password spraying gives its parent
     assert brute_force.id == "T1110"
     assert "M1032" in brute_force.mitigations
-    assert brute_force.weight > 1 and "used by" in brute_force.prevalence
+    assert brute_force.weight > 1 and "Used by" in brute_force.prevalence
     injection = kb.technique("AML.T0051.001")
     assert injection.id == "AML.T0051" and "AML.M0020" in injection.mitigations
 
@@ -397,7 +397,7 @@ HARNESS = """
 const fs = require("fs");
 const html = fs.readFileSync(process.argv[2], "utf8");
 const data = html.split('id="vigie-data">')[1].split("</script>")[0];
-const script = html.split("<script>\\n").pop().split("</script>")[0];
+const script = html.split(/<script>\\r?\\n/).pop().split("</script>")[0];
 const window = { __vigieAssessTest: function (api) {
   const r = api.compute(api.DATA.controls);
   const out = {
@@ -426,7 +426,7 @@ def test_the_page_and_python_agree(tmp_path, seed):
     observed = {"T1110.001": 2, "T1078": 1, "AML.T0051.001": 1, "T1059.001": 4}
     result = assess(questionnaire, observed=observed)
     page = tmp_path / "page.html"
-    page.write_text(render_html(result), encoding="utf-8")
+    page.write_text(render_html(result), encoding="utf-8", newline="\n")
     harness = tmp_path / "harness.js"
     harness.write_text(HARNESS, encoding="utf-8")
     out = subprocess.run(

@@ -321,7 +321,8 @@
     }
     var r = current();
     var parts = [];
-    parts.push("Of the " + plural(assessed, "technique") + " controls can prevent that were assessed, " + fac + " " + (fac === 1 ? "is" : "are") + " facilitated.");
+    var scope = all.length > 1 ? "Across " + all.map(function (x) { return x.fw.label; }).join(" and ") + ", " : "";
+    parts.push(scope + fac + " of the " + plural(assessed, "preventable technique") + " assessed " + (fac === 1 ? "is" : "are") + " facilitated.");
     if (r.assessed) {
       if (r.blockedAt) {
         parts.push(" In " + r.fw.label + ", the easiest path is blocked at " + r.fw.stages.filter(function (s) { return s.shortname === r.blockedAt; })[0].name + ".");
@@ -459,7 +460,22 @@
       li.appendChild(b);
       list.appendChild(li);
     });
+    markRowEnds(list);
   }
+
+  // The arrow after the last stage of a row would point past the edge: hide it.
+  function markRowEnds(list) {
+    var items = list.children;
+    for (var i = 0; i < items.length; i++) {
+      var next = items[i + 1];
+      items[i].classList.toggle("row-end", !!next && next.offsetTop !== items[i].offsetTop);
+    }
+  }
+  var rowFrame = 0;
+  window.addEventListener("resize", function () {
+    cancelAnimationFrame(rowFrame);
+    rowFrame = requestAnimationFrame(function () { markRowEnds($("chain-list")); });
+  });
 
   function mitigationChip(id, lv) {
     var m = DATA.mitigations[id] || { name: id, url: "" };

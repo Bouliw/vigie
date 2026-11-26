@@ -1,6 +1,6 @@
 # Vigie report
 
-Generated on 2026-11-26 14:44:47Z by Vigie 0.6.0. Alerts are mapped to MITRE ATT&CK 19.2 and MITRE ATLAS 2026.10, and to the OWASP Top 10 for LLM Applications 2025 and the OWASP Top 10 for Agentic Applications 2026. All times are UTC.
+Generated on 2026-11-26 15:09:01Z by Vigie 0.6.0. Alerts are mapped to MITRE ATT&CK 19.2 and MITRE ATLAS 2026.10, and to the OWASP Top 10 for LLM Applications 2025 and the OWASP Top 10 for Agentic Applications 2026. All times are UTC.
 
 ## Summary
 

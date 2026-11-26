@@ -1,6 +1,6 @@
 # Vigie report
 
-Generated on 2026-11-26 14:44:46Z by Vigie 0.6.0. Alerts are mapped to MITRE ATT&CK 19.2. All times are UTC.
+Generated on 2026-11-26 15:09:01Z by Vigie 0.6.0. Alerts are mapped to MITRE ATT&CK 19.2. All times are UTC.
 
 ## Summary
 

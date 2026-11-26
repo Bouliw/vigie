@@ -1,6 +1,6 @@
 # Sample organization (demo)
 
-86 of 86 controls answered, on a 0-5 scale. Made with Vigie 0.6.0 on 2026-11-26 14:46 UTC.
+86 of 86 controls answered, on a 0-5 scale. Made with Vigie 0.6.0 on 2026-11-26 15:09 UTC.
 
 ## MITRE ATT&CK 19.2 (Enterprise)
 

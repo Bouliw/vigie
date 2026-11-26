@@ -182,7 +182,9 @@ a.tile:hover { border-color: var(--line-strong); box-shadow: var(--shadow-lift);
 .strip.chain li:not(:last-child)::after { content: ""; position: absolute; right: -12px; top: 50%; width: 7px; height: 7px;
   border-top: 2px solid var(--line-strong); border-right: 2px solid var(--line-strong); transform: translateY(-50%) rotate(45deg); }
 .strip.chain li.reached:not(:last-child)::after { border-color: var(--accent); }
+.strip.chain li.row-end::after { display: none; }
 .cell .when { display: block; font-size: 11.5px; opacity: .85; font-variant-numeric: tabular-nums; }
+.cell .when .d { white-space: nowrap; }
 .strip li.furthest .cell { outline: 2px solid var(--high); outline-offset: 2px; }
 .flag { position: absolute; top: -9px; right: 8px; padding: 1px 8px; border-radius: 99px; font-size: 11px; font-weight: 700;
   background: var(--high); color: var(--high-on); box-shadow: var(--shadow); pointer-events: none; }
@@ -406,6 +408,9 @@ footer p { margin: 0 0 6px; max-width: 110ch; }
   .strip { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 14px; }
   .cell { min-height: 0; flex-direction: row; align-items: center; justify-content: flex-start; gap: 10px; padding: 8px 10px; }
   .cell b { font-size: 16px; min-width: 22px; }
+  .cell { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; row-gap: 1px; }
+  .cell b { grid-row: span 2; }
+  .cell .when { grid-column: 2; }
 }
 @media (max-width: 640px) {
   .wrap { padding: 0 16px; }
@@ -500,7 +505,7 @@ footer p { margin: 0 0 6px; max-width: 110ch; }
 <section class="verdict" aria-labelledby="verdict">
   <h1 id="verdict">19 alerts to review, 10 of them rated high</h1>
   <p class="lede">Vigie read 118 events from 11 files with 53 detection rules. The logs run from 2026-10-20 09:00:00Z to 2026-10-21 17:00:09Z, 1 day.</p>
-  <p class="meta">Generated on 2026-11-26 14:44:47Z by Vigie 0.6.0.
+  <p class="meta">Generated on 2026-11-26 15:09:01Z by Vigie 0.6.0.
 Alerts are mapped to MITRE ATT&amp;CK 19.2 and MITRE ATLAS 2026.10, and to the OWASP Top 10 for LLM Applications 2025 and the OWASP Top 10 for Agentic Applications 2026. All times are UTC.</p>
 
   <div class="severity" aria-label="Alerts by severity">
@@ -546,17 +551,17 @@ run with <code>--min-level informational</code> to include them.
       <li class=""><div class="cell"><b>0</b> <span>AI Attack Adaptation</span></div></li>
       <li class=""><div class="cell"><b>0</b> <span>Initial Access</span></div></li>
       <li class=""><div class="cell"><b>0</b> <span>AI Model Access</span></div></li>
-      <li class="reached"><button type="button" class="cell h4" data-tactic="AML.TA0005" aria-haspopup="dialog" aria-expanded="false"><b>6</b> <span>Execution</span><small class="when">first 2026-10-21 08:00:05Z</small></button></li>
-      <li class="reached"><button type="button" class="cell h1" data-tactic="AML.TA0006" aria-haspopup="dialog" aria-expanded="false"><b>2</b> <span>Persistence</span><small class="when">first 2026-10-21 17:00:01Z</small></button></li>
-      <li class="reached"><button type="button" class="cell h3" data-tactic="AML.TA0012" aria-haspopup="dialog" aria-expanded="false"><b>5</b> <span>Privilege Escalation</span><small class="when">first 2026-10-21 08:01:00Z</small></button></li>
-      <li class="reached"><button type="button" class="cell h3" data-tactic="AML.TA0007" aria-haspopup="dialog" aria-expanded="false"><b>4</b> <span>Defense Evasion</span><small class="when">first 2026-10-21 08:01:00Z</small></button></li>
-      <li class="reached"><button type="button" class="cell h1" data-tactic="AML.TA0013" aria-haspopup="dialog" aria-expanded="false"><b>2</b> <span>Credential Access</span><small class="when">first 2026-10-21 12:00:08Z</small></button></li>
-      <li class="reached"><button type="button" class="cell h1" data-tactic="AML.TA0008" aria-haspopup="dialog" aria-expanded="false"><b>1</b> <span>Discovery</span><small class="when">first 2026-10-21 11:00:05Z</small></button></li>
-      <li class="reached"><button type="button" class="cell h1" data-tactic="AML.TA0015" aria-haspopup="dialog" aria-expanded="false"><b>2</b> <span>Lateral Movement</span><small class="when">first 2026-10-21 09:00:06Z</small></button></li>
-      <li class="reached"><button type="button" class="cell h2" data-tactic="AML.TA0009" aria-haspopup="dialog" aria-expanded="false"><b>3</b> <span>Collection</span><small class="when">first 2026-10-21 11:00:05Z</small></button></li>
+      <li class="reached"><button type="button" class="cell h4" data-tactic="AML.TA0005" aria-haspopup="dialog" aria-expanded="false"><b>6</b> <span>Execution</span><small class="when" title="First seen 2026-10-21 08:00:05Z">first seen <span class="d">2026-10-21</span></small></button></li>
+      <li class="reached"><button type="button" class="cell h1" data-tactic="AML.TA0006" aria-haspopup="dialog" aria-expanded="false"><b>2</b> <span>Persistence</span><small class="when" title="First seen 2026-10-21 17:00:01Z">first seen <span class="d">2026-10-21</span></small></button></li>
+      <li class="reached"><button type="button" class="cell h3" data-tactic="AML.TA0012" aria-haspopup="dialog" aria-expanded="false"><b>5</b> <span>Privilege Escalation</span><small class="when" title="First seen 2026-10-21 08:01:00Z">first seen <span class="d">2026-10-21</span></small></button></li>
+      <li class="reached"><button type="button" class="cell h3" data-tactic="AML.TA0007" aria-haspopup="dialog" aria-expanded="false"><b>4</b> <span>Defense Evasion</span><small class="when" title="First seen 2026-10-21 08:01:00Z">first seen <span class="d">2026-10-21</span></small></button></li>
+      <li class="reached"><button type="button" class="cell h1" data-tactic="AML.TA0013" aria-haspopup="dialog" aria-expanded="false"><b>2</b> <span>Credential Access</span><small class="when" title="First seen 2026-10-21 12:00:08Z">first seen <span class="d">2026-10-21</span></small></button></li>
+      <li class="reached"><button type="button" class="cell h1" data-tactic="AML.TA0008" aria-haspopup="dialog" aria-expanded="false"><b>1</b> <span>Discovery</span><small class="when" title="First seen 2026-10-21 11:00:05Z">first seen <span class="d">2026-10-21</span></small></button></li>
+      <li class="reached"><button type="button" class="cell h1" data-tactic="AML.TA0015" aria-haspopup="dialog" aria-expanded="false"><b>2</b> <span>Lateral Movement</span><small class="when" title="First seen 2026-10-21 09:00:06Z">first seen <span class="d">2026-10-21</span></small></button></li>
+      <li class="reached"><button type="button" class="cell h2" data-tactic="AML.TA0009" aria-haspopup="dialog" aria-expanded="false"><b>3</b> <span>Collection</span><small class="when" title="First seen 2026-10-21 11:00:05Z">first seen <span class="d">2026-10-21</span></small></button></li>
       <li class=""><div class="cell"><b>0</b> <span>Command and Control</span></div></li>
-      <li class="reached"><button type="button" class="cell h3" data-tactic="AML.TA0010" aria-haspopup="dialog" aria-expanded="false"><b>5</b> <span>Exfiltration</span><small class="when">first 2026-10-21 11:00:08Z</small></button></li>
-      <li class="reached furthest"><button type="button" class="cell h1" data-tactic="AML.TA0011" aria-haspopup="dialog" aria-expanded="false"><b>1</b> <span>Impact</span><small class="when">first 2026-10-21 14:00:00Z</small></button><span class="flag">Furthest</span></li>
+      <li class="reached"><button type="button" class="cell h3" data-tactic="AML.TA0010" aria-haspopup="dialog" aria-expanded="false"><b>5</b> <span>Exfiltration</span><small class="when" title="First seen 2026-10-21 11:00:08Z">first seen <span class="d">2026-10-21</span></small></button></li>
+      <li class="reached furthest"><button type="button" class="cell h1" data-tactic="AML.TA0011" aria-haspopup="dialog" aria-expanded="false"><b>1</b> <span>Impact</span><small class="when" title="First seen 2026-10-21 14:00:00Z">first seen <span class="d">2026-10-21</span></small></button><span class="flag">Furthest</span></li>
     </ol>
   </div>
 </section>
@@ -2561,6 +2566,23 @@ run with <code>--min-level informational</code> to include them.
 
   var data = { techniques: {}, tactics: {}, help: {} };
   try { data = JSON.parse($("#vigie-data").textContent); } catch (e) { /* keep defaults */ }
+
+  // The arrow after the last tactic of a row would point past the edge: hide it.
+  function markRowEnds() {
+    $$(".strip.chain").forEach(function (list) {
+      var items = list.children;
+      for (var i = 0; i < items.length; i++) {
+        var next = items[i + 1];
+        items[i].classList.toggle("row-end", !!next && next.offsetTop !== items[i].offsetTop);
+      }
+    });
+  }
+  markRowEnds();
+  var rowFrame = 0;
+  window.addEventListener("resize", function () {
+    cancelAnimationFrame(rowFrame);
+    rowFrame = requestAnimationFrame(markRowEnds);
+  });
 
   // ---- State, kept for this tab across reloads (and across `vigie watch` rewrites) ----
   var refresh = parseInt(doc.body.getAttribute("data-refresh") || "0", 10);

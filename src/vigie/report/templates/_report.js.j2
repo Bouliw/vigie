@@ -16,6 +16,23 @@
   var data = { techniques: {}, tactics: {}, help: {} };
   try { data = JSON.parse($("#vigie-data").textContent); } catch (e) { /* keep defaults */ }
 
+  // The arrow after the last tactic of a row would point past the edge: hide it.
+  function markRowEnds() {
+    $$(".strip.chain").forEach(function (list) {
+      var items = list.children;
+      for (var i = 0; i < items.length; i++) {
+        var next = items[i + 1];
+        items[i].classList.toggle("row-end", !!next && next.offsetTop !== items[i].offsetTop);
+      }
+    });
+  }
+  markRowEnds();
+  var rowFrame = 0;
+  window.addEventListener("resize", function () {
+    cancelAnimationFrame(rowFrame);
+    rowFrame = requestAnimationFrame(markRowEnds);
+  });
+
   // ---- State, kept for this tab across reloads (and across `vigie watch` rewrites) ----
   var refresh = parseInt(doc.body.getAttribute("data-refresh") || "0", 10);
   var KEY = "vigie:" + location.pathname;

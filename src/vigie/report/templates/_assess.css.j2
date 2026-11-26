@@ -129,6 +129,7 @@ input[type="search"]:focus, select:focus { outline: 2px solid var(--accent); out
 .chain li:not(:last-child)::after { content: ""; position: absolute; right: -16px; top: 50%; width: 10px; height: 10px;
   border-top: 2px solid var(--line-strong); border-right: 2px solid var(--line-strong); transform: translateY(-50%) rotate(45deg); }
 .chain li.on-path:not(:last-child)::after { border-color: var(--c); }
+@media (min-width: 561px) { .chain li.row-end::after { display: none; } }
 .node { position: relative; display: flex; flex-direction: column; gap: 6px; width: 100%; min-height: 172px; padding: 14px 14px 12px;
   border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); cursor: pointer; text-align: left;
   --c: var(--s-unassessed); --soft: var(--s-unassessed-soft); }
@@ -228,6 +229,8 @@ a.chip:hover { border-color: var(--line-strong); }
 .tbl tr:first-child td { border-top: 0; }
 .tbl td .nm { font-weight: 600; }
 .tbl td .id { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+#tech-table td:first-child { min-width: 170px; }
+#tech-table td:last-child { min-width: 180px; }
 .table-more { margin: 10px 2px 0; font-size: 13px; }
 
 /* Method */
@@ -283,6 +286,19 @@ a.chip:hover { border-color: var(--line-strong); }
   .gauges { flex-direction: column; }
   .gauge { width: 100%; }
   .lvl span { width: 34px; height: 34px; }
+  .toolbar > *, .toolbar select, .bulk { flex: 1 1 100%; width: 100%; margin-left: 0; }
+  .bulk select { flex: 1; }
+  .domain > summary { flex-wrap: wrap; gap: 4px 12px; }
+  .domain > summary .count { order: 3; flex-basis: 100%; margin-left: 0; }
+  .domain > summary .mini { display: none; }
+  .domain > summary .chev { margin-left: auto; }
+  .chain { grid-template-columns: 1fr; gap: 22px; }
+  .chain li:not(:last-child)::after { right: auto; left: 50%; top: auto; bottom: -15px;
+    transform: translateX(-50%) rotate(135deg); }
+  .node { min-height: 0; }
+  .node .bar { margin-top: 6px; }
+  .prio { grid-template-columns: 34px minmax(0, 1fr); }
+  .prio > div:last-of-type { grid-column: 2; }
 }
 
 @media print {
