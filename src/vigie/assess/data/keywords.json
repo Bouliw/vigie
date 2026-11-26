@@ -1,0 +1,1160 @@
+{
+ "about": "Words and phrases, in English and French, that point a control of a questionnaire to a MITRE mitigation. vigie assess --map uses them to propose the mitigations of controls that name none. Matching ignores case, accents and punctuation; a phrase counts more than a single word. A mitigation marked ai applies to AI systems: it is proposed only when the control has a word of context, or when the phrase found has a word of context or of model_words.",
+ "context": [
+  "ai",
+  "ia",
+  "artificial intelligence",
+  "intelligence artificielle",
+  "machine learning",
+  "apprentissage automatique",
+  "ml",
+  "llm",
+  "llms",
+  "genai",
+  "chatbot",
+  "agentic",
+  "prompt",
+  "prompts",
+  "copilot",
+  "rag",
+  "embedding",
+  "embeddings",
+  "dataset",
+  "training data",
+  "donnees d entrainement",
+  "inference",
+  "generative"
+ ],
+ "model_words": [
+  "model",
+  "models",
+  "modele",
+  "modeles",
+  "agent",
+  "agents"
+ ],
+ "mitigations": {
+  "M1013": {
+   "terms": [
+    "secure development",
+    "secure coding",
+    "developpement securise",
+    "code review",
+    "revue de code",
+    "sdlc",
+    "secure by design",
+    "security by design",
+    "owasp",
+    "developer guidance",
+    "developer training"
+   ]
+  },
+  "M1015": {
+   "terms": [
+    "active directory",
+    "ad hardening",
+    "durcissement ad",
+    "group policy",
+    "gpo",
+    "domain controller",
+    "controleur de domaine",
+    "kerberos",
+    "ldap"
+   ]
+  },
+  "M1016": {
+   "terms": [
+    "vulnerability scanning",
+    "vulnerability scan",
+    "vulnerability management",
+    "gestion des vulnerabilites",
+    "scan de vulnerabilites",
+    "scans de vulnerabilites",
+    "pentest",
+    "penetration test",
+    "test d intrusion",
+    "tests d intrusion",
+    "attack surface",
+    "surface d attaque"
+   ]
+  },
+  "M1017": {
+   "terms": [
+    "awareness",
+    "sensibilisation",
+    "user training",
+    "security training",
+    "formation",
+    "phishing simulation",
+    "simulation de phishing",
+    "campagne de phishing",
+    "hameconnage",
+    "phishing",
+    "social engineering",
+    "ingenierie sociale"
+   ]
+  },
+  "M1018": {
+   "terms": [
+    "user account management",
+    "account management",
+    "gestion des comptes",
+    "identity lifecycle",
+    "joiner mover leaver",
+    "arrivees departs",
+    "revue des comptes",
+    "account review",
+    "access review",
+    "revue des acces",
+    "revue des habilitations",
+    "habilitations",
+    "iam",
+    "identity and access management",
+    "gestion des identites",
+    "least privilege",
+    "moindre privilege"
+   ]
+  },
+  "M1019": {
+   "terms": [
+    "threat intelligence",
+    "cyber threat intelligence",
+    "cti",
+    "renseignement sur la menace",
+    "veille sur la menace",
+    "veille cyber",
+    "threat hunting"
+   ]
+  },
+  "M1020": {
+   "terms": [
+    "ssl inspection",
+    "tls inspection",
+    "ssl tls inspection",
+    "dechiffrement tls",
+    "inspection tls",
+    "inspection ssl",
+    "break and inspect"
+   ]
+  },
+  "M1021": {
+   "terms": [
+    "web filtering",
+    "filtrage web",
+    "filtrage des url",
+    "url filtering",
+    "proxy",
+    "web proxy",
+    "secure web gateway",
+    "swg",
+    "navigation internet",
+    "web browsing"
+   ]
+  },
+  "M1022": {
+   "terms": [
+    "file permissions",
+    "directory permissions",
+    "droits sur les fichiers",
+    "droits d acces aux fichiers",
+    "partages de fichiers",
+    "file shares",
+    "ntfs",
+    "acl",
+    "acls",
+    "permissions"
+   ]
+  },
+  "M1024": {
+   "terms": [
+    "registry permissions",
+    "registre windows",
+    "base de registre",
+    "windows registry"
+   ]
+  },
+  "M1025": {
+   "terms": [
+    "protected process",
+    "lsa protection",
+    "ppl",
+    "privileged process",
+    "processus proteges"
+   ]
+  },
+  "M1026": {
+   "terms": [
+    "privileged account",
+    "privileged accounts",
+    "privileged access",
+    "comptes a privileges",
+    "comptes privilegies",
+    "acces a privileges",
+    "pam",
+    "bastion",
+    "comptes administrateurs",
+    "admin accounts",
+    "administrateurs",
+    "tiering",
+    "tier model",
+    "modele en tiers",
+    "laps",
+    "just in time"
+   ]
+  },
+  "M1027": {
+   "terms": [
+    "password policy",
+    "password policies",
+    "politique de mot de passe",
+    "politique de mots de passe",
+    "mots de passe",
+    "mot de passe",
+    "password",
+    "passwords",
+    "passphrase",
+    "password manager",
+    "gestionnaire de mots de passe",
+    "coffre fort de mots de passe"
+   ]
+  },
+  "M1028": {
+   "terms": [
+    "hardening",
+    "durcissement",
+    "secure configuration",
+    "configuration securisee",
+    "security baseline",
+    "baseline de securite",
+    "cis benchmark",
+    "operating system configuration",
+    "configuration des systemes",
+    "master securise"
+   ]
+  },
+  "M1029": {
+   "terms": [
+    "remote data storage",
+    "remote log storage",
+    "stockage distant",
+    "centralisation des journaux",
+    "log centralization",
+    "centralized logging",
+    "journaux centralises",
+    "externalisation des logs"
+   ]
+  },
+  "M1030": {
+   "terms": [
+    "network segmentation",
+    "segmentation reseau",
+    "segmentation du reseau",
+    "cloisonnement",
+    "cloisonnement reseau",
+    "vlan",
+    "vlans",
+    "dmz",
+    "zoning",
+    "zones reseau",
+    "micro segmentation",
+    "microsegmentation",
+    "filtrage inter zones"
+   ]
+  },
+  "M1031": {
+   "terms": [
+    "intrusion prevention",
+    "ips",
+    "ids",
+    "intrusion detection",
+    "detection d intrusion",
+    "prevention d intrusion",
+    "network detection",
+    "ndr",
+    "sonde reseau",
+    "sondes reseau"
+   ]
+  },
+  "M1032": {
+   "terms": [
+    "multi factor authentication",
+    "multifactor authentication",
+    "mfa",
+    "2fa",
+    "two factor",
+    "authentification multifacteur",
+    "authentification multi facteur",
+    "authentification forte",
+    "double authentification",
+    "authentification a deux facteurs",
+    "otp",
+    "fido2",
+    "passkey",
+    "passkeys",
+    "carte a puce",
+    "smart card"
+   ]
+  },
+  "M1033": {
+   "terms": [
+    "software installation",
+    "installation de logiciels",
+    "installation des logiciels",
+    "application whitelisting",
+    "allowlisting",
+    "liste blanche",
+    "listes blanches",
+    "logiciels autorises",
+    "software inventory",
+    "inventaire logiciel"
+   ]
+  },
+  "M1034": {
+   "terms": [
+    "usb",
+    "removable media",
+    "supports amovibles",
+    "peripheriques amovibles",
+    "cles usb",
+    "hardware installation",
+    "device control",
+    "controle des peripheriques"
+   ]
+  },
+  "M1035": {
+   "terms": [
+    "network access control",
+    "nac",
+    "802 1x",
+    "controle d acces reseau",
+    "vpn",
+    "zero trust",
+    "ztna",
+    "remote access",
+    "acces distant",
+    "acces a distance",
+    "teletravail"
+   ]
+  },
+  "M1036": {
+   "terms": [
+    "account use policies",
+    "account lockout",
+    "verrouillage de compte",
+    "verrouillage des comptes",
+    "session timeout",
+    "conditional access",
+    "acces conditionnel",
+    "login hours",
+    "heures de connexion"
+   ]
+  },
+  "M1037": {
+   "terms": [
+    "firewall",
+    "firewalls",
+    "pare feu",
+    "pare feux",
+    "network filtering",
+    "filtrage reseau",
+    "filtrage des flux",
+    "matrice de flux",
+    "flux reseau",
+    "egress filtering",
+    "filtrage sortant",
+    "dns filtering",
+    "filtrage dns",
+    "email filtering",
+    "filtrage des mails",
+    "antispam",
+    "anti spam",
+    "passerelle de messagerie",
+    "mail gateway"
+   ]
+  },
+  "M1038": {
+   "terms": [
+    "execution prevention",
+    "applocker",
+    "wdac",
+    "application control",
+    "controle applicatif",
+    "controle des applications",
+    "blocage des scripts",
+    "script blocking",
+    "macros",
+    "macro"
+   ]
+  },
+  "M1039": {
+   "terms": [
+    "environment variable",
+    "environment variables",
+    "variables d environnement"
+   ]
+  },
+  "M1040": {
+   "terms": [
+    "edr",
+    "xdr",
+    "endpoint detection",
+    "endpoint protection",
+    "behavior prevention",
+    "protection comportementale",
+    "asr rules",
+    "attack surface reduction",
+    "protection des postes"
+   ]
+  },
+  "M1041": {
+   "terms": [
+    "encryption",
+    "encrypt",
+    "chiffrement",
+    "chiffre",
+    "chiffrer",
+    "cryptographie",
+    "cryptography",
+    "data at rest",
+    "donnees au repos",
+    "tls",
+    "bitlocker",
+    "kms",
+    "gestion des cles",
+    "key management",
+    "hsm"
+   ]
+  },
+  "M1042": {
+   "terms": [
+    "disable unused",
+    "desactivation des services",
+    "services inutiles",
+    "fonctionnalites inutiles",
+    "remove feature",
+    "disable feature",
+    "reduction de la surface",
+    "smbv1",
+    "powershell v2",
+    "decommissioning",
+    "decommissionnement"
+   ]
+  },
+  "M1043": {
+   "terms": [
+    "credential guard",
+    "credential protection",
+    "protection des identifiants",
+    "protection des secrets",
+    "lsass",
+    "credential theft",
+    "vol d identifiants"
+   ]
+  },
+  "M1044": {
+   "terms": [
+    "library loading",
+    "dll",
+    "dll hijacking",
+    "chargement de bibliotheques",
+    "safe dll search"
+   ]
+  },
+  "M1045": {
+   "terms": [
+    "code signing",
+    "signature de code",
+    "signature du code",
+    "signed code",
+    "code signe",
+    "signature des binaires",
+    "signed binaries"
+   ]
+  },
+  "M1046": {
+   "terms": [
+    "secure boot",
+    "boot integrity",
+    "demarrage securise",
+    "tpm",
+    "integrite du demarrage",
+    "uefi",
+    "bios password",
+    "mot de passe bios"
+   ]
+  },
+  "M1047": {
+   "terms": [
+    "audit",
+    "audits",
+    "auditing",
+    "logging",
+    "journalisation",
+    "logs",
+    "journaux",
+    "siem",
+    "security monitoring",
+    "supervision de securite",
+    "supervision securite",
+    "soc",
+    "detection",
+    "monitoring",
+    "event logs",
+    "traces"
+   ]
+  },
+  "M1048": {
+   "terms": [
+    "sandbox",
+    "sandboxing",
+    "bac a sable",
+    "isolation",
+    "application isolation",
+    "conteneurisation",
+    "containers",
+    "virtualisation",
+    "browser isolation"
+   ]
+  },
+  "M1049": {
+   "terms": [
+    "antivirus",
+    "anti virus",
+    "antimalware",
+    "anti malware",
+    "anti logiciel malveillant",
+    "logiciels malveillants",
+    "malware protection",
+    "epp"
+   ]
+  },
+  "M1050": {
+   "terms": [
+    "exploit protection",
+    "anti exploit",
+    "aslr",
+    "dep",
+    "control flow guard",
+    "protection contre l exploitation"
+   ]
+  },
+  "M1051": {
+   "terms": [
+    "patch",
+    "patches",
+    "patching",
+    "patch management",
+    "gestion des correctifs",
+    "correctifs",
+    "correctifs de securite",
+    "mises a jour",
+    "mise a jour",
+    "updates",
+    "update software",
+    "maintien en condition de securite",
+    "mcs",
+    "obsolescence",
+    "obsolete"
+   ]
+  },
+  "M1052": {
+   "terms": [
+    "user account control",
+    "uac",
+    "elevation de privileges",
+    "privilege elevation"
+   ]
+  },
+  "M1053": {
+   "terms": [
+    "backup",
+    "backups",
+    "sauvegarde",
+    "sauvegardes",
+    "restore",
+    "restauration",
+    "offline backup",
+    "sauvegarde hors ligne",
+    "sauvegardes deconnectees",
+    "immutable backup",
+    "sauvegardes immuables",
+    "pra",
+    "pca",
+    "disaster recovery",
+    "plan de reprise",
+    "plan de continuite",
+    "resilience"
+   ]
+  },
+  "M1054": {
+   "terms": [
+    "software configuration",
+    "configuration des logiciels",
+    "configuration applicative",
+    "configuration des applications",
+    "parametrage securise",
+    "secure settings",
+    "office hardening",
+    "browser hardening"
+   ]
+  },
+  "M1057": {
+   "terms": [
+    "data loss prevention",
+    "dlp",
+    "fuite de donnees",
+    "fuites de donnees",
+    "prevention des fuites",
+    "data leakage",
+    "classification des donnees",
+    "data classification",
+    "exfiltration"
+   ]
+  },
+  "M1060": {
+   "terms": [
+    "out of band",
+    "hors bande",
+    "canal de secours",
+    "communication de crise",
+    "crisis communication",
+    "cellule de crise",
+    "moyens de communication alternatifs"
+   ]
+  },
+  "AML.M0000": {
+   "terms": [
+    "public release",
+    "publication d informations",
+    "limit public information",
+    "communication publique sur l ia"
+   ],
+   "ai": true
+  },
+  "AML.M0001": {
+   "terms": [
+    "model release",
+    "model artifacts",
+    "artefacts de modele",
+    "publication de modele",
+    "model weights",
+    "poids du modele",
+    "poids des modeles"
+   ]
+  },
+  "AML.M0002": {
+   "terms": [
+    "output obfuscation",
+    "obfuscation des sorties",
+    "confidence scores",
+    "scores de confiance"
+   ],
+   "ai": true
+  },
+  "AML.M0003": {
+   "terms": [
+    "model hardening",
+    "durcissement du modele",
+    "durcissement des modeles",
+    "adversarial training",
+    "entrainement adverse",
+    "robustesse du modele",
+    "robustesse des modeles",
+    "model robustness"
+   ]
+  },
+  "AML.M0004": {
+   "terms": [
+    "rate limiting",
+    "rate limit",
+    "limitation de debit",
+    "quotas",
+    "query volume",
+    "nombre de requetes",
+    "throttling"
+   ],
+   "ai": true
+  },
+  "AML.M0005": {
+   "terms": [
+    "access to models",
+    "acces aux modeles",
+    "model access control",
+    "controle d acces aux modeles",
+    "acces aux donnees d entrainement",
+    "training data access"
+   ]
+  },
+  "AML.M0006": {
+   "terms": [
+    "ensemble",
+    "ensembles",
+    "ensemble methods",
+    "modeles multiples"
+   ],
+   "ai": true
+  },
+  "AML.M0007": {
+   "terms": [
+    "sanitize training data",
+    "data poisoning",
+    "empoisonnement",
+    "empoisonnement des donnees",
+    "nettoyage des donnees",
+    "qualite des donnees d entrainement",
+    "training data sanitization"
+   ]
+  },
+  "AML.M0008": {
+   "terms": [
+    "model validation",
+    "validation du modele",
+    "validation des modeles",
+    "valider le modele",
+    "model testing",
+    "tests du modele",
+    "evaluation des modeles",
+    "model evaluation"
+   ]
+  },
+  "AML.M0009": {
+   "terms": [
+    "multi sensor",
+    "multi capteurs",
+    "sensor fusion",
+    "fusion de capteurs"
+   ]
+  },
+  "AML.M0010": {
+   "terms": [
+    "input restoration",
+    "restauration des entrees",
+    "input preprocessing",
+    "pretraitement des entrees"
+   ],
+   "ai": true
+  },
+  "AML.M0011": {
+   "terms": [
+    "library loading",
+    "chargement de bibliotheques",
+    "pickle",
+    "serialization",
+    "serialisation",
+    "safetensors"
+   ],
+   "ai": true
+  },
+  "AML.M0012": {
+   "terms": [
+    "encryption",
+    "chiffrement",
+    "chiffre",
+    "encrypt"
+   ],
+   "ai": true
+  },
+  "AML.M0013": {
+   "terms": [
+    "code signing",
+    "signature de code",
+    "signature des modeles",
+    "model signing",
+    "signed models"
+   ],
+   "ai": true
+  },
+  "AML.M0014": {
+   "terms": [
+    "verify ai artifacts",
+    "verification des artefacts",
+    "artifact verification",
+    "hash",
+    "checksum",
+    "empreinte",
+    "integrite des modeles",
+    "model integrity"
+   ],
+   "ai": true
+  },
+  "AML.M0015": {
+   "terms": [
+    "adversarial input",
+    "adversarial examples",
+    "exemples adverses",
+    "entrees adverses",
+    "detection des entrees adverses"
+   ]
+  },
+  "AML.M0016": {
+   "terms": [
+    "vulnerability scanning",
+    "vulnerability scan",
+    "scan de vulnerabilites",
+    "scans de vulnerabilites",
+    "model scanning",
+    "scan des modeles",
+    "dependency scanning",
+    "sca"
+   ],
+   "ai": true
+  },
+  "AML.M0017": {
+   "terms": [
+    "model distribution",
+    "distribution des modeles",
+    "deploiement des modeles",
+    "model deployment",
+    "edge deployment"
+   ],
+   "ai": true
+  },
+  "AML.M0018": {
+   "terms": [
+    "awareness",
+    "sensibilisation",
+    "user training",
+    "formation",
+    "bonnes pratiques",
+    "acculturation",
+    "usage de l ia",
+    "usage des outils ia",
+    "shadow ai"
+   ],
+   "ai": true
+  },
+  "AML.M0019": {
+   "terms": [
+    "model access",
+    "acces aux modeles",
+    "api keys",
+    "cles d api",
+    "cles api",
+    "authentication to the model",
+    "authentification au modele",
+    "access control",
+    "controle d acces",
+    "production access"
+   ],
+   "ai": true
+  },
+  "AML.M0020": {
+   "terms": [
+    "guardrails",
+    "guardrail",
+    "garde fous",
+    "garde fou",
+    "content filtering",
+    "filtrage de contenu",
+    "prompt filtering",
+    "filtrage des prompts",
+    "prompt injection",
+    "injection de prompt",
+    "injection de prompts",
+    "jailbreak",
+    "llm firewall",
+    "ai firewall"
+   ]
+  },
+  "AML.M0021": {
+   "terms": [
+    "system prompt",
+    "prompt systeme",
+    "guidelines",
+    "consignes",
+    "instructions systeme",
+    "meta prompt",
+    "policy prompt"
+   ],
+   "ai": true
+  },
+  "AML.M0022": {
+   "terms": [
+    "alignment",
+    "alignement",
+    "rlhf",
+    "fine tuning de securite",
+    "safety tuning",
+    "safety training"
+   ],
+   "ai": true
+  },
+  "AML.M0023": {
+   "terms": [
+    "ai bom",
+    "aibom",
+    "ai bill of materials",
+    "ml bom",
+    "mlbom",
+    "sbom",
+    "inventaire des modeles",
+    "model inventory",
+    "inventaire ia",
+    "ai inventory",
+    "cartographie des usages ia",
+    "cartographie ia",
+    "registre des modeles",
+    "model registry"
+   ]
+  },
+  "AML.M0024": {
+   "terms": [
+    "telemetry",
+    "telemetrie",
+    "logging",
+    "journalisation",
+    "logs",
+    "journaux",
+    "monitoring",
+    "supervision",
+    "observability",
+    "observabilite",
+    "traces",
+    "audit"
+   ],
+   "ai": true
+  },
+  "AML.M0025": {
+   "terms": [
+    "dataset provenance",
+    "provenance des donnees",
+    "data provenance",
+    "lignage des donnees",
+    "data lineage",
+    "tracabilite des donnees",
+    "origine des donnees"
+   ]
+  },
+  "AML.M0026": {
+   "terms": [
+    "agent service access",
+    "service accounts for agents",
+    "comptes de service des agents",
+    "agent identity",
+    "identite des agents",
+    "acces des agents",
+    "agent permissions",
+    "permissions des agents",
+    "droits des agents"
+   ],
+   "ai": true
+  },
+  "AML.M0027": {
+   "terms": [
+    "delegated access",
+    "acces delegue",
+    "delegation",
+    "on behalf of",
+    "au nom de l utilisateur",
+    "oauth",
+    "consent",
+    "consentement"
+   ],
+   "ai": true
+  },
+  "AML.M0028": {
+   "terms": [
+    "agent tools",
+    "outils des agents",
+    "tool access",
+    "acces aux outils",
+    "mcp",
+    "model context protocol",
+    "plugins",
+    "connecteurs",
+    "connectors",
+    "tool permissions"
+   ],
+   "ai": true
+  },
+  "AML.M0029": {
+   "terms": [
+    "human in the loop",
+    "humain dans la boucle",
+    "validation humaine",
+    "human approval",
+    "approbation humaine",
+    "human review",
+    "revue humaine",
+    "supervision humaine",
+    "human oversight"
+   ]
+  },
+  "AML.M0030": {
+   "terms": [
+    "untrusted data",
+    "donnees non fiables",
+    "contenu non fiable",
+    "untrusted content",
+    "indirect prompt injection",
+    "injection indirecte"
+   ],
+   "ai": true
+  },
+  "AML.M0031": {
+   "terms": [
+    "memory hardening",
+    "memoire des agents",
+    "agent memory",
+    "memory poisoning",
+    "empoisonnement de la memoire",
+    "memoire persistante",
+    "long term memory"
+   ],
+   "ai": true
+  },
+  "AML.M0032": {
+   "terms": [
+    "segmentation",
+    "cloisonnement",
+    "isolation",
+    "isolement",
+    "sandbox",
+    "bac a sable"
+   ],
+   "ai": true
+  },
+  "AML.M0033": {
+   "terms": [
+    "input validation",
+    "output validation",
+    "validation des entrees",
+    "validation des sorties",
+    "filtrage des sorties",
+    "output filtering",
+    "output encoding",
+    "sanitization",
+    "assainissement"
+   ],
+   "ai": true
+  },
+  "AML.M0034": {
+   "terms": [
+    "deepfake",
+    "deepfakes",
+    "hypertrucage",
+    "synthetic media",
+    "voice cloning",
+    "clonage de voix",
+    "usurpation vocale",
+    "detection de deepfake"
+   ]
+  },
+  "AML.M0035": {
+   "terms": [
+    "red team",
+    "red teaming",
+    "equipe rouge",
+    "tests adverses",
+    "adversarial testing",
+    "test d intrusion ia",
+    "pentest ia",
+    "ai pentest"
+   ],
+   "ai": true
+  },
+  "AML.M0036": {
+   "terms": [
+    "resource consumption",
+    "consommation de ressources",
+    "token limits",
+    "limites de tokens",
+    "quota de tokens",
+    "cost limits",
+    "budget de calcul",
+    "denial of wallet",
+    "gpu quota"
+   ],
+   "ai": true
+  },
+  "AML.M0037": {
+   "terms": [
+    "authority expansion",
+    "privilege escalation",
+    "elevation de privileges",
+    "extension des droits",
+    "permissions dynamiques",
+    "least privilege",
+    "moindre privilege"
+   ],
+   "ai": true
+  },
+  "AML.M0038": {
+   "terms": [
+    "scope drift",
+    "derive de perimetre",
+    "derive du perimetre",
+    "agent behavior monitoring",
+    "comportement des agents",
+    "anomaly detection",
+    "detection d anomalies"
+   ],
+   "ai": true
+  },
+  "AML.M0039": {
+   "terms": [
+    "honeypot",
+    "honeypots",
+    "pot de miel",
+    "pots de miel",
+    "leurre",
+    "leurres",
+    "deception",
+    "canary",
+    "canary tokens"
+   ],
+   "ai": true
+  },
+  "AML.M0040": {
+   "terms": [
+    "response degradation",
+    "degradation des reponses",
+    "adaptive response",
+    "reponse adaptative"
+   ],
+   "ai": true
+  },
+  "AML.M0041": {
+   "terms": [
+    "differential privacy",
+    "confidentialite differentielle",
+    "privacy preserving",
+    "federated learning",
+    "apprentissage federe",
+    "anonymisation",
+    "anonymization",
+    "pseudonymisation",
+    "donnees personnelles",
+    "personal data",
+    "rgpd",
+    "gdpr"
+   ],
+   "ai": true
+  },
+  "AML.M0042": {
+   "terms": [
+    "threat intelligence",
+    "renseignement sur la menace",
+    "veille sur la menace",
+    "veille",
+    "cti"
+   ],
+   "ai": true
+  },
+  "AML.M0043": {
+   "terms": [
+    "external resources",
+    "ressources externes",
+    "lifecycle",
+    "cycle de vie",
+    "third party ai",
+    "fournisseurs ia",
+    "ai suppliers",
+    "supply chain",
+    "chaine d approvisionnement",
+    "tiers"
+   ],
+   "ai": true
+  }
+ }
+}

@@ -28,6 +28,7 @@ try { var vigieTheme = localStorage.getItem("vigie-theme"); if (vigieTheme === "
   <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></symbol>
   <symbol id="i-ok" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 5 5.8v5.6c0 4.6 3 8.1 7 9.6 4-1.5 7-5 7-9.6V5.8z"/></symbol>
   <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L4.5 18.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3"/><path d="M7 15h10"/></symbol>
 </svg>
 
@@ -37,6 +38,7 @@ try { var vigieTheme = localStorage.getItem("vigie-theme"); if (vigieTheme === "
     <nav class="tabs seg" aria-label="Sections">
       <a href="#/" data-tab="analyze" aria-current="page">Analyze</a>
       <a href="#/watch" data-tab="watch">Watch</a>
+      <a href="#/assess" data-tab="assess">Assess</a>
     </nav>
     <button type="button" class="btn btn-quiet btn-icon" id="theme" aria-label="Switch theme"></button>
   </div>
@@ -124,12 +126,27 @@ try { var vigieTheme = localStorage.getItem("vigie-theme"); if (vigieTheme === "
       <div class="result-actions">
         <button type="button" class="btn" id="open-browser"><svg class="icon" aria-hidden="true"><use href="#i-ext"/></svg>Open in browser</button>
         <button type="button" class="btn" id="reveal"><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg>{{ "Show in Finder" if platform == "darwin" else "Show in folder" }}</button>
+        <a class="btn" id="assess-report" href="#/assess"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>Assess maturity</a>
       </div>
     </div>
   </div>
   <iframe id="report-frame" title="Vigie report" src="about:blank"></iframe>
 </section>
 
+<section class="view view-results" id="view-assess" aria-labelledby="assess-title" hidden>
+  <div class="resultbar">
+    <div class="wrap">
+      <div class="result-what">
+        <h1 id="assess-title">Maturity assessment</h1>
+        <p class="muted" id="assess-meta">Rate your controls: the page shows the attack techniques your maturity leaves facilitated and the easiest way through. Import and export your answers from the page; nothing is stored.</p>
+      </div>
+      <div class="result-actions">
+        <a class="btn" id="assess-back" href="#/" hidden><svg class="icon" aria-hidden="true"><use href="#i-back"/></svg>Back to the report</a>
+      </div>
+    </div>
+  </div>
+  <iframe id="assess-frame" title="Vigie assessment" src="about:blank"></iframe>
+</section>
 <section class="view" id="view-watch" aria-labelledby="watch-title" hidden>
   <div class="wrap narrow">
     <div class="intro">

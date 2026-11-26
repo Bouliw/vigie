@@ -49,6 +49,7 @@ def main() -> int:
         }
         try:
             check_demo(program, work, env)
+            check_assess(program, work, env)
             check_time_zone(program, work, env)
             check_app(program, work, env)
             if args.shortcut:
@@ -122,6 +123,20 @@ def check_demo(program: Path, work: Path, env: dict[str, str]) -> None:
     note("Demo", f"report.html of {len(html):,} characters")
 
 
+def check_assess(program: Path, work: Path, env: dict[str, str]) -> None:
+    step("the assessment demo writes its page and results")
+    out = work / "assess"
+    args = ["assess", "--demo", "--no-open", "-o", str(out), "--format", "html,json"]
+    code, _ = run(program, args, work, env)
+    page, results = out / "assessment.html", out / "assessment.json"
+    if code != 0 or not page.is_file() or not results.is_file():
+        raise Failed(f"vigie assess --demo: exit code {code}, page written: {page.is_file()}")
+    data = json.loads(results.read_text(encoding="utf-8"))
+    if data["controls"]["answered"] != 86 or not data["observed_open"]:
+        raise Failed("the assessment demo has no answers or no alert crossed with them")
+    note("Assess", f"assessment.html of {page.stat().st_size:,} bytes")
+
+
 def check_time_zone(program: Path, work: Path, env: dict[str, str]) -> None:
     step("an analysis in another time zone than UTC (Windows needs the bundled tzdata)")
     out = work / "tz"
@@ -182,6 +197,9 @@ def check_app(program: Path, work: Path, env: dict[str, str]) -> None:
         status, report = request(f"{base}/reports/{analysis}/report.html", token)
         if status != 200 or b"AI Agent" not in report:
             raise Failed(f"the report of the analysis: HTTP {status}")
+        status, page = request(f"{base}/reports/{analysis}/assessment.html", token)
+        if status != 200 or b'id="vigie-data"' not in page:
+            raise Failed(f"the assessment crossed with the analysis: HTTP {status}")
         note("App", f"page served at {base}, sample analysis report of {len(report):,} bytes")
     finally:
         process.terminate()

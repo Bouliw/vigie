@@ -1,6 +1,6 @@
 # Vigie report
 
-Generated on 2026-11-01 18:22:15Z by Vigie 0.4.2. Alerts are mapped to MITRE ATT&CK 19.2. All times are UTC.
+Generated on 2026-11-26 15:09:01Z by Vigie 0.6.0. Alerts are mapped to MITRE ATT&CK 19.2. All times are UTC.
 
 ## Summary
 
@@ -22,6 +22,8 @@ Generated on 2026-11-01 18:22:15Z by Vigie 0.4.2. Alerts are mapped to MITRE ATT
 19 alert(s) below the "low" level are not shown (informational: 19). Run with `--min-level informational` to include them.
 
 ## MITRE ATT&CK
+
+The alerts reach 9 tactics; the furthest stage of an attack they reach is Command and Control.
 
 | Tactic | Alerts | Techniques |
 |---|---|---|

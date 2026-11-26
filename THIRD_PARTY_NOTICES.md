@@ -91,4 +91,7 @@ SHA-256 hashes and kept lines are listed in
 `docs/example-report.*` and `docs/report-preview.png` were produced by Vigie
 from the synthetic auth.log files and the OTRF excerpts only.
 `docs/example-report-ai.*` was produced by Vigie from the synthetic agent logs
-of `tests/fixtures/agentlog` only.
+of `tests/fixtures/agentlog` only. `docs/example-assessment.*` and
+`docs/assessment-*.png` were produced by `vigie assess --demo`: the generic
+questionnaire answered for a fictitious organization, crossed with the sample
+logs shipped with Vigie, and the MITRE ATT&CK and ATLAS data.

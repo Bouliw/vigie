@@ -16,6 +16,12 @@ events behind each one and a timeline. It works on
 collected logs or live, as the logs are written, from a desktop app or from
 the terminal.
 
+It also works the other way round, before any attack: rate the maturity of
+your security controls and Vigie shows which MITRE ATT&CK and ATLAS techniques
+that maturity leaves facilitated, the easiest way through the stages of an
+attack, and what to raise first. See
+[Assess a maturity level](#assess-a-maturity-level).
+
 ## Download the app (no Python needed)
 
 Vigie also comes as an app for Windows and for Macs with Apple silicon, with
@@ -115,7 +121,9 @@ what the installer did.
 your browser, served from your own computer only: drop log files or a folder,
 or try the sample logs, follow the analysis, then read the report, open it in
 the browser or show its file. The Watch tab follows logs as they are written,
-with alerts as they come. Nothing leaves your computer.
+with alerts as they come. The Assess tab rates your controls against MITRE
+ATT&CK and ATLAS, on its own or crossed with the alerts of a report. Nothing
+leaves your computer.
 
 ![The Vigie app: drop logs, or try the sample logs; recent analyses below](docs/ui-home.png)
 
@@ -123,7 +131,8 @@ with alerts as they come. Nothing leaves your computer.
 
 **The terminal.** `vigie demo` shows a report of sample logs in seconds,
 `vigie analyze` analyzes a folder of logs, `vigie watch` follows logs live and
-prints alerts as they happen (see [Usage](#usage)). Installed with pip, Vigie
+prints alerts as they happen (see [Usage](#usage)), and `vigie assess` turns a
+maturity questionnaire into the attack paths it leaves open. Installed with pip, Vigie
 also adds the app's icon to your Desktop the first time it runs in a
 terminal, and says so; `vigie shortcut --remove` removes it for good, and
 `VIGIE_NO_SHORTCUT=1` skips it.
@@ -168,9 +177,18 @@ known limits written down).
   techniques, case studies), offline, and can have a language model of your
   choice answer a question about it, with every ATLAS id of the answer checked.
   See [ATLAS context and questions about an alert](#atlas-context-and-questions-about-an-alert).
-- **Reports** in self-contained HTML, Markdown and JSON: summary, technique
-  and OWASP coverage, alerts with their rule, author and evidence,
-  timeline, and what was read, skipped or rejected.
+- **Reports** in self-contained HTML, Markdown and JSON: how far the attack
+  got (the stages of an attack the alerts reach, the furthest one, the order
+  they were first seen in), technique and OWASP coverage, alerts with their
+  rule, author and evidence, timeline, and what was read, skipped or rejected.
+- **Assesses a maturity level**: from a questionnaire of security controls
+  (CSV, Excel or JSON, or the generic one shipped with Vigie), it shows the
+  ATT&CK and ATLAS techniques the maturity leaves facilitated, the easiest path
+  through an attack, an exposure index and the controls to raise first, in an
+  interactive page that works offline; with logs, it points out the alerts on
+  techniques left open. It maps controls written in your own words, keeps the
+  attackers of a sector, shows the blind spots no rule detects and what changed
+  since the last assessment. See [Assess a maturity level](#assess-a-maturity-level).
 
 ## Quick start
 
@@ -188,8 +206,9 @@ opens it in your browser. On your own logs: `vigie analyze ./logs --open`.
 ![Top of an HTML report: the verdict, alerts per severity, the ATT&CK tactics heatmap and an alert opened on "Why this fired"](docs/report-preview.png)
 
 The HTML report is one file that works offline. It opens on what was found
-and how severe it is, then a heatmap of the tactics the
-alerts map to. Each alert opens on "Why this fired": what the rule looks for,
+and how severe it is, then how far the attack got: the stages of an attack
+the alerts reach, from the first steps to the goal, the furthest one flagged
+and the order in which they were first seen. Each alert opens on "Why this fired": what the rule looks for,
 what each technique means, the false positives to rule out, the rule's
 metadata and references, and the events behind it. A toolbar filters by
 severity, text (press `/`), technique, tactic or rule, ids and evidence copy
@@ -205,6 +224,107 @@ from the synthetic auth.log and unified log files and the OTRF excerpts of
 For AI agents: [`docs/example-report-ai.html`](docs/example-report-ai.html)
 (Markdown: [`docs/example-report-ai.md`](docs/example-report-ai.md)), produced
 from the synthetic agent logs of `tests/fixtures/agentlog`.
+
+## Assess a maturity level
+
+```bash
+vigie assess --demo                      # a sample organization, crossed with the sample logs
+vigie assess --template answers.csv      # the generic questionnaire, to fill in
+vigie assess answers.csv                 # your answers: CSV, Excel (.xlsx) or JSON
+vigie assess answers.xlsx --logs ./logs  # crossed with the alerts of these logs
+vigie assess controls.xlsx --map         # your own controls, without MITRE ids
+vigie assess answers.csv --sector healthcare    # the attackers of a sector
+vigie assess answers.csv --group APT29,FIN7     # or of the groups you name
+vigie assess answers.csv --baseline last-year.csv  # what changed since
+```
+
+![An assessment: the exposure index of ATT&CK and ATLAS, techniques by status, and the easiest way through](docs/assessment-preview.png)
+
+A security assessment says how mature each control is; an investigation says
+which techniques an attacker used. `vigie assess` joins the two through MITRE:
+each control implements MITRE mitigations (ATT&CK `M1032`, ATLAS
+`AML.M0020`), MITRE says which techniques each mitigation counters, and the
+techniques whose counter-measures are immature are facilitated.
+
+![The easiest way through: each stage of an attack with the technique an attacker would find the easiest](docs/assessment-chain.png)
+
+The page, one HTML file that works offline, shows:
+
+- **The easiest way through**: the stages of an attack in order, for ATT&CK
+  (information systems) and ATLAS (AI systems), each with the technique an
+  attacker would find the easiest given the maturity. The path is blocked at
+  the first stage where even the easiest technique is hindered. Click a stage
+  for all its techniques, their mitigations and the level of each one.
+- **An exposure index** from 0 to 100 per knowledge base, and the techniques
+  by status: facilitated, with no preventive control, partly hindered,
+  hindered, not assessed.
+- **The questionnaire**, to rate or change each control from 0 to 5: the whole
+  page updates as you go. Answers are imported from and exported to CSV (it
+  opens in Excel), Excel and JSON, and the page prints to PDF.
+- **What to raise first**: the controls whose raise to level 4 would stop the
+  most techniques from being facilitated, counting double those on the
+  easiest path and triple those seen in the logs.
+- **Seen in the logs**, with `--logs` or from a report of the app: the alerts
+  on techniques the maturity leaves open.
+- **Neither prevented nor detected**: the techniques left open that no
+  detection rule covers (Vigie's Sigma rules, or yours with `--rules`), stage
+  by stage. That is where an attacker would go unseen.
+- **A threat profile**: keep the ATT&CK techniques of the groups whose ATT&CK
+  description names a sector (14 sectors, from healthcare to telecom), or of
+  groups picked by name. The chain, the counts and the priorities follow.
+- **The change since a previous assessment** (`--baseline`, or *Compare
+  with* in the page): each exposure index before and after, the techniques
+  that became harder or easier to use, and the controls whose level changed.
+- **A one-page summary** to save as PDF (Export), for a steering committee.
+
+The generic questionnaire has one control per MITRE mitigation (86, in ten
+domains, from Identity and access to AI agents). Your own questionnaire works
+the same way: a table with a column naming each control, a column of MITRE
+mitigations or techniques it maps to, and a maturity column from 0 to 5
+(`--scale` for another top). Column names are matched loosely, in English or
+French (`Control`, `Point de contrôle`, `Maturity level`, `Niveau`,
+`MITRE`...).
+
+A questionnaire without MITRE ids works too: with `--map`, or when imported in
+the page, Vigie reads the wording of each control and proposes up to three
+mitigations from the English and French words tied to each one ("MFA",
+"bastion", "sauvegardes hors ligne", "garde-fous sur les prompts"). Each
+proposal says which words it rests on; the page shows them dashed, to remove
+or edit, and `--map` writes `questionnaire-mapped.csv` to check and correct.
+It is a reading aid: check the mapping with someone who knows the controls.
+
+Full example: [`docs/example-assessment.html`](docs/example-assessment.html)
+(Markdown: [`docs/example-assessment.md`](docs/example-assessment.md)), made
+with `vigie assess --demo`.
+
+### How it is computed
+
+- A mitigation is as strong as the most mature control implementing it, and a
+  technique as hard as the strongest mitigation MITRE lists against it, its
+  sub-techniques' included.
+- With a maturity `m` on a 0-5 scale, `m/5` below 40% leaves a technique
+  facilitated, below 80% partly hindered, and from 80% hindered. A technique
+  MITRE lists no preventive mitigation for (most of Reconnaissance, many
+  Discovery techniques; "Pre-compromise" is not a control) has no preventive
+  control: detection is the defense.
+- At each stage, the path takes a facilitated technique first, then one no
+  control prevents, then the least hindered; among equals, the one seen in the
+  logs, then the most common in real attacks: used by the most known groups,
+  campaigns and malware for ATT&CK, the most realized for ATLAS.
+- The exposure index is the mean of `1 - m/5` over the assessed techniques
+  controls can prevent, weighted by how common each one is.
+- A group's sectors are read from its ATT&CK description ("has targeted
+  healthcare, telecom and government"): ATT&CK has no structured sector
+  field, so a group counts under every sector MITRE says it targets. A group
+  uses the techniques MITRE relates to it and to its campaigns.
+- A technique is detected when a detection rule is mapped to it or to one of
+  its sub-techniques: this says a rule exists, not that the logs it needs are
+  collected.
+
+The page and `--format md,json` compute the same results, checked by the tests.
+"Facilitated" is a heuristic built on MITRE's mapping of mitigations to
+techniques, not a probability of attack, and a real attack does not go
+through every stage: read it with the people who know the systems.
 
 ## Installation
 
@@ -259,6 +379,18 @@ closed. `vigie shortcut` adds the app's icon (`--remove` to take it away,
 `--applications` for `~/Applications` on macOS). `vigie rules` lists the
 rules with their level and techniques. `python -m vigie` works
 too.
+
+`vigie assess [ANSWERS]` writes `assessment.html` and `assessment.md` to
+`./vigie-assessment` (`-o DIR`, `--format html,md,json`) and opens the page
+(`--no-open` to skip it); `--logs PATH` crosses the assessment with the
+alerts of those logs, `--scale N` sets the top of the maturity scale,
+`--title` the page's title, `--template FILE` writes the generic
+questionnaire (`.csv` or `.json`) and `--demo` tries it on a sample.
+`--map` proposes MITRE mitigations for controls that name none,
+`--sector NAME` and `--group NAME` set a threat profile, `--baseline FILE`
+compares with a previous questionnaire, and `--rules PATH` sets the detection
+rules the blind spots are checked against. See
+[Assess a maturity level](#assess-a-maturity-level).
 
 ### Live: `vigie watch`
 
@@ -850,6 +982,13 @@ CI runs the suite on Python 3.10 to 3.13 on Linux, and on macOS.
   and secrets the rules find: the report shows them as evidence, so treat it as
   sensitive. Card numbers and IBANs are recognized by checksum only, other
   personal data (names, addresses, national ids) is not.
+- `vigie assess` reasons on MITRE's mapping of mitigations to techniques:
+  a technique MITRE maps no mitigation to cannot be hindered by a control,
+  and one mapped to a mitigation that barely helps against it counts as
+  hindered all the same. The exposure index and the priorities compare
+  answers of the same questionnaire, not organizations with each other.
+  Mapping from the wording reads words, not meaning: "pas de MFA" points to
+  M1032 like "MFA". Sectors come from MITRE's prose and are as complete as it.
 - `vigie watch` follows text logs (auth.log, unified log exports, agent logs
   and `log stream`), not EVTX files. An agent log must hold at least one record
   when the watch starts, for its format to be recognized. It keeps every alert, with the events behind

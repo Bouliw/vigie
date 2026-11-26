@@ -154,6 +154,11 @@ def html_view(report: Report) -> dict[str, Any]:
             continue
         counts = {view.tactic.id: view.alert_count for view in seen}
         peak = max(counts.values(), default=0)
+        first_seen: dict[str, datetime] = {}
+        for alert in report.alerts:
+            for tactic in pick(alert).tactics:
+                if tactic.id not in first_seen or alert.first_seen < first_seen[tactic.id]:
+                    first_seen[tactic.id] = alert.first_seen
         cells = []
         for tactic in data.tactics:
             count = counts.get(tactic.id, 0)
@@ -166,8 +171,29 @@ def html_view(report: Report) -> dict[str, Any]:
                 "fw": key,
                 "count": count,
             }
-            cells.append({"tactic": tactic, "count": count, "heat": _heat(count, peak)})
-        strips.append({"key": key, "label": label, "cells": cells})
+            cells.append(
+                {
+                    "tactic": tactic,
+                    "count": count,
+                    "heat": _heat(count, peak),
+                    "first_seen": first_seen.get(tactic.id),
+                }
+            )
+        reached = [cell for cell in cells if cell["count"]]
+        strips.append(
+            {
+                "key": key,
+                "label": label,
+                "cells": cells,
+                "reached": reached,
+                "furthest": reached[-1]["tactic"] if reached else None,
+                # The stages in the order the attack reached them, for "how it unfolded".
+                "story": sorted(
+                    (cell for cell in reached if cell["first_seen"]),
+                    key=lambda cell: cell["first_seen"],
+                ),
+            }
+        )
 
     help_texts = {name: text + LEVEL_NOTE for name, text in LEVEL_HELP.items()}
     help_texts.update(HELP)

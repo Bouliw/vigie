@@ -224,19 +224,125 @@ def test_build_script_extracts_what_vigie_needs(tmp_path):
             "name": "Parent",
             "tactics": ["execution"],
             "url": "https://attack.mitre.org/techniques/T0001",
+            "mitigations": [],
+            "used_by": 0,
         },
         "T0001.001": {
             "name": "Child",
             "tactics": ["impact"],
             "url": "https://attack.mitre.org/techniques/T0001/001",
+            "mitigations": [],
+            "used_by": 0,
         },
     }
+    assert data["mitigations"] == {}
     # Revoked to an active technique: kept. Revoked to another revoked one: dropped.
     assert data["revoked"] == {"T0002": "T0001.001"}
 
     attack = AttackData.load(output)
     assert attack.technique("T0002").display_name == "Parent: Child"
     assert attack.summary("T0001") == ""
+
+
+def test_build_script_keeps_mitigations_and_users(tmp_path):
+    script = load_build_script()
+    bundle = json.loads(json.dumps(TINY_BUNDLE))
+    bundle["objects"] += [
+        {
+            "type": "course-of-action",
+            "id": "coa--1",
+            "name": "Multi-factor Authentication",
+            "description": "Require two factors. These factors typically include:\n\n- a key",
+            "external_references": reference("M1032", "mitigations/M1032"),
+        },
+        {
+            "type": "course-of-action",
+            "id": "coa--2",
+            "name": "Old technique-specific advice",
+            "x_mitre_deprecated": True,
+            "external_references": reference("T0001", "techniques/T0001"),
+        },
+        {
+            "type": "intrusion-set",
+            "id": "group--1",
+            "name": "Group",
+            "aliases": ["Group", "Other Name"],
+            "description": "[Group](https://attack.mitre.org/groups/G0001) targets hospitals "
+            "and banks (Citation: Report), lured through social media.",
+            "external_references": reference("G0001", "groups/G0001"),
+        },
+        {
+            "type": "intrusion-set",
+            "id": "group--2",
+            "name": "Idle",
+            "external_references": reference("G0002", "groups/G0002"),
+        },
+        {"type": "campaign", "id": "campaign--1", "name": "Campaign"},
+        {"type": "malware", "id": "malware--1", "name": "Malware"},
+        {"type": "malware", "id": "malware--2", "name": "Gone", "revoked": True},
+    ]
+    links = [
+        ("mitigates", "coa--1", "ap--2"),
+        ("mitigates", "coa--2", "ap--1"),
+        ("uses", "group--1", "ap--2"),
+        ("uses", "malware--1", "ap--1"),
+        ("uses", "malware--1", "ap--2"),
+        ("uses", "malware--2", "ap--1"),
+        ("attributed-to", "campaign--1", "group--1"),
+    ]
+    for number, (kind, source, target) in enumerate(links):
+        bundle["objects"].append(
+            {
+                "type": "relationship",
+                "id": f"relationship--l{number}",
+                "relationship_type": kind,
+                "source_ref": source,
+                "target_ref": target,
+            }
+        )
+    source = tmp_path / "bundle.json"
+    source.write_text(json.dumps(bundle))
+    output = tmp_path / "attack.json"
+    assert script.main(["--input", str(source), "--output", str(output)]) == 0
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data["mitigations"] == {
+        "M1032": {
+            "name": "Multi-factor Authentication",
+            "url": "https://attack.mitre.org/mitigations/M1032",
+            "summary": "Require two factors.",
+        }
+    }
+    child, parent = data["techniques"]["T0001.001"], data["techniques"]["T0001"]
+    assert child["mitigations"] == ["M1032"]
+    assert child["used_by"] == 2
+    # A deprecated course of action mitigates nothing; the parent counts the users of
+    # its sub-techniques, each once; a revoked piece of malware does not count.
+    assert parent["mitigations"] == []
+    assert parent["used_by"] == 2
+    attack = AttackData.load(output)
+    assert attack.mitigations["M1032"]["name"] == "Multi-factor Authentication"
+    assert attack.entries["T0001.001"]["mitigations"] == ["M1032"]
+    # A group uses its techniques as parents; the sectors come from its description,
+    # without the citations, and "social media" is no media sector. A group with no
+    # technique is left out.
+    assert data["groups"] == {
+        "G0001": {
+            "name": "Group",
+            "aliases": ["Other Name"],
+            "url": "https://attack.mitre.org/groups/G0001",
+            "sectors": ["healthcare", "financial"],
+            "techniques": ["T0001"],
+        }
+    }
+    assert attack.groups["G0001"]["sectors"] == ["healthcare", "financial"]
+    assert attack.sectors["healthcare"] == "Healthcare and life sciences"
+
+
+def test_shipped_extract_has_mitigations_and_users():
+    attack = AttackData.load()
+    assert "M1032" in attack.mitigations
+    assert "M1032" in attack.entries["T1078"]["mitigations"]
+    assert attack.entries["T1059"]["used_by"] > 100
 
 
 def test_build_script_keeps_a_plain_text_summary(tmp_path):

@@ -246,6 +246,8 @@ def test_reports_are_only_those_the_app_wrote(app, tmp_path):
         "/reports/../../etc/passwd",
         "/reports/20260101-000000-abcdef/report.html",
         "/reports/x/report.html",
+        "/reports/20260101-000000-abcdef/assessment.html",
+        "/assess/other.html",
         "/api/reports/x/open",
     ):
         method = "POST" if path.startswith("/api") else "GET"
@@ -297,6 +299,19 @@ def test_sample_analysis_end_to_end(app):
     report = app.reports_dir / entry["id"] / "report.html"
     assert app.opened == [report.resolve().as_uri()]
     assert app.revealed == [report]
+    # The assessment crossed with the alerts of that report, and the blank one.
+    response, page = request(
+        app, "GET", f"/reports/{entry['id']}/assessment.html", token=None, cookie=TOKEN
+    )
+    assert response.status == 200
+    assert response.getheader("X-Frame-Options") == "SAMEORIGIN"
+    data = json.loads(page.split(b'id="vigie-data">')[1].split(b"</script>")[0])
+    assert data["observed"] and all(isinstance(n, int) for n in data["observed"].values())
+    assert b'id="observed"' in page
+    response, page = request(app, "GET", "/assess/assessment.html", token=None, cookie=TOKEN)
+    assert response.status == 200
+    data = json.loads(page.split(b'id="vigie-data">')[1].split(b"</script>")[0])
+    assert data["observed"] == {} and len(data["controls"]) == 86
     # A late page gets the whole story again.
     assert events(app, f"/api/analyses/{job}/events", until={"done"})[-1][0] == "done"
     response, _ = request(app, "DELETE", f"/api/reports/{entry['id']}")

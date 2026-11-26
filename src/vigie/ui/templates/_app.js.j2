@@ -58,8 +58,10 @@
     root.setAttribute("data-theme", next);
     try { localStorage.setItem("vigie-theme", next); } catch (e) { /* storage blocked */ }
     syncTheme();
-    var frame = $("#report-frame");
-    try { if (frame.contentDocument) { frame.contentDocument.documentElement.setAttribute("data-theme", next); } } catch (e) { /* not loaded */ }
+    ["#report-frame", "#assess-frame"].forEach(function (sel) {
+      var frame = $(sel);
+      try { if (frame.contentDocument) { frame.contentDocument.documentElement.setAttribute("data-theme", next); } } catch (e) { /* not loaded */ }
+    });
   });
   syncTheme();
 
@@ -92,10 +94,10 @@
   }
 
   // ---- Views ----
-  var views = { home: $("#view-home"), progress: $("#view-progress"), results: $("#view-results"), watch: $("#view-watch") };
+  var views = { home: $("#view-home"), progress: $("#view-progress"), results: $("#view-results"), watch: $("#view-watch"), assess: $("#view-assess") };
   function show(name) {
     Object.keys(views).forEach(function (key) { views[key].hidden = key !== name; });
-    var tab = name === "watch" ? "watch" : "analyze";
+    var tab = name === "watch" || name === "assess" ? name : "analyze";
     doc.querySelectorAll(".tabs a").forEach(function (a) {
       if (a.getAttribute("data-tab") === tab) { a.setAttribute("aria-current", "page"); } else { a.removeAttribute("aria-current"); }
     });
@@ -106,7 +108,9 @@
     var hash = location.hash || "#/";
     var report = hash.match(/^#\/report\/([0-9a-f-]+)$/);
     var job = hash.match(/^#\/analysis\/([0-9a-f-]+)$/);
+    var assessed = hash.match(/^#\/assess(?:\/([0-9a-f-]+))?$/);
     if (report) { openReport(report[1]); }
+    else if (assessed) { openAssessment(assessed[1]); }
     else if (job) { show("progress"); }
     else if (hash === "#/watch") { show("watch"); resumeWatch(); }
     else { show("home"); loadState(); }
@@ -416,6 +420,7 @@
       var counts = $("#results-counts");
       counts.replaceWith(countsLine(entry.counts, false));
       $(".result-counts").id = "results-counts";
+      $("#assess-report").setAttribute("href", "#/assess/" + entry.id);
       var frame = $("#report-frame");
       var src = "/reports/" + entry.id + "/report.html";
       if (frame.getAttribute("src") !== src) { frame.setAttribute("src", src); }
@@ -439,6 +444,26 @@
   $("#reveal").addEventListener("click", function () {
     if (!current) { return; }
     api("POST", "/api/reports/" + current.id + "/reveal").catch(function (err) { toast(err.message); });
+  });
+
+  // ---- Assess ----
+  function openAssessment(id) {
+    var frame = $("#assess-frame");
+    var src = id ? "/reports/" + id + "/assessment.html" : "/assess/assessment.html";
+    var back = $("#assess-back");
+    back.hidden = !id;
+    if (id) { back.setAttribute("href", "#/report/" + id); }
+    var entry = id ? (state.recent || []).filter(function (e) { return e.id === id; })[0] : null;
+    $("#assess-title").textContent = entry ? "Maturity assessment, with the alerts of " + entry.label : "Maturity assessment";
+    if (frame.getAttribute("src") !== src) { frame.setAttribute("src", src); }
+    show("assess");
+  }
+  $("#assess-frame").addEventListener("load", function () {
+    var frame = $("#assess-frame");
+    try {
+      var t = root.getAttribute("data-theme");
+      if (t && frame.contentDocument) { frame.contentDocument.documentElement.setAttribute("data-theme", t); }
+    } catch (e) { /* cross-origin never happens here */ }
   });
 
   // ---- Watch ----
